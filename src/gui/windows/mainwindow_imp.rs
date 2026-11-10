@@ -1505,6 +1505,9 @@ impl MainWindow {
                     self.move_selected_paths_to_dir(sources, target_dir.clone());
                 }
             }
+            if let Some(column) = tabbar_action.as_ref().and_then(|t| t.sort_by) {
+                self.toggle_sort(column, false, false);
+            }
             if tabbar_action
                 .as_ref()
                 .map(|t| t.create_folder)

@@ -1,5 +1,6 @@
 // gui/mod.rs
 pub mod backdrop;
+pub mod customization;
 pub mod dragdrop;
 pub mod folder_icons;
 pub mod icon_system;

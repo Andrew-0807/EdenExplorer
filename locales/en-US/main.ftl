@@ -323,3 +323,27 @@ theme_colors_folder_downloads = Downloads folder
 theme_colors_folder_pictures = Pictures folder
 theme_colors_folder_music = Music folder
 theme_colors_folder_videos = Videos folder
+
+# Toolbar and command bar
+settings_tab_appearance = Appearance
+settings_toolbar = Toolbar
+settings_toolbar_layout = Layout
+settings_toolbar_single_row = Next to the address bar
+settings_toolbar_command_bar = Command bar below the address bar
+settings_toolbar_labels = Show text labels
+settings_toolbar_new_folder = New folder button
+settings_toolbar_new_file = New file button
+settings_toolbar_edit_buttons = Cut, copy, paste, rename, delete and properties
+settings_toolbar_sort = Sort menu
+settings_toolbar_view = View button
+settings_toolbar_favorite = Favorite button
+settings_toolbar_terminal = Terminal button
+settings_toolbar_explorer_like = Use the Explorer layout
+toolbar_new_folder = New folder
+toolbar_new_file = New file
+toolbar_sort = Sort
+toolbar_view = View
+toolbar_view_details = Details
+toolbar_view_gallery = Gallery
+toolbar_favorite = Favorite
+toolbar_terminal = Terminal

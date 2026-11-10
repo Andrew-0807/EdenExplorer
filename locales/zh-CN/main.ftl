@@ -323,3 +323,27 @@ theme_colors_folder_downloads = 下载文件夹
 theme_colors_folder_pictures = 图片文件夹
 theme_colors_folder_music = 音乐文件夹
 theme_colors_folder_videos = 视频文件夹
+
+# Toolbar and command bar
+settings_tab_appearance = 外观
+settings_toolbar = 工具栏
+settings_toolbar_layout = 布局
+settings_toolbar_single_row = 地址栏旁边
+settings_toolbar_command_bar = 地址栏下方的命令栏
+settings_toolbar_labels = 显示文字标签
+settings_toolbar_new_folder = 新建文件夹按钮
+settings_toolbar_new_file = 新建文件按钮
+settings_toolbar_edit_buttons = 剪切、复制、粘贴、重命名、删除和属性
+settings_toolbar_sort = 排序菜单
+settings_toolbar_view = 视图按钮
+settings_toolbar_favorite = 收藏按钮
+settings_toolbar_terminal = 终端按钮
+settings_toolbar_explorer_like = 使用资源管理器布局
+toolbar_new_folder = 新建文件夹
+toolbar_new_file = 新建文件
+toolbar_sort = 排序
+toolbar_view = 查看
+toolbar_view_details = 详细信息
+toolbar_view_gallery = 图库
+toolbar_favorite = 收藏
+toolbar_terminal = 终端

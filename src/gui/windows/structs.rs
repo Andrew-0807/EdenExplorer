@@ -80,6 +80,8 @@ pub struct AppSettings {
     pub item_viewer_drive_column_sizes: Vec<f32>,
     pub recycle_bin_column_sizes: Vec<f32>,
     pub directory_settings: Vec<DirectorySettingsSnapshot>,
+    /// Toolbar, status bar and sidebar layout.
+    pub ui: crate::gui::customization::UiPreferences,
 }
 
 #[derive(Default)]
@@ -96,6 +98,7 @@ pub struct SettingsWindow {
 pub enum SettingsTab {
     #[default]
     General,
+    Appearance,
     ViewDefaults,
     Hotkeys,
 }

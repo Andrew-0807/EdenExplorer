@@ -799,6 +799,7 @@ impl eframe::App for MainWindow {
                                                                     .current_settings
                                                                     .show_item_viewer_icons,
                                                                 self.settings_window.current_settings.extra_actions_bar,
+                                                self.settings_window.current_settings.ui,
                                                                 &mut self.rename_state,
                                                                 &mut self.file_type_cache,
                                                                 &mut self.file_size_text_cache,
@@ -895,6 +896,7 @@ impl eframe::App for MainWindow {
                                                                     .current_settings
                                                                     .show_item_viewer_icons,
                                                                 self.settings_window.current_settings.extra_actions_bar,
+                                                self.settings_window.current_settings.ui,
                                                                 &mut self.rename_state,
                                                                 &mut self.file_type_cache,
                                                                 &mut self.file_size_text_cache,
@@ -961,6 +963,7 @@ impl eframe::App for MainWindow {
                                                     .current_settings
                                                     .show_item_viewer_icons,
                                                 self.settings_window.current_settings.extra_actions_bar,
+                                                self.settings_window.current_settings.ui,
                                                 &mut self.rename_state,
                                                 &mut self.file_type_cache,
                                                 &mut self.file_size_text_cache,

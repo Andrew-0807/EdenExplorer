@@ -323,3 +323,27 @@ theme_colors_folder_downloads = ダウンロード フォルダー
 theme_colors_folder_pictures = ピクチャ フォルダー
 theme_colors_folder_music = ミュージック フォルダー
 theme_colors_folder_videos = ビデオ フォルダー
+
+# Toolbar and command bar
+settings_tab_appearance = 外観
+settings_toolbar = ツールバー
+settings_toolbar_layout = レイアウト
+settings_toolbar_single_row = アドレスバーの横
+settings_toolbar_command_bar = アドレスバーの下のコマンドバー
+settings_toolbar_labels = テキストラベルを表示
+settings_toolbar_new_folder = 新しいフォルダーボタン
+settings_toolbar_new_file = 新しいファイルボタン
+settings_toolbar_edit_buttons = 切り取り、コピー、貼り付け、名前の変更、削除、プロパティ
+settings_toolbar_sort = 並べ替えメニュー
+settings_toolbar_view = 表示ボタン
+settings_toolbar_favorite = お気に入りボタン
+settings_toolbar_terminal = ターミナルボタン
+settings_toolbar_explorer_like = エクスプローラーのレイアウトにする
+toolbar_new_folder = 新しいフォルダー
+toolbar_new_file = 新しいファイル
+toolbar_sort = 並べ替え
+toolbar_view = 表示
+toolbar_view_details = 詳細
+toolbar_view_gallery = ギャラリー
+toolbar_favorite = お気に入り
+toolbar_terminal = ターミナル

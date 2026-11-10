@@ -323,3 +323,27 @@ theme_colors_folder_downloads = Folder Unduhan
 theme_colors_folder_pictures = Folder Gambar
 theme_colors_folder_music = Folder Musik
 theme_colors_folder_videos = Folder Video
+
+# Toolbar and command bar
+settings_tab_appearance = Tampilan
+settings_toolbar = Bilah alat
+settings_toolbar_layout = Tata letak
+settings_toolbar_single_row = Di samping bilah alamat
+settings_toolbar_command_bar = Bilah perintah di bawah bilah alamat
+settings_toolbar_labels = Tampilkan label teks
+settings_toolbar_new_folder = Tombol folder baru
+settings_toolbar_new_file = Tombol berkas baru
+settings_toolbar_edit_buttons = Potong, salin, tempel, ganti nama, hapus, dan properti
+settings_toolbar_sort = Menu urutkan
+settings_toolbar_view = Tombol tampilan
+settings_toolbar_favorite = Tombol favorit
+settings_toolbar_terminal = Tombol terminal
+settings_toolbar_explorer_like = Gunakan tata letak Explorer
+toolbar_new_folder = Folder baru
+toolbar_new_file = Berkas baru
+toolbar_sort = Urutkan
+toolbar_view = Tampilan
+toolbar_view_details = Detail
+toolbar_view_gallery = Galeri
+toolbar_favorite = Favorit
+toolbar_terminal = Terminal

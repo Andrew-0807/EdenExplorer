@@ -2,8 +2,12 @@ use crate::core::fs::{MY_PC_PATH, MY_RECYCLE_BIN_PATH};
 use crate::core::i18n::I18n;
 use crate::core::icons::IconCache;
 use crate::core::portable;
+use crate::gui::customization::{
+    ToolbarItem, ToolbarLayout, ToolbarPrefs, ToolbarState, toolbar_item_enabled, toolbar_items,
+};
 use crate::gui::icon_system::{AppIcon, StyledIcon, draw_icon, paint_icon};
 use crate::gui::theme::{ThemePalette, error_color};
+use crate::gui::utils::{SortColumn, SortKey};
 use crate::gui::utils::{clickable_icon, expand_environment_variables};
 use crate::gui::windows::containers::enums::{ItemViewerContextAction, ItemViewerNavAction};
 use crate::gui::windows::containers::structs::{
@@ -26,6 +30,7 @@ pub fn draw_itemviewer_navigation_bar(
     drag_active: bool,
     drag_hover_target: Option<PathBuf>,
     extra_actions_bar: bool,
+    toolbar_prefs: ToolbarPrefs,
     clipboard_has_files: bool,
 ) -> ItemViewerNavBarAction {
     let mut action = ItemViewerNavBarAction::default();
@@ -46,21 +51,28 @@ pub fn draw_itemviewer_navigation_bar(
 
     ui.horizontal(|ui| {
         ui.add_space(1.5);
-        let toolbar_action = draw_navigation_bar_buttons(
-            ui,
-            i18n,
-            palette,
-            is_favorited,
-            &tab.nav.current,
-            tab.nav.is_root(),
-            is_recycle_bin,
-            can_go_back,
-            can_go_forward,
-            tab.display_mode,
-            extra_actions_bar,
-            &tab.explorer_state.selected_paths,
-            clipboard_has_files,
-        );
+        let toolbar_action = {
+            let toolbar = toolbar_context(
+                i18n,
+                palette,
+                tab,
+                toolbar_prefs,
+                extra_actions_bar,
+                is_favorited,
+                clipboard_has_files,
+            );
+            let inline = (toolbar_prefs.layout == ToolbarLayout::SingleRow).then_some(&toolbar);
+            draw_navigation_bar_buttons(
+                ui,
+                i18n,
+                palette,
+                tab.nav.is_root(),
+                is_recycle_bin,
+                can_go_back,
+                can_go_forward,
+                inline,
+            )
+        };
 
         merge_toolbar_action(&mut action, toolbar_action);
         if action.toggle_gallery {
@@ -349,20 +361,16 @@ fn nav_icon_button(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_navigation_bar_buttons(
     ui: &mut egui::Ui,
     i18n: &I18n,
     palette: &ThemePalette,
-    is_favorited: bool,
-    current_dir: &Path,
     is_root: bool,
     is_recycle_bin: bool,
     can_go_back: bool,
     can_go_forward: bool,
-    display_mode: ItemViewerDisplayMode,
-    extra_actions_bar: bool,
-    selected_paths: &std::collections::HashSet<PathBuf>,
-    clipboard_has_files: bool,
+    inline_toolbar: Option<&ToolbarContext>,
 ) -> ItemViewerNavBarAction {
     let mut action = ItemViewerNavBarAction::default();
 
@@ -424,206 +432,297 @@ fn draw_navigation_bar_buttons(
         action.refresh_current_directory = true;
     }
 
-    // Action buttons
-    if nav_icon_button(
-        ui,
-        AppIcon::FolderPlus.regular(),
-        palette,
-        !is_recycle_bin,
-        &i18n.tr("tooltip_newfolder"),
-    )
-    .clicked()
-        && !is_recycle_bin
-    {
-        action.create_folder = true;
+    if let Some(toolbar) = inline_toolbar {
+        let items = toolbar_items(&toolbar.prefs, toolbar.extra_actions_bar);
+        if !items.is_empty() {
+            ui.add_space(2.0);
+            merge_toolbar_action(&mut action, draw_toolbar_items(ui, toolbar, &items));
+        }
     }
 
-    if nav_icon_button(
-        ui,
-        AppIcon::FilePlus.regular(),
+    action
+}
+
+/// Everything the toolbar buttons need to know about the current view.
+pub struct ToolbarContext<'a> {
+    pub i18n: &'a I18n,
+    pub palette: &'a ThemePalette,
+    pub prefs: ToolbarPrefs,
+    pub extra_actions_bar: bool,
+    pub is_favorited: bool,
+    pub current_dir: &'a Path,
+    pub display_mode: ItemViewerDisplayMode,
+    pub selected_paths: &'a std::collections::HashSet<PathBuf>,
+    pub state: ToolbarState,
+    pub primary_sort: Option<SortKey>,
+}
+
+/// Builds the toolbar context for `tab`.
+pub fn toolbar_context<'a>(
+    i18n: &'a I18n,
+    palette: &'a ThemePalette,
+    tab: &'a TabView,
+    prefs: ToolbarPrefs,
+    extra_actions_bar: bool,
+    is_favorited: bool,
+    clipboard_has_files: bool,
+) -> ToolbarContext<'a> {
+    ToolbarContext {
+        i18n,
         palette,
-        !is_recycle_bin,
-        &i18n.tr("tooltip_newfile"),
-    )
-    .clicked()
-        && !is_recycle_bin
-    {
-        action.create_file = true;
+        prefs,
+        extra_actions_bar,
+        is_favorited,
+        current_dir: &tab.nav.current,
+        display_mode: tab.display_mode,
+        selected_paths: &tab.explorer_state.selected_paths,
+        state: ToolbarState {
+            is_root: tab.nav.is_root(),
+            is_recycle_bin: tab.nav.is_recycle_bin(),
+            has_selection: !tab.explorer_state.selected_paths.is_empty(),
+            clipboard_has_files,
+        },
+        primary_sort: tab.sort_keys.first().copied(),
     }
+}
 
-    let star_icon = if is_favorited {
-        AppIcon::Star.filled()
-    } else {
-        AppIcon::Star.regular()
-    };
-    let star_color = if is_favorited {
-        palette.button_favorite_fill
-    } else {
-        palette.tooltip_text_color
-    };
+/// Explorer-style command bar: its own row under the address bar.
+pub fn draw_command_bar(ui: &mut egui::Ui, toolbar: &ToolbarContext) -> ItemViewerNavBarAction {
+    let items = toolbar_items(&toolbar.prefs, toolbar.extra_actions_bar);
+    ui.horizontal_centered(|ui| {
+        ui.add_space(4.0);
+        draw_toolbar_items(ui, toolbar, &items)
+    })
+    .inner
+}
 
-    let star_label = if is_root || is_recycle_bin {
-        i18n.tr("tooltip_favorites_disabled")
-    } else if is_favorited {
-        i18n.tr("tooltip_favorites_remove")
+/// One toolbar button: icon, optional label, hover fill. Disabled buttons
+/// are dimmed and ignore clicks.
+fn toolbar_button(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    icon: StyledIcon,
+    label: Option<&str>,
+    enabled: bool,
+    tooltip: &str,
+    icon_color: Option<egui::Color32>,
+) -> egui::Response {
+    let icon_size = palette.text_size + 2.0;
+    let font_id = FontId::proportional(palette.text_size);
+    let text_color = if enabled {
+        ui.visuals().text_color()
     } else {
-        i18n.tr("tooltip_favorites_add")
+        ui.visuals().weak_text_color()
     };
-    let star_resp = draw_icon(
-        ui,
-        star_icon,
-        palette.text_size + 2.0,
-        star_color,
-        &star_label,
+    let galley = label.map(|text| {
+        ui.painter()
+            .layout_no_wrap(text.to_owned(), font_id.clone(), text_color)
+    });
+    let pad = if galley.is_some() { 6.0 } else { 3.0 };
+    let width = pad * 2.0 + icon_size + galley.as_ref().map_or(0.0, |g| g.size().x + 5.0);
+    let height = icon_size + 8.0;
+    let sense = if enabled {
+        egui::Sense::click()
+    } else {
+        egui::Sense::hover()
+    };
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(width, height), sense);
+
+    if enabled && resp.hovered() {
+        ui.painter().rect_filled(
+            rect,
+            egui::CornerRadius::same(palette.medium_radius),
+            ui.visuals().widgets.hovered.weak_bg_fill,
+        );
+    }
+    let icon_rect = egui::Rect::from_min_size(
+        egui::pos2(rect.left() + pad, rect.center().y - icon_size * 0.5),
+        egui::Vec2::splat(icon_size),
     );
-
-    let star_resp = if is_root || is_recycle_bin {
-        star_resp.on_hover_text(
-            egui::RichText::new(i18n.tr("tooltip_favorites_disabled"))
-                .size(palette.tooltip_text_size)
-                .color(palette.tooltip_text_color),
-        )
+    let color = if !enabled {
+        ui.visuals().weak_text_color()
     } else {
-        star_resp
-            .on_hover_text(
-                egui::RichText::new(if is_favorited {
+        icon_color.unwrap_or(text_color)
+    };
+    paint_icon(ui, icon_rect, icon, icon_size, color);
+    if let Some(galley) = galley {
+        let pos = egui::pos2(
+            icon_rect.right() + 5.0,
+            rect.center().y - galley.size().y * 0.5,
+        );
+        ui.painter().galley(pos, galley, text_color);
+    }
+
+    let resp = resp.on_hover_text(
+        egui::RichText::new(tooltip)
+            .size(palette.tooltip_text_size)
+            .color(palette.tooltip_text_color),
+    );
+    if enabled {
+        resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+    } else {
+        resp
+    }
+}
+
+fn draw_toolbar_items(
+    ui: &mut egui::Ui,
+    t: &ToolbarContext,
+    items: &[ToolbarItem],
+) -> ItemViewerNavBarAction {
+    let mut action = ItemViewerNavBarAction::default();
+    let i18n = t.i18n;
+    let palette = t.palette;
+    let selected = || {
+        let mut paths: Vec<PathBuf> = t.selected_paths.iter().cloned().collect();
+        paths.sort();
+        paths
+    };
+    let old_spacing = ui.spacing().item_spacing.x;
+    ui.spacing_mut().item_spacing.x = 2.0;
+
+    for &item in items {
+        if item == ToolbarItem::Separator {
+            ui.add_space(2.0);
+            navbar_separator(ui, palette);
+            ui.add_space(2.0);
+            continue;
+        }
+        let enabled = toolbar_item_enabled(item, t.state);
+        let label_text = i18n.tr(item.label_key());
+        let label = item
+            .shows_label(t.prefs.labels)
+            .then_some(label_text.as_str());
+        let (icon, tooltip, color) = match item {
+            ToolbarItem::NewFolder => (
+                AppIcon::FolderPlus.regular(),
+                i18n.tr("tooltip_newfolder"),
+                None,
+            ),
+            ToolbarItem::NewFile => (
+                AppIcon::FilePlus.regular(),
+                i18n.tr("tooltip_newfile"),
+                None,
+            ),
+            ToolbarItem::Cut => (AppIcon::ActionCut.regular(), label_text.clone(), None),
+            ToolbarItem::Copy => (AppIcon::ActionCopy.regular(), label_text.clone(), None),
+            ToolbarItem::Paste => (AppIcon::ActionPaste.regular(), label_text.clone(), None),
+            ToolbarItem::Rename => (AppIcon::ActionRename.regular(), label_text.clone(), None),
+            ToolbarItem::Delete => (AppIcon::ActionDelete.regular(), label_text.clone(), None),
+            ToolbarItem::Properties => (
+                AppIcon::ActionProperties.regular(),
+                label_text.clone(),
+                None,
+            ),
+            ToolbarItem::Sort => (AppIcon::Sliders.regular(), label_text.clone(), None),
+            ToolbarItem::View => (
+                AppIcon::ImagesSquare.regular(),
+                i18n.tr("tooltip_gallery_view"),
+                (t.display_mode == ItemViewerDisplayMode::Gallery).then_some(palette.primary),
+            ),
+            ToolbarItem::Favorite => {
+                let (icon, color) = if t.is_favorited {
+                    (AppIcon::Star.filled(), palette.button_favorite_fill)
+                } else {
+                    (AppIcon::Star.regular(), palette.tooltip_text_color)
+                };
+                let tooltip = if !enabled {
+                    i18n.tr("tooltip_favorites_disabled")
+                } else if t.is_favorited {
                     i18n.tr("tooltip_favorites_remove")
                 } else {
                     i18n.tr("tooltip_favorites_add")
-                })
-                .size(palette.tooltip_text_size)
-                .color(palette.tooltip_text_color),
-            )
-            .on_hover_cursor(egui::CursorIcon::PointingHand)
-    };
-
-    if star_resp.clicked() {
-        if is_favorited {
-            action.remove_favorite = true;
-        } else {
-            action.add_favorite = true;
-        }
-    }
-
-    let gallery_color = if display_mode == ItemViewerDisplayMode::Gallery {
-        palette.primary
-    } else {
-        ui.visuals().text_color()
-    };
-    let gallery_resp = draw_icon(
-        ui,
-        AppIcon::ImagesSquare.regular(),
-        palette.text_size + 2.0,
-        gallery_color,
-        &i18n.tr("tooltip_gallery_view"),
-    )
-    .on_hover_text(
-        egui::RichText::new(i18n.tr("tooltip_gallery_view"))
-            .size(palette.tooltip_text_size)
-            .color(palette.tooltip_text_color),
-    )
-    .on_hover_cursor(egui::CursorIcon::PointingHand);
-    if gallery_resp.clicked() && !is_recycle_bin && !is_root {
-        action.toggle_gallery = true;
-    }
-
-    if nav_icon_button(
-        ui,
-        AppIcon::Terminal.regular(),
-        palette,
-        !is_recycle_bin,
-        &i18n.tr("tooltip_open_terminal"),
-    )
-    .clicked()
-        && !is_recycle_bin
-    {
-        open_default_terminal(current_dir);
-    }
-
-    if extra_actions_bar {
-        let mut selected: Vec<PathBuf> = selected_paths.iter().cloned().collect();
-        selected.sort();
-        let has_selection = !selected.is_empty();
-        let edit_enabled = has_selection && !is_recycle_bin;
-        let paste_enabled = edit_enabled && clipboard_has_files;
-
-        navbar_separator(ui, palette);
-        let extra_button = |ui: &mut egui::Ui, icon: StyledIcon, enabled: bool, label: String| {
-            nav_icon_button(ui, icon, palette, enabled, &label)
-        };
-        if extra_button(
-            ui,
-            AppIcon::ActionCut.regular(),
-            edit_enabled,
-            i18n.tr("inputs_cut"),
-        )
-        .clicked()
-            && edit_enabled
-        {
-            action.context_action = Some(ItemViewerContextAction::Cut(selected.clone()));
-        }
-        if extra_button(
-            ui,
-            AppIcon::ActionCopy.regular(),
-            edit_enabled,
-            i18n.tr("inputs_copy"),
-        )
-        .clicked()
-            && edit_enabled
-        {
-            action.context_action = Some(ItemViewerContextAction::Copy(selected.clone()));
-        }
-        if extra_button(
-            ui,
-            AppIcon::ActionPaste.regular(),
-            paste_enabled,
-            i18n.tr("inputs_paste"),
-        )
-        .clicked()
-            && paste_enabled
-        {
-            action.context_action = Some(ItemViewerContextAction::Paste);
-        }
-        if extra_button(
-            ui,
-            AppIcon::ActionDelete.regular(),
-            has_selection,
-            i18n.tr("inputs_delete"),
-        )
-        .clicked()
-            && has_selection
-        {
-            action.context_action = Some(ItemViewerContextAction::Delete {
-                paths: selected.clone(),
-                permanent: is_recycle_bin,
-            });
-        }
-        if extra_button(
-            ui,
-            AppIcon::ActionRename.regular(),
-            edit_enabled,
-            i18n.tr("inputs_rename"),
-        )
-        .clicked()
-            && edit_enabled
-        {
-            if let Some(path) = selected.first() {
-                action.rename_path = Some(path.clone());
+                };
+                (icon, tooltip, Some(color))
             }
-        }
-        if extra_button(
-            ui,
-            AppIcon::ActionProperties.regular(),
-            has_selection,
-            i18n.tr("properties"),
-        )
-        .clicked()
-            && has_selection
-        {
-            action.context_action = Some(ItemViewerContextAction::Properties(selected));
+            ToolbarItem::Terminal => (
+                AppIcon::Terminal.regular(),
+                i18n.tr("tooltip_open_terminal"),
+                None,
+            ),
+            ToolbarItem::Separator => continue,
+        };
+
+        let resp = toolbar_button(ui, palette, icon, label, enabled, &tooltip, color);
+        match item {
+            ToolbarItem::Sort => {
+                egui::Popup::menu(&resp).show(|ui| {
+                    for (column, key) in [
+                        (SortColumn::Name, "explorer_cols_name"),
+                        (SortColumn::Modified, "explorer_cols_modified"),
+                        (SortColumn::Type, "explorer_cols_type"),
+                        (SortColumn::Size, "explorer_cols_size"),
+                        (SortColumn::Created, "explorer_cols_created"),
+                        (SortColumn::Tags, "explorer_cols_tags"),
+                    ] {
+                        let current = t.primary_sort.filter(|k| k.column == column);
+                        let arrow = match current {
+                            Some(k) if k.ascending => "  ▲",
+                            Some(_) => "  ▼",
+                            None => "",
+                        };
+                        if ui
+                            .selectable_label(current.is_some(), format!("{}{arrow}", i18n.tr(key)))
+                            .clicked()
+                        {
+                            action.sort_by = Some(column);
+                            ui.close();
+                        }
+                    }
+                });
+            }
+            ToolbarItem::View if t.prefs.labels => {
+                egui::Popup::menu(&resp).show(|ui| {
+                    for (mode, key) in [
+                        (ItemViewerDisplayMode::Details, "toolbar_view_details"),
+                        (ItemViewerDisplayMode::Gallery, "toolbar_view_gallery"),
+                    ] {
+                        if ui
+                            .selectable_label(t.display_mode == mode, i18n.tr(key))
+                            .clicked()
+                        {
+                            action.toggle_gallery = t.display_mode != mode;
+                            ui.close();
+                        }
+                    }
+                });
+            }
+            _ if resp.clicked() && enabled => match item {
+                ToolbarItem::NewFolder => action.create_folder = true,
+                ToolbarItem::NewFile => action.create_file = true,
+                ToolbarItem::Cut => {
+                    action.context_action = Some(ItemViewerContextAction::Cut(selected()))
+                }
+                ToolbarItem::Copy => {
+                    action.context_action = Some(ItemViewerContextAction::Copy(selected()))
+                }
+                ToolbarItem::Paste => action.context_action = Some(ItemViewerContextAction::Paste),
+                ToolbarItem::Rename => action.rename_path = selected().into_iter().next(),
+                ToolbarItem::Delete => {
+                    action.context_action = Some(ItemViewerContextAction::Delete {
+                        paths: selected(),
+                        permanent: t.state.is_recycle_bin,
+                    })
+                }
+                ToolbarItem::Properties => {
+                    action.context_action = Some(ItemViewerContextAction::Properties(selected()))
+                }
+                ToolbarItem::View => action.toggle_gallery = true,
+                ToolbarItem::Favorite => {
+                    if t.is_favorited {
+                        action.remove_favorite = true;
+                    } else {
+                        action.add_favorite = true;
+                    }
+                }
+                ToolbarItem::Terminal => open_default_terminal(t.current_dir),
+                ToolbarItem::Sort | ToolbarItem::Separator => {}
+            },
+            _ => {}
         }
     }
 
+    ui.spacing_mut().item_spacing.x = old_spacing;
     action
 }
 
@@ -973,7 +1072,10 @@ fn handle_breadcrumb_drag(
     }
 }
 
-fn merge_toolbar_action(action: &mut ItemViewerNavBarAction, toolbar: ItemViewerNavBarAction) {
+pub(crate) fn merge_toolbar_action(
+    action: &mut ItemViewerNavBarAction,
+    toolbar: ItemViewerNavBarAction,
+) {
     if action.nav.is_none() {
         action.nav = toolbar.nav;
     }
@@ -993,5 +1095,8 @@ fn merge_toolbar_action(action: &mut ItemViewerNavBarAction, toolbar: ItemViewer
     }
     if action.rename_path.is_none() {
         action.rename_path = toolbar.rename_path;
+    }
+    if action.sort_by.is_none() {
+        action.sort_by = toolbar.sort_by;
     }
 }

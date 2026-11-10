@@ -1,12 +1,15 @@
 use crate::core::i18n::I18n;
 use crate::core::icons::IconCache;
 use crate::core::utils::files::format_size;
+use crate::gui::customization::{ToolbarLayout, UiPreferences};
 use crate::gui::dragdrop::DropTargets;
 use crate::gui::icon_system::{AppIcon, StyledIcon, paint_icon};
 use crate::gui::theme::ThemePalette;
 use crate::gui::windows::containers::enums::ItemViewerAction;
 use crate::gui::windows::containers::itemviewer::draw_item_viewer;
-use crate::gui::windows::containers::itemviewer_navbar::draw_itemviewer_navigation_bar;
+use crate::gui::windows::containers::itemviewer_navbar::{
+    draw_command_bar, draw_itemviewer_navigation_bar, merge_toolbar_action, toolbar_context,
+};
 use crate::gui::windows::containers::structs::{
     ItemViewerDisplayMode, ItemViewerNavBarAction, RenameState, TabView, TagsState,
 };
@@ -48,6 +51,7 @@ pub fn draw_tab_content(
     show_hidden_files_folders: bool,
     show_item_viewer_icons: bool,
     extra_actions_bar: bool,
+    ui_prefs: UiPreferences,
     rename_state: &mut Option<RenameState>,
     file_type_cache: &mut HashMap<String, String>,
     file_size_text_cache: &mut HashMap<PathBuf, (u64, String)>,
@@ -74,14 +78,22 @@ pub fn draw_tab_content(
     let font_id = egui::FontId::proportional(palette.text_size);
     let status_height = ui.fonts_mut(|f| f.row_height(&font_id)) + 2.0;
     // approximate height of your breadcrumb/tabbar
-    let tabbar_height = 30.0;
+    let navbar_height = 30.0;
+    let command_bar = ui_prefs.toolbar.layout == ToolbarLayout::CommandBar;
+    let command_bar_height = if command_bar {
+        palette.text_size + 14.0
+    } else {
+        0.0
+    };
+    let tabbar_height = navbar_height + command_bar_height;
 
     let old_spacing = ui.spacing().item_spacing.y;
     ui.spacing_mut().item_spacing.y = 0.0;
     let content_rect = ui.available_rect_before_wrap();
 
     StripBuilder::new(ui)
-        .size(Size::exact(tabbar_height)) // Tabbar
+        .size(Size::exact(navbar_height)) // Tabbar
+        .size(Size::exact(command_bar_height)) // Command bar (0 when off)
         .size(Size::remainder()) // Item viewer
         .size(Size::exact(status_height)) // Footer
         .vertical(|mut strip| {
@@ -97,8 +109,35 @@ pub fn draw_tab_content(
                     drag_active,
                     drag_hover_target.clone(),
                     extra_actions_bar,
+                    ui_prefs.toolbar,
                     clipboard_has_files,
                 ));
+            });
+
+            strip.cell(|ui| {
+                if !command_bar {
+                    return;
+                }
+                let command_action = {
+                    let toolbar = toolbar_context(
+                        i18n,
+                        palette,
+                        view,
+                        ui_prefs.toolbar,
+                        extra_actions_bar,
+                        is_favorited,
+                        clipboard_has_files,
+                    );
+                    draw_command_bar(ui, &toolbar)
+                };
+                if command_action.toggle_gallery {
+                    view.display_mode = match view.display_mode {
+                        ItemViewerDisplayMode::Details => ItemViewerDisplayMode::Gallery,
+                        ItemViewerDisplayMode::Gallery => ItemViewerDisplayMode::Details,
+                    };
+                }
+                let navbar = tabbar_action.get_or_insert_with(Default::default);
+                merge_toolbar_action(navbar, command_action);
             });
 
             strip.cell(|ui| {

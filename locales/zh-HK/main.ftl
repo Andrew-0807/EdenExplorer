@@ -323,3 +323,27 @@ theme_colors_folder_downloads = 下載資料夾
 theme_colors_folder_pictures = 圖片資料夾
 theme_colors_folder_music = 音樂資料夾
 theme_colors_folder_videos = 影片資料夾
+
+# Toolbar and command bar
+settings_tab_appearance = 外觀
+settings_toolbar = 工具列
+settings_toolbar_layout = 版面配置
+settings_toolbar_single_row = 網址列旁邊
+settings_toolbar_command_bar = 網址列下方的命令列
+settings_toolbar_labels = 顯示文字標籤
+settings_toolbar_new_folder = 新增資料夾按鈕
+settings_toolbar_new_file = 新增檔案按鈕
+settings_toolbar_edit_buttons = 剪下、複製、貼上、重新命名、刪除和內容
+settings_toolbar_sort = 排序選單
+settings_toolbar_view = 檢視按鈕
+settings_toolbar_favorite = 我的最愛按鈕
+settings_toolbar_terminal = 終端機按鈕
+settings_toolbar_explorer_like = 使用檔案總管版面配置
+toolbar_new_folder = 新增資料夾
+toolbar_new_file = 新增檔案
+toolbar_sort = 排序
+toolbar_view = 檢視
+toolbar_view_details = 詳細資料
+toolbar_view_gallery = 圖庫
+toolbar_favorite = 我的最愛
+toolbar_terminal = 終端機

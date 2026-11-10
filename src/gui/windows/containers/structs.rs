@@ -840,6 +840,9 @@ pub struct ItemViewerNavBarAction {
     pub move_files_to_breadcrumb_dir_rect: Option<egui::Rect>,
     pub context_action: Option<ItemViewerContextAction>,
     pub rename_path: Option<PathBuf>,
+    /// Sort menu of the command bar: sort by this column (toggles direction
+    /// when it is already the primary key).
+    pub sort_by: Option<crate::gui::utils::SortColumn>,
 }
 
 #[derive(Clone, Copy)]

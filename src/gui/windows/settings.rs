@@ -11,6 +11,7 @@ use crate::core::{
         eden_text_label, eden_toggle_button,
     },
 };
+use crate::gui::customization::{ToolbarLayout, ToolbarPrefs};
 use crate::gui::icon_system::{AppIcon, draw_icon, paint_icon};
 use crate::gui::theme::ThemePalette;
 use crate::gui::utils::SortColumn;
@@ -157,6 +158,7 @@ impl Default for AppSettings {
             item_viewer_drive_column_sizes: default_item_viewer_drive_column_size(),
             recycle_bin_column_sizes: default_recycle_bin_column_size(),
             directory_settings: vec![],
+            ui: Default::default(),
         }
     }
 }
@@ -304,6 +306,102 @@ fn draw_view_defaults_tab(
                     }
                 },
             );
+        }
+    });
+
+    changed.then_some(SettingsAction::ApplySettings)
+}
+
+/// Heading of a group in the Appearance tab.
+fn appearance_heading(ui: &mut egui::Ui, palette: &ThemePalette, text: &str) {
+    ui.add_space(6.0);
+    ui.label(
+        RichText::new(text)
+            .color(palette.text_header_section)
+            .strong(),
+    );
+    ui.add_space(2.0);
+}
+
+/// A checkbox row bound to one preference; true when it changed.
+fn pref_checkbox(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    i18n: &I18n,
+    key: &str,
+    value: &mut bool,
+) -> bool {
+    let changed = ui
+        .horizontal(|ui| {
+            setting_checkbox(
+                ui,
+                palette,
+                value,
+                RichText::new(i18n.tr(key)).color(palette.text_normal),
+                ("appearance", key),
+            )
+        })
+        .inner;
+    ui.add_space(4.0);
+    changed
+}
+
+fn draw_appearance_tab(
+    ui: &mut egui::Ui,
+    settings: &mut SettingsWindow,
+    palette: &ThemePalette,
+    i18n: &I18n,
+) -> Option<SettingsAction> {
+    let mut changed = false;
+    let prefs = &mut settings.current_settings.ui;
+
+    ui.group(|ui| {
+        appearance_heading(ui, palette, &i18n.tr("settings_toolbar"));
+        setting_row(
+            ui,
+            |ui| setting_label(ui, &i18n.tr("settings_toolbar_layout"), None, palette),
+            |ui| {
+                let current = i18n.tr(prefs.toolbar.layout.label_key());
+                draw_dropdown(
+                    ui,
+                    palette,
+                    "settings_toolbar_layout",
+                    200.0,
+                    current,
+                    |ui| {
+                        for layout in ToolbarLayout::ALL {
+                            if ui
+                                .selectable_label(
+                                    prefs.toolbar.layout == layout,
+                                    i18n.tr(layout.label_key()),
+                                )
+                                .clicked()
+                            {
+                                prefs.toolbar.layout = layout;
+                                changed = true;
+                            }
+                        }
+                    },
+                );
+            },
+        );
+        ui.add_space(4.0);
+        let t = &mut prefs.toolbar;
+        for (key, value) in [
+            ("settings_toolbar_labels", &mut t.labels),
+            ("settings_toolbar_new_folder", &mut t.new_folder),
+            ("settings_toolbar_new_file", &mut t.new_file),
+            ("settings_toolbar_edit_buttons", &mut t.edit_buttons),
+            ("settings_toolbar_sort", &mut t.sort_menu),
+            ("settings_toolbar_view", &mut t.view_menu),
+            ("settings_toolbar_favorite", &mut t.favorite),
+            ("settings_toolbar_terminal", &mut t.terminal),
+        ] {
+            changed |= pref_checkbox(ui, palette, i18n, key, value);
+        }
+        if eden_button(ui, palette, &i18n.tr("settings_toolbar_explorer_like")).clicked() {
+            prefs.toolbar = ToolbarPrefs::explorer_like();
+            changed = true;
         }
     });
 
@@ -1016,6 +1114,16 @@ pub fn draw_settings_window(
                 if eden_toggle_button(
                     ui,
                     palette,
+                    settings.selected_tab == SettingsTab::Appearance,
+                    &i18n.tr("settings_tab_appearance"),
+                )
+                .clicked()
+                {
+                    settings.selected_tab = SettingsTab::Appearance;
+                }
+                if eden_toggle_button(
+                    ui,
+                    palette,
                     settings.selected_tab == SettingsTab::ViewDefaults,
                     &i18n.tr("settings_tab_view_defaults"),
                 )
@@ -1042,6 +1150,11 @@ pub fn draw_settings_window(
                 .show(ui, |ui| {
                     if settings.selected_tab == SettingsTab::Hotkeys {
                         draw_hotkeys_tab(ui, palette, i18n);
+                        return;
+                    }
+
+                    if settings.selected_tab == SettingsTab::Appearance {
+                        action = draw_appearance_tab(ui, settings, palette, i18n);
                         return;
                     }
 
