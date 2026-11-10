@@ -98,17 +98,17 @@ fn truncate_path_tail(s: &str, max_chars: usize) -> String {
 // keyboard handling). Keep in sync when a binding changes.
 fn draw_hotkeys_tab(ui: &mut egui::Ui, palette: &ThemePalette, i18n: &I18n) {
     for (group_name, indices) in HOTKEY_GROUPS {
-        settings_heading(ui, palette, &i18n.tr(group_name));
-        settings_group(ui, palette, |ui| {
+        settings_section(ui, palette, Some(&i18n.tr(group_name)), |ui| {
             for index in *indices {
                 let (shortcut, description_key) = HOTKEYS[*index];
                 let description = i18n.tr(description_key);
 
-                setting_row(
+                setting_row_keywords(
                     ui,
                     palette,
                     &description,
                     None,
+                    shortcut,
                     SETTINGS_SHORTCUT_WIDTH,
                     |ui| {
                         let (rect, _) = ui.allocate_exact_size(
@@ -240,78 +240,88 @@ fn draw_view_defaults_tab(
         .item_viewer_file_column_order
         .clone();
 
-    if settings_button(ui, palette, &i18n.tr("settings_clear_directory_cache")).clicked() {
+    if settings_button(ui, palette, &i18n.tr("settings_clear_directory_cache"))
+        .is_some_and(|resp| resp.clicked())
+    {
         settings.show_clear_directory_cache_confirmation = true;
     }
 
-    settings_heading(ui, palette, &i18n.tr("settings_view_defaults_columns"));
-    settings_group(ui, palette, |ui| {
-        for column in DEFAULT_FILE_COLUMNS {
-            let mut visible = current_order.contains(&column);
-            if setting_checkbox(
-                ui,
-                palette,
-                &mut visible,
-                RichText::new(file_column_label(i18n, column)),
-                format!("view_default_column_{column:?}"),
-            ) {
-                set_default_file_column_visible(
-                    &mut settings.current_settings.item_viewer_file_column_order,
-                    column,
-                    visible,
-                );
-                changed = true;
+    settings_section(
+        ui,
+        palette,
+        Some(&i18n.tr("settings_view_defaults_columns")),
+        |ui| {
+            for column in DEFAULT_FILE_COLUMNS {
+                let mut visible = current_order.contains(&column);
+                if setting_checkbox(
+                    ui,
+                    palette,
+                    &mut visible,
+                    RichText::new(file_column_label(i18n, column)),
+                    format!("view_default_column_{column:?}"),
+                ) {
+                    set_default_file_column_visible(
+                        &mut settings.current_settings.item_viewer_file_column_order,
+                        column,
+                        visible,
+                    );
+                    changed = true;
+                }
             }
-        }
-    });
+        },
+    );
 
-    settings_heading(ui, palette, &i18n.tr("settings_default_column_width"));
-    settings_group(ui, palette, |ui| {
-        let defaults = default_item_viewer_file_column_size();
-        if settings
-            .current_settings
-            .item_viewer_file_column_sizes
-            .len()
-            != defaults.len()
-        {
-            settings.current_settings.item_viewer_file_column_sizes = defaults;
-        }
+    settings_section(
+        ui,
+        palette,
+        Some(&i18n.tr("settings_default_column_width")),
+        |ui| {
+            let defaults = default_item_viewer_file_column_size();
+            if settings
+                .current_settings
+                .item_viewer_file_column_sizes
+                .len()
+                != defaults.len()
+            {
+                settings.current_settings.item_viewer_file_column_sizes = defaults;
+            }
 
-        for (index, column) in [
-            ItemViewerHeaderColumn::Name,
-            ItemViewerHeaderColumn::Type,
-            ItemViewerHeaderColumn::Size,
-            ItemViewerHeaderColumn::Tags,
-            ItemViewerHeaderColumn::Modified,
-            ItemViewerHeaderColumn::Created,
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            let mut width = settings.current_settings.item_viewer_file_column_sizes[index];
-            setting_row(
-                ui,
-                palette,
-                &file_column_label(i18n, column),
-                None,
-                SETTINGS_VALUE_WIDTH,
-                |ui| {
-                    if ui
-                        .add_sized(
-                            [SETTINGS_VALUE_WIDTH, SETTINGS_CONTROL_HEIGHT],
-                            egui::DragValue::new(&mut width)
-                                .range(20.0..=1000.0)
-                                .speed(1.0),
-                        )
-                        .changed()
-                    {
-                        settings.current_settings.item_viewer_file_column_sizes[index] = width;
-                        changed = true;
-                    }
-                },
-            );
-        }
-    });
+            for (index, column) in [
+                ItemViewerHeaderColumn::Name,
+                ItemViewerHeaderColumn::Type,
+                ItemViewerHeaderColumn::Size,
+                ItemViewerHeaderColumn::Tags,
+                ItemViewerHeaderColumn::Modified,
+                ItemViewerHeaderColumn::Created,
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let mut width = settings.current_settings.item_viewer_file_column_sizes[index];
+                setting_row(
+                    ui,
+                    palette,
+                    &file_column_label(i18n, column),
+                    None,
+                    SETTINGS_VALUE_WIDTH,
+                    |ui| {
+                        if ui
+                            .add_sized(
+                                [SETTINGS_VALUE_WIDTH, SETTINGS_CONTROL_HEIGHT],
+                                egui::DragValue::new(&mut width)
+                                    .range(20.0..=1000.0)
+                                    .speed(1.0),
+                            )
+                            .changed()
+                        {
+                            settings.current_settings.item_viewer_file_column_sizes[index] = width;
+                            changed = true;
+                        }
+                    },
+                );
+            }
+        },
+    );
 
     changed.then_some(SettingsAction::ApplySettings)
 }
@@ -342,8 +352,7 @@ fn draw_appearance_tab(
     let mut changed = false;
     let prefs = &mut settings.current_settings.ui;
 
-    settings_heading(ui, palette, &i18n.tr("settings_theme_group"));
-    settings_group(ui, palette, |ui| {
+    settings_section(ui, palette, Some(&i18n.tr("settings_theme_group")), |ui| {
         if pref_checkbox(
             ui,
             palette,
@@ -379,8 +388,7 @@ fn draw_appearance_tab(
         );
     });
 
-    settings_heading(ui, palette, &i18n.tr("settings_item_list"));
-    settings_group(ui, palette, |ui| {
+    settings_section(ui, palette, Some(&i18n.tr("settings_item_list")), |ui| {
         setting_row(
             ui,
             palette,
@@ -414,8 +422,7 @@ fn draw_appearance_tab(
         );
     });
 
-    settings_heading(ui, palette, &i18n.tr("settings_toolbar"));
-    settings_group(ui, palette, |ui| {
+    settings_section(ui, palette, Some(&i18n.tr("settings_toolbar")), |ui| {
         setting_row(
             ui,
             palette,
@@ -462,8 +469,7 @@ fn draw_appearance_tab(
         }
     });
 
-    settings_heading(ui, palette, &i18n.tr("settings_status_bar"));
-    settings_group(ui, palette, |ui| {
+    settings_section(ui, palette, Some(&i18n.tr("settings_status_bar")), |ui| {
         let s = &mut prefs.status_bar;
         for (key, value) in [
             ("settings_status_bar_visible", &mut s.visible),
@@ -476,8 +482,7 @@ fn draw_appearance_tab(
         }
     });
 
-    settings_heading(ui, palette, &i18n.tr("settings_sidebar"));
-    settings_group(ui, palette, |ui| {
+    settings_section(ui, palette, Some(&i18n.tr("settings_sidebar")), |ui| {
         let s = &mut prefs.sidebar;
         for (key, value) in [
             ("settings_sidebar_places", &mut s.places),
@@ -494,7 +499,9 @@ fn draw_appearance_tab(
     });
 
     ui.add_space(8.0);
-    if settings_button(ui, palette, &i18n.tr("settings_toolbar_explorer_like")).clicked() {
+    if settings_button(ui, palette, &i18n.tr("settings_toolbar_explorer_like"))
+        .is_some_and(|resp| resp.clicked())
+    {
         prefs.toolbar = ToolbarPrefs::explorer_like();
         prefs.status_bar = StatusBarPrefs::explorer_like();
         prefs.sidebar = SidebarPrefs::explorer_like();
@@ -512,11 +519,11 @@ fn draw_general_tab(
 ) -> Option<SettingsAction> {
     let mut action = None;
 
-    if settings_button(ui, palette, &i18n.tr("settings_reset")).clicked() {
+    if settings_button(ui, palette, &i18n.tr("settings_reset")).is_some_and(|resp| resp.clicked()) {
         settings.show_reset_confirmation = true;
     }
 
-    settings_group(ui, palette, |ui| {
+    settings_section(ui, palette, None, |ui| {
         let language_label = i18n.tr("language");
         let english = i18n.tr("english");
         let japanese = i18n.tr("japanese");
@@ -684,9 +691,9 @@ fn draw_general_tab(
             action = Some(SettingsAction::ApplySettings);
         }
     });
-    settings_group(ui, palette, |ui| {
+    settings_section(ui, palette, None, |ui| {
         // Starting Path
-        setting_row(
+        let start_path_shown = setting_row(
             ui,
             palette,
             &i18n.tr("settings_startpath"),
@@ -717,38 +724,41 @@ fn draw_general_tab(
                     action = Some(SettingsAction::ApplySettings);
                 }
             },
-        );
-
-        let path_text = settings
-            .current_settings
-            .start_path
-            .as_ref()
-            .map(|p| {
-                if p.as_os_str() == MY_PC_PATH {
-                    return i18n.tr("settings_startpath_default");
-                }
-
-                truncate_path_tail(&p.to_string_lossy(), 40)
-            })
-            .unwrap_or_else(|| i18n.tr("settings_startpath_default"));
-
-        ui.add(
-            egui::Label::new(
-                RichText::new(path_text)
-                    .size(body_size(palette) - 1.0)
-                    .color(palette.text_normal),
-            )
-            .truncate(),
         )
-        .on_hover_text(
-            settings
+        .is_some();
+
+        if start_path_shown {
+            let path_text = settings
                 .current_settings
                 .start_path
                 .as_ref()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_default(),
-        );
-        ui.add_space(SETTINGS_ROW_GAP * 3.0);
+                .map(|p| {
+                    if p.as_os_str() == MY_PC_PATH {
+                        return i18n.tr("settings_startpath_default");
+                    }
+
+                    truncate_path_tail(&p.to_string_lossy(), 40)
+                })
+                .unwrap_or_else(|| i18n.tr("settings_startpath_default"));
+
+            ui.add(
+                egui::Label::new(
+                    RichText::new(path_text)
+                        .size(body_size(palette) - 1.0)
+                        .color(palette.text_normal),
+                )
+                .truncate(),
+            )
+            .on_hover_text(
+                settings
+                    .current_settings
+                    .start_path
+                    .as_ref()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_default(),
+            );
+            ui.add_space(SETTINGS_ROW_GAP * 3.0);
+        }
 
         // Window Size Section
         let mut window_size_changed = false;
@@ -860,12 +870,14 @@ fn draw_general_tab(
 
         // Favorites Reset
         if settings_button(ui, palette, &i18n.tr("settings_favorites_reset"))
-            .on_hover_text(
-                egui::RichText::new(i18n.tr("tooltip_settings_favorites_reset"))
-                    .size(palette.tooltip_text_size)
-                    .color(palette.tooltip_text_color),
-            )
-            .clicked()
+            .map(|resp| {
+                resp.on_hover_text(
+                    egui::RichText::new(i18n.tr("tooltip_settings_favorites_reset"))
+                        .size(palette.tooltip_text_size)
+                        .color(palette.tooltip_text_color),
+                )
+            })
+            .is_some_and(|resp| resp.clicked())
         {
             settings.show_reset_favorites_confirmation = true;
         }
@@ -966,6 +978,107 @@ fn info_icon(ui: &mut egui::Ui, hover_text: &str, palette: &ThemePalette) -> egu
     }
 
     resp
+}
+
+/// What the search box is filtering this frame. Rows and buttons ask `search_admits` before
+/// drawing, so every tab filters itself without per-tab code. `shown` counts the items that
+/// were admitted, which lets sections and categories hide when nothing in them matched.
+#[derive(Clone, Default)]
+struct SearchFilter {
+    query: String,
+    shown: usize,
+}
+
+fn search_filter_id() -> egui::Id {
+    egui::Id::new("settings_search_filter")
+}
+
+fn search_field_id() -> egui::Id {
+    egui::Id::new("settings_search_field")
+}
+
+/// Starts a frame: sets the query and resets the match counter.
+fn begin_search_frame(ctx: &egui::Context, query: &str) {
+    ctx.data_mut(|data| {
+        data.insert_temp(
+            search_filter_id(),
+            SearchFilter {
+                query: query.trim().to_string(),
+                shown: 0,
+            },
+        );
+    });
+}
+
+fn search_active(ctx: &egui::Context) -> bool {
+    ctx.data(|data| {
+        data.get_temp::<SearchFilter>(search_filter_id())
+            .is_some_and(|filter| !filter.query.is_empty())
+    })
+}
+
+fn search_shown_count(ctx: &egui::Context) -> usize {
+    ctx.data(|data| {
+        data.get_temp::<SearchFilter>(search_filter_id())
+            .map_or(0, |filter| filter.shown)
+    })
+}
+
+/// True when an item with these search texts should be drawn (always, without a query).
+/// Counts the item as shown.
+fn search_admits(ctx: &egui::Context, texts: &[&str]) -> bool {
+    ctx.data_mut(|data| {
+        let filter = data.get_temp_mut_or_default::<SearchFilter>(search_filter_id());
+        let admitted = matches_search(&filter.query, texts);
+        if admitted {
+            filter.shown += 1;
+        }
+        admitted
+    })
+}
+
+/// Every whitespace-separated term of `query` must appear (case-insensitive) in at least one
+/// of `texts`. An empty query matches everything.
+fn matches_search(query: &str, texts: &[&str]) -> bool {
+    let mut terms = query.split_whitespace().map(str::to_lowercase).peekable();
+    if terms.peek().is_none() {
+        return true;
+    }
+    let haystacks: Vec<String> = texts.iter().map(|text| text.to_lowercase()).collect();
+    terms.all(|term| haystacks.iter().any(|haystack| haystack.contains(&term)))
+}
+
+/// Lays out `add_contents` in `ui` only if it drew an item that passed the search filter
+/// (always, when no search is active). The contents run in a child ui, so a skipped one
+/// takes no space.
+fn show_if_matches<R>(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    let ctx = ui.ctx().clone();
+    let shown_before = search_shown_count(&ctx);
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(ui.available_rect_before_wrap())
+            .layout(*ui.layout()),
+    );
+    let result = add_contents(&mut child);
+    if !search_active(&ctx) || search_shown_count(&ctx) > shown_before {
+        ui.allocate_rect(child.min_rect(), egui::Sense::hover());
+    }
+    result
+}
+
+/// Optional heading plus a card of rows; hidden entirely when a search matches none of them.
+fn settings_section(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    heading: Option<&str>,
+    add_contents: impl FnOnce(&mut egui::Ui),
+) {
+    show_if_matches(ui, |ui| {
+        if let Some(heading) = heading {
+            settings_heading(ui, palette, heading);
+        }
+        settings_group(ui, palette, add_contents);
+    });
 }
 
 /// Heading above a group of rows.
@@ -1094,14 +1207,24 @@ fn draw_toggle_switch(
     resp
 }
 
-fn settings_button(ui: &mut egui::Ui, palette: &ThemePalette, text: &str) -> egui::Response {
-    ui.add(
-        egui::Button::new(
-            RichText::new(text)
-                .size(body_size(palette))
-                .color(palette.text_normal),
-        )
-        .min_size(egui::vec2(0.0, SETTINGS_CONTROL_HEIGHT)),
+/// Push button row; `None` when the active search filters it out.
+fn settings_button(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    text: &str,
+) -> Option<egui::Response> {
+    if !search_admits(ui.ctx(), &[text]) {
+        return None;
+    }
+    Some(
+        ui.add(
+            egui::Button::new(
+                RichText::new(text)
+                    .size(body_size(palette))
+                    .color(palette.text_normal),
+            )
+            .min_size(egui::vec2(0.0, SETTINGS_CONTROL_HEIGHT)),
+        ),
     )
 }
 
@@ -1211,7 +1334,7 @@ fn setting_toggle(
 /// One settings row: label (wrapping, optional info icon) on the left, `control` right-aligned
 /// in a column of `control_width`. The label column is whatever the control leaves, so a
 /// long translated label wraps instead of running under the control. Returns the label's
-/// response.
+/// response, or `None` when the active search filters the row out (its `control` does not run).
 pub fn setting_row(
     ui: &mut egui::Ui,
     palette: &ThemePalette,
@@ -1220,6 +1343,22 @@ pub fn setting_row(
     control_width: f32,
     control: impl FnOnce(&mut egui::Ui),
 ) -> Option<egui::Response> {
+    setting_row_keywords(ui, palette, label, info, "", control_width, control)
+}
+
+/// `setting_row` with extra search text that is not shown (e.g. a shortcut's key combo).
+pub fn setting_row_keywords(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    label: &str,
+    info: Option<&str>,
+    keywords: &str,
+    control_width: f32,
+    control: impl FnOnce(&mut egui::Ui),
+) -> Option<egui::Response> {
+    if !search_admits(ui.ctx(), &[label, info.unwrap_or(""), keywords]) {
+        return None;
+    }
     let mut label_resp = None;
     ui.allocate_ui_with_layout(
         egui::vec2(ui.available_width(), SETTINGS_ROW_HEIGHT),
@@ -1280,6 +1419,58 @@ const SETTINGS_TABS: [(SettingsTab, &str); 4] = [
     (SettingsTab::ViewDefaults, "settings_tab_view_defaults"),
     (SettingsTab::Hotkeys, "settings_tab_hotkeys"),
 ];
+
+fn draw_settings_tab(
+    ui: &mut egui::Ui,
+    tab: SettingsTab,
+    settings: &mut SettingsWindow,
+    palette: &ThemePalette,
+    i18n: &mut I18n,
+) -> Option<SettingsAction> {
+    match tab {
+        SettingsTab::Hotkeys => {
+            draw_hotkeys_tab(ui, palette, i18n);
+            None
+        }
+        SettingsTab::Appearance => draw_appearance_tab(ui, settings, palette, i18n),
+        SettingsTab::ViewDefaults => draw_view_defaults_tab(ui, settings, palette, i18n),
+        SettingsTab::General => draw_general_tab(ui, settings, palette, i18n),
+    }
+}
+
+/// The selected tab, or, while searching, every tab's matching items under its title.
+fn draw_settings_content(
+    ui: &mut egui::Ui,
+    settings: &mut SettingsWindow,
+    palette: &ThemePalette,
+    i18n: &mut I18n,
+    action: &mut Option<SettingsAction>,
+) {
+    if !search_active(ui.ctx()) {
+        let tab = settings.selected_tab;
+        settings_page_title(ui, palette, &i18n.tr(tab_label_key(tab)));
+        *action = draw_settings_tab(ui, tab, settings, palette, i18n);
+        return;
+    }
+
+    for (tab, key) in SETTINGS_TABS {
+        let tab_action = show_if_matches(ui, |ui| {
+            settings_page_title(ui, palette, &i18n.tr(key));
+            draw_settings_tab(ui, tab, settings, palette, i18n)
+        });
+        if tab_action.is_some() {
+            *action = tab_action;
+        }
+    }
+    if search_shown_count(ui.ctx()) == 0 {
+        ui.add_space(12.0);
+        ui.label(
+            RichText::new(i18n.tr("settings_search_no_results"))
+                .size(body_size(palette))
+                .color(palette.text_normal),
+        );
+    }
+}
 
 fn tab_label_key(tab: SettingsTab) -> &'static str {
     SETTINGS_TABS
@@ -1368,6 +1559,14 @@ pub fn draw_settings_window(
     }
 
     let mut settings_open = settings.open;
+    if ctx.input_mut(|i| {
+        i.consume_shortcut(&egui::KeyboardShortcut::new(
+            egui::Modifiers::COMMAND,
+            egui::Key::F,
+        ))
+    }) {
+        ctx.memory_mut(|memory| memory.request_focus(search_field_id()));
+    }
 
     let window_size = ctx.content_rect().size();
     egui::Window::new(i18n.tr("settings"))
@@ -1383,6 +1582,7 @@ pub fn draw_settings_window(
         )
         .show(ctx, |ui| {
             apply_settings_style(ui, palette);
+            begin_search_frame(ctx, &settings.search);
 
             let size = ui.available_size();
             ui.horizontal_top(|ui| {
@@ -1392,12 +1592,22 @@ pub fn draw_settings_window(
                     egui::vec2(SETTINGS_NAV_WIDTH, size.y),
                     egui::Layout::top_down(egui::Align::Min),
                     |ui| {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut settings.search)
+                                .id(search_field_id())
+                                .hint_text(i18n.tr("settings_search_placeholder"))
+                                .font(egui::FontId::proportional(body_size(palette)))
+                                .margin(egui::vec2(10.0, 8.0))
+                                .desired_width(f32::INFINITY),
+                        );
+                        ui.add_space(6.0);
                         ui.spacing_mut().item_spacing.y = 4.0;
+                        let searching = !settings.search.trim().is_empty();
                         for (tab, key) in SETTINGS_TABS {
-                            if nav_item(ui, palette, settings.selected_tab == tab, &i18n.tr(key))
-                                .clicked()
-                            {
+                            let selected = !searching && settings.selected_tab == tab;
+                            if nav_item(ui, palette, selected, &i18n.tr(key)).clicked() {
                                 settings.selected_tab = tab;
+                                settings.search.clear();
                             }
                         }
                     },
@@ -1412,26 +1622,7 @@ pub fn draw_settings_window(
                             .show(ui, |ui| {
                                 // Keep content clear of the scroll bar.
                                 ui.set_max_width(ui.available_width() - 14.0);
-                                settings_page_title(
-                                    ui,
-                                    palette,
-                                    &i18n.tr(tab_label_key(settings.selected_tab)),
-                                );
-                                action = match settings.selected_tab {
-                                    SettingsTab::Hotkeys => {
-                                        draw_hotkeys_tab(ui, palette, i18n);
-                                        None
-                                    }
-                                    SettingsTab::Appearance => {
-                                        draw_appearance_tab(ui, settings, palette, i18n)
-                                    }
-                                    SettingsTab::ViewDefaults => {
-                                        draw_view_defaults_tab(ui, settings, palette, i18n)
-                                    }
-                                    SettingsTab::General => {
-                                        draw_general_tab(ui, settings, palette, i18n)
-                                    }
-                                };
+                                draw_settings_content(ui, settings, palette, i18n, &mut action);
                             });
                     },
                 );
@@ -1495,6 +1686,7 @@ pub fn draw_settings_window(
         });
     if should_close || !settings_open {
         settings.open = false;
+        settings.search.clear();
     }
     action
 }
@@ -1536,6 +1728,49 @@ mod tests {
         assert!(!escape_closes_settings(true, true));
         assert!(!escape_closes_settings(false, false));
         assert!(!escape_closes_settings(false, true));
+    }
+
+    #[test]
+    fn empty_query_matches_everything() {
+        assert!(matches_search("", &["Show hidden files"]));
+        assert!(matches_search("   ", &[]));
+    }
+
+    #[test]
+    fn search_is_case_insensitive_substring() {
+        assert!(matches_search("HIDDEN", &["Show hidden files/folders"]));
+        assert!(matches_search("files", &["Show hidden files/folders"]));
+        assert!(!matches_search("sidebar", &["Show hidden files/folders"]));
+    }
+
+    #[test]
+    fn search_requires_every_term_across_any_text() {
+        let texts = ["Date format", "Controls how dates are displayed"];
+        assert!(matches_search("date displayed", &texts));
+        assert!(matches_search("  format   DATES ", &texts));
+        assert!(!matches_search("date sidebar", &texts));
+    }
+
+    #[test]
+    fn search_matches_non_ascii_text() {
+        assert!(matches_search("外観", &["外観"]));
+        assert!(matches_search("ÉCOLE", &["école"]));
+        assert!(!matches_search("設定", &["外観"]));
+    }
+
+    #[test]
+    fn search_admits_counts_only_matching_items() {
+        let ctx = egui::Context::default();
+        begin_search_frame(&ctx, "  hidden ");
+        assert!(search_active(&ctx));
+        assert!(search_admits(&ctx, &["Show hidden files"]));
+        assert!(!search_admits(&ctx, &["Sidebar"]));
+        assert!(search_admits(&ctx, &["Other", "a hidden tooltip"]));
+        assert_eq!(search_shown_count(&ctx), 2);
+
+        begin_search_frame(&ctx, "   ");
+        assert!(!search_active(&ctx));
+        assert!(search_admits(&ctx, &["Sidebar"]));
     }
 
     #[test]

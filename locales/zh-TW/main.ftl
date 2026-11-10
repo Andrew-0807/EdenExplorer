@@ -389,3 +389,5 @@ settings_checkboxes_always = 一律顯示
 settings_checkboxes_hover = 滑過與選取時顯示
 settings_checkboxes_never = 一律隱藏
 settings_item_list = 項目清單
+settings_search_placeholder = 搜尋設定
+settings_search_no_results = 沒有符合的設定

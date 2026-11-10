@@ -389,3 +389,5 @@ settings_checkboxes_always = 常に表示
 settings_checkboxes_hover = ホバー時と選択時に表示
 settings_checkboxes_never = 常に非表示
 settings_item_list = 項目リスト
+settings_search_placeholder = 設定を検索
+settings_search_no_results = 一致する設定はありません

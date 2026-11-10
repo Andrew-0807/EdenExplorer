@@ -389,3 +389,5 @@ settings_checkboxes_always = 始终显示
 settings_checkboxes_hover = 悬停和选中时显示
 settings_checkboxes_never = 始终隐藏
 settings_item_list = 项目列表
+settings_search_placeholder = 搜索设置
+settings_search_no_results = 没有匹配的设置

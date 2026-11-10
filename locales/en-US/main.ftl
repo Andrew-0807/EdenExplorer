@@ -389,3 +389,5 @@ settings_checkboxes_always = Always show
 settings_checkboxes_hover = Show on hover and selection
 settings_checkboxes_never = Always hide
 settings_item_list = Item list
+settings_search_placeholder = Search settings
+settings_search_no_results = No settings match

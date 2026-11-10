@@ -95,6 +95,8 @@ pub struct SettingsWindow {
     pub show_reset_confirmation: bool,
     pub show_clear_directory_cache_confirmation: bool,
     pub selected_tab: SettingsTab,
+    /// Text in the settings search box; empty means normal tab navigation.
+    pub search: String,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

@@ -389,3 +389,5 @@ settings_checkboxes_always = Selalu tampilkan
 settings_checkboxes_hover = Tampilkan saat disorot dan dipilih
 settings_checkboxes_never = Selalu sembunyikan
 settings_item_list = Daftar item
+settings_search_placeholder = Cari pengaturan
+settings_search_no_results = Tidak ada pengaturan yang cocok
