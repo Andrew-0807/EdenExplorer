@@ -229,6 +229,18 @@ hotkey_navigate_forward = Navigate forwards (Mouse Button 4)
 hotkey_navigate_up = Navigate upwards (Mouse Button 5)
 hotkey_run_default_program = Run the default program for the selected file
 hotkey_permanent_delete = Permanently delete the selected items (skips the Recycle Bin)
+hotkey_delete = Delete selected items (to the Recycle Bin)
+hotkey_select_all = Select all items
+hotkey_select_first = Select the first item
+hotkey_select_last = Select the last item
+hotkey_unbound = Unassigned
+hotkey_press_keys = Press a key combination (Esc cancels, Backspace clears)
+hotkey_change = Change
+hotkey_add = Add another shortcut
+hotkey_reset = Reset
+hotkey_cancel = Cancel
+hotkey_swap = Swap
+hotkey_conflict_used_by = is already used by
 
 # Theme editor: presets, files and every palette token
 theme_presets = Presets

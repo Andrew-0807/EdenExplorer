@@ -4,6 +4,7 @@ pub mod customization;
 pub mod dragdrop;
 pub mod folder_icons;
 pub mod icon_system;
+pub mod keymap;
 pub mod selection;
 pub mod theme;
 pub mod theme_presets;

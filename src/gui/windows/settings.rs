@@ -19,6 +19,7 @@ use crate::gui::theme::ThemePalette;
 use crate::gui::utils::SortColumn;
 use crate::gui::windows::containers::enums::ItemViewerHeaderColumn;
 use crate::gui::windows::enums::SettingsAction;
+use crate::gui::windows::hotkey_editor;
 use crate::gui::windows::structs::{AppSettings, SettingsTab, SettingsWindow};
 use crate::gui::windows::windowsoverrides::clamp_dialog_size;
 use eframe::egui;
@@ -54,34 +55,6 @@ fn body_size(palette: &ThemePalette) -> f32 {
     palette.text_size + 4.0
 }
 
-const HOTKEYS: &[(&str, &str)] = &[
-    ("F1", "hotkey_toggle_fullscreen"),
-    ("Ctrl+Shift+C", "hotkey_copy_selected_path"),
-    ("Ctrl+W", "hotkey_close_current_tab"),
-    ("Ctrl+T", "hotkey_new_tab"),
-    ("Ctrl+Tab", "hotkey_next_tab"),
-    ("Ctrl+Shift+Tab", "hotkey_previous_tab"),
-    ("Ctrl+Shift+N", "hotkey_new_folder"),
-    ("Ctrl+R (F5)", "hotkey_refresh_directory"),
-    ("Alt+D", "hotkey_select_address_bar"),
-    ("F2", "hotkey_rename_file"),
-    ("Alt+Enter", "hotkey_open_properties"),
-    ("Home / End", "hotkey_scroll_and_select_edges"),
-    ("Alt+Left Arrow (Backspace)", "hotkey_navigate_back"),
-    ("Alt+Right Arrow", "hotkey_navigate_forward"),
-    ("Alt+Up Arrow", "hotkey_navigate_up"),
-    ("Enter", "hotkey_run_default_program"),
-    ("Ctrl+Delete", "hotkey_permanent_delete"),
-    ("Ctrl+K", "hotkey_zoxide_jump"),
-];
-
-const HOTKEY_GROUPS: &[(&str, &[usize])] = &[
-    ("hotkey_group_application", &[0]),
-    ("hotkey_group_tabs", &[2, 3, 4, 5]),
-    ("hotkey_group_files_folders", &[1, 6, 9, 10, 15, 16]),
-    ("hotkey_group_navigation", &[7, 8, 11, 12, 13, 14, 17]),
-];
-
 /// Returns the last `max_chars` characters of `s` prefixed with "...", or `s`
 /// unchanged when it already fits. Counts chars, not bytes, so multi-byte
 /// paths (CJK, accented) never get sliced inside a code point.
@@ -92,47 +65,6 @@ fn truncate_path_tail(s: &str, max_chars: usize) -> String {
         format!("...{tail}")
     } else {
         s.to_string()
-    }
-}
-
-// Read-only list of the bindings hard-coded in the app (`handle_global_shortcuts`, item viewer
-// keyboard handling). Keep in sync when a binding changes.
-fn draw_hotkeys_tab(ui: &mut egui::Ui, palette: &ThemePalette, i18n: &I18n) {
-    for (group_name, indices) in HOTKEY_GROUPS {
-        settings_section(ui, palette, Some(&i18n.tr(group_name)), |ui| {
-            for index in *indices {
-                let (shortcut, description_key) = HOTKEYS[*index];
-                let description = i18n.tr(description_key);
-
-                setting_row_keywords(
-                    ui,
-                    palette,
-                    &description,
-                    None,
-                    shortcut,
-                    SETTINGS_SHORTCUT_WIDTH,
-                    |ui| {
-                        let (rect, _) = ui.allocate_exact_size(
-                            egui::vec2(SETTINGS_SHORTCUT_WIDTH, 28.0),
-                            egui::Sense::hover(),
-                        );
-                        ui.painter().rect_stroke(
-                            rect,
-                            4.0,
-                            egui::Stroke::new(1.0, palette.borders_default),
-                            egui::StrokeKind::Inside,
-                        );
-                        ui.painter().text(
-                            rect.center(),
-                            egui::Align2::CENTER_CENTER,
-                            shortcut,
-                            egui::FontId::proportional(body_size(palette) - 1.0),
-                            palette.primary,
-                        );
-                    },
-                );
-            }
-        });
     }
 }
 
@@ -149,6 +81,7 @@ impl Default for AppSettings {
             pinned_tabs: Vec::new(),
             remember_open_tabs: false,
             zoxide_auto_add: false,
+            hotkeys: Default::default(),
             unremembered_tabs: Vec::new(),
             remembered_active_tab: None,
             time_format_24h: false,
@@ -1442,7 +1375,7 @@ fn draw_settings_tab(
 ) -> Option<SettingsAction> {
     match tab {
         SettingsTab::Hotkeys => {
-            draw_hotkeys_tab(ui, palette, i18n);
+            hotkey_editor::draw(ui, palette, i18n, &mut settings.current_settings.hotkeys);
             None
         }
         SettingsTab::Appearance => draw_appearance_tab(ui, settings, palette, i18n),
@@ -1796,16 +1729,5 @@ mod tests {
         begin_search_frame(&ctx, "   ");
         assert!(!search_active(&ctx));
         assert!(search_admits(&ctx, &["Sidebar"]));
-    }
-
-    #[test]
-    fn hotkey_groups_list_every_binding_exactly_once() {
-        let mut seen: Vec<usize> = HOTKEY_GROUPS
-            .iter()
-            .flat_map(|(_, indices)| indices.iter().copied())
-            .collect();
-        seen.sort_unstable();
-
-        assert_eq!(seen, (0..HOTKEYS.len()).collect::<Vec<_>>());
     }
 }

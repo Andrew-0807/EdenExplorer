@@ -6,6 +6,7 @@ use crate::core::utils::files::filename_has_valid_characters_realtime;
 use crate::core::utils::text::{apply_eden_text_overrides, paint_truncated_text};
 use crate::core::utils::widgets::{apply_eden_visual_overrides, draw_checkbox, loading_spinner};
 use crate::gui::folder_icons::{FolderIcon, paint_folder_icon, resolve_for_path};
+use crate::gui::keymap::{self, Action};
 use crate::gui::theme::{ThemePalette, apply_checkbox_colors, error_color};
 use crate::gui::utils::{
     SortColumn, SortKey, clear_clipboard_files, drive_usage_bar, format_size, get_file_type_name,
@@ -1001,7 +1002,7 @@ pub fn handle_global_actions(
             filter_state.focus_requested = true;
         }
 
-        let enter = ui.input(|input| !input.modifiers.alt && input.key_pressed(egui::Key::Enter));
+        let enter = ui.input(|input| keymap::pressed(input, Action::OpenSelected));
         if enter {
             return open_selected_items();
         }
@@ -1014,10 +1015,9 @@ pub fn handle_global_actions(
         }
 
         let (delete, permanent) = ui.input(|input| {
-            let delete = input.key_pressed(egui::Key::Delete);
             (
-                delete && !input.modifiers.ctrl,
-                delete && input.modifiers.ctrl,
+                keymap::pressed(input, Action::Delete),
+                keymap::pressed(input, Action::PermanentDelete),
             )
         });
         if (delete || permanent) && !is_drive_view {
@@ -1059,24 +1059,21 @@ pub fn handle_global_actions(
         }
     });
     ui.input(|i| {
-        let alt = i.modifiers.alt;
-
         if i.pointer.button_pressed(egui::PointerButton::Extra1)
-            || (alt && i.key_pressed(egui::Key::ArrowLeft))
-            || i.key_pressed(egui::Key::Backspace)
+            || keymap::pressed(i, Action::NavigateBack)
         {
             set_nav_action(ItemViewerNavAction::Back);
         }
         if i.pointer.button_pressed(egui::PointerButton::Extra2)
-            || (alt && i.key_pressed(egui::Key::ArrowRight))
+            || keymap::pressed(i, Action::NavigateForward)
         {
             set_nav_action(ItemViewerNavAction::Forward);
         }
-        if alt && i.key_pressed(egui::Key::ArrowUp) {
+        if keymap::pressed(i, Action::NavigateUp) {
             set_nav_action(ItemViewerNavAction::Up);
         }
 
-        if !alt && i.key_pressed(egui::Key::Enter) {
+        if keymap::pressed(i, Action::OpenSelected) {
             if is_recycle_bin_view {
                 return;
             }
@@ -1084,7 +1081,7 @@ pub fn handle_global_actions(
                 action = Some(a);
             }
         }
-        if i.modifiers.command && i.key_pressed(egui::Key::A) {
+        if keymap::pressed(i, Action::SelectAll) {
             action = Some(ItemViewerAction::SelectAll);
         }
         if i.modifiers.command
@@ -1095,7 +1092,7 @@ pub fn handle_global_actions(
             // Any other key functions won't work with egui v0.33.x
             action = Some(ItemViewerAction::Context(ItemViewerContextAction::Paste));
         }
-        if i.modifiers.command && i.modifiers.shift && i.key_pressed(egui::Key::C) {
+        if keymap::pressed(i, Action::CopyPath) {
             if is_recycle_bin_view || is_drive_view {
                 return;
             }
@@ -1107,7 +1104,8 @@ pub fn handle_global_actions(
                 ));
             }
         }
-        if i.key_pressed(egui::Key::Delete) {
+        let permanent = keymap::pressed(i, Action::PermanentDelete);
+        if permanent || keymap::pressed(i, Action::Delete) {
             if is_drive_view {
                 return;
             }
@@ -1119,7 +1117,7 @@ pub fn handle_global_actions(
 
             action = Some(ItemViewerAction::Context(ItemViewerContextAction::Delete {
                 paths,
-                permanent: i.modifiers.ctrl,
+                permanent,
             }));
         }
     });
@@ -1578,8 +1576,8 @@ pub fn handle_keyboard_navigation(
     };
 
     let mut action: Option<ItemViewerAction> = None;
-    let home_pressed = ctx.input(|i| i.key_pressed(egui::Key::Home));
-    let end_pressed = ctx.input(|i| i.key_pressed(egui::Key::End));
+    let home_pressed = ctx.input(|i| keymap::pressed(i, Action::SelectFirst));
+    let end_pressed = ctx.input(|i| keymap::pressed(i, Action::SelectLast));
 
     let current_index = explorer_state
         .selected_paths

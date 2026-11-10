@@ -348,6 +348,8 @@ impl eframe::App for MainWindow {
         if consume_system_theme_dirty() {
             self.sync_system_theme();
         }
+        crate::gui::windows::hotkey_editor::intercept_capture(ui.ctx());
+        crate::gui::keymap::sync(&self.settings_window.current_settings.hotkeys);
         self.zoxide_popup.handle_keys(ui.ctx());
         let zoom = effective_zoom(self.settings_window.current_settings.ui.zoom);
         if zoom != self.applied_zoom {

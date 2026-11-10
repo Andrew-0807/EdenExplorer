@@ -229,6 +229,18 @@ hotkey_navigate_forward = 向前导航（鼠标按钮4）
 hotkey_navigate_up = 向上导航（鼠标按钮5）
 hotkey_run_default_program = 使用默认程序运行选中的文件
 hotkey_permanent_delete = 永久删除选中的项目（跳过回收站）
+hotkey_delete = 删除选中的项目（移到回收站）
+hotkey_select_all = 全选
+hotkey_select_first = 选择第一项
+hotkey_select_last = 选择最后一项
+hotkey_unbound = 未分配
+hotkey_press_keys = 按下组合键（Esc 取消，Backspace 清除）
+hotkey_change = 更改
+hotkey_add = 添加另一个快捷键
+hotkey_reset = 重置
+hotkey_cancel = 取消
+hotkey_swap = 交换
+hotkey_conflict_used_by = 已被以下操作使用
 
 # Theme editor: presets, files and every palette token
 theme_presets = 预设

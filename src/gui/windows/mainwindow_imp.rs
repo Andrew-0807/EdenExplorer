@@ -12,6 +12,7 @@ use crate::core::utils::widgets::{loading_spinner, request_animation_frame};
 use crate::core::zoxide;
 use crate::gui::MainWindow;
 use crate::gui::customization::move_item;
+use crate::gui::keymap::{self, Action};
 use crate::gui::theme::{ThemeMode, ThemePalette, get_default_palette, set_palette};
 use crate::gui::theme_presets::{export_theme_json, import_theme_json};
 use crate::gui::utils::{
@@ -2116,34 +2117,24 @@ impl MainWindow {
             return;
         }
 
-        let open_zoxide = ctx.input(|input| {
-            input.modifiers.command
-                && !input.modifiers.shift
-                && !input.modifiers.alt
-                && input.key_pressed(egui::Key::K)
-        });
+        let open_zoxide = ctx.input(|input| keymap::pressed(input, Action::ZoxideJump));
         if open_zoxide {
             self.zoxide_popup.open(ctx);
             return;
         }
 
         let shortcuts = ctx.input(|input| {
-            let ctrl = input.modifiers.ctrl;
-            let alt = input.modifiers.alt;
-            let shift = input.modifiers.shift;
-
             (
-                ctrl && shift && input.key_pressed(egui::Key::Tab),
-                ctrl && input.key_pressed(egui::Key::Tab),
-                ctrl && input.key_pressed(egui::Key::T),
-                ctrl && input.key_pressed(egui::Key::W),
-                ctrl && shift && input.key_pressed(egui::Key::N),
-                ctrl && input.key_pressed(egui::Key::R),
-                input.key_pressed(egui::Key::F5),
-                input.key_pressed(egui::Key::F1),
-                alt && input.key_pressed(egui::Key::D),
-                input.key_pressed(egui::Key::F2),
-                alt && input.key_pressed(egui::Key::Enter),
+                keymap::pressed(input, Action::PreviousTab),
+                keymap::pressed(input, Action::NextTab),
+                keymap::pressed(input, Action::NewTab),
+                keymap::pressed(input, Action::CloseTab),
+                keymap::pressed(input, Action::NewFolder),
+                keymap::pressed(input, Action::Refresh),
+                keymap::pressed(input, Action::ToggleFullscreen),
+                keymap::pressed(input, Action::AddressBar),
+                keymap::pressed(input, Action::Rename),
+                keymap::pressed(input, Action::Properties),
             )
         });
 
@@ -2180,21 +2171,21 @@ impl MainWindow {
             return;
         }
 
-        if shortcuts.5 || shortcuts.6 {
+        if shortcuts.5 {
             self.load_path();
             return;
         }
 
-        if shortcuts.7 {
+        if shortcuts.6 {
             self.toggle_fullscreen();
         }
 
-        if shortcuts.8 {
+        if shortcuts.7 {
             self.enter_address_bar_edit_mode();
             return;
         }
 
-        if shortcuts.9 {
+        if shortcuts.8 {
             if self.rename_state.is_none()
                 && !self
                     .active_tab()
@@ -2208,7 +2199,7 @@ impl MainWindow {
             return;
         }
 
-        if shortcuts.10 {
+        if shortcuts.9 {
             if !self
                 .active_tab()
                 .view(self.focused_split)
