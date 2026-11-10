@@ -24,24 +24,24 @@ use std::path::PathBuf;
 const SETTINGS_COMBO_WIDTH: f32 = 180.0;
 const SETTINGS_VALUE_WIDTH: f32 = 92.0;
 
-const HOTKEYS: &[(&str, &str, bool)] = &[
-    ("F1", "hotkey_toggle_fullscreen", true),
-    ("Ctrl+Shift+C", "hotkey_copy_selected_path", true),
-    ("Ctrl+W", "hotkey_close_current_tab", true),
-    ("Ctrl+T", "hotkey_new_tab", true),
-    ("Ctrl+Tab", "hotkey_next_tab", true),
-    ("Ctrl+Shift+Tab", "hotkey_previous_tab", true),
-    ("Ctrl+Shift+N", "hotkey_new_folder", true),
-    ("Ctrl+R (F5)", "hotkey_refresh_directory", true),
-    ("Alt+D", "hotkey_select_address_bar", true),
-    ("F2", "hotkey_rename_file", true),
-    ("Alt+Enter", "hotkey_open_properties", true),
-    ("Home / End", "hotkey_scroll_and_select_edges", true),
-    ("Alt+Left Arrow (Backspace)", "hotkey_navigate_back", true),
-    ("Alt+Right Arrow", "hotkey_navigate_forward", true),
-    ("Alt+Up Arrow", "hotkey_navigate_up", true),
-    ("Enter", "hotkey_run_default_program", true),
-    ("Ctrl+Delete", "hotkey_permanent_delete", false),
+const HOTKEYS: &[(&str, &str)] = &[
+    ("F1", "hotkey_toggle_fullscreen"),
+    ("Ctrl+Shift+C", "hotkey_copy_selected_path"),
+    ("Ctrl+W", "hotkey_close_current_tab"),
+    ("Ctrl+T", "hotkey_new_tab"),
+    ("Ctrl+Tab", "hotkey_next_tab"),
+    ("Ctrl+Shift+Tab", "hotkey_previous_tab"),
+    ("Ctrl+Shift+N", "hotkey_new_folder"),
+    ("Ctrl+R (F5)", "hotkey_refresh_directory"),
+    ("Alt+D", "hotkey_select_address_bar"),
+    ("F2", "hotkey_rename_file"),
+    ("Alt+Enter", "hotkey_open_properties"),
+    ("Home / End", "hotkey_scroll_and_select_edges"),
+    ("Alt+Left Arrow (Backspace)", "hotkey_navigate_back"),
+    ("Alt+Right Arrow", "hotkey_navigate_forward"),
+    ("Alt+Up Arrow", "hotkey_navigate_up"),
+    ("Enter", "hotkey_run_default_program"),
+    ("Ctrl+Delete", "hotkey_permanent_delete"),
 ];
 
 const HOTKEY_GROUPS: &[(&str, &[usize])] = &[
@@ -51,91 +51,11 @@ const HOTKEY_GROUPS: &[(&str, &[usize])] = &[
     ("hotkey_group_navigation", &[7, 8, 11, 12, 13, 14]),
 ];
 
-fn format_recorded_hotkey(key: egui::Key, modifiers: egui::Modifiers) -> Option<String> {
-    let mut parts = Vec::new();
-    if modifiers.ctrl {
-        parts.push("Ctrl");
-    }
-    if modifiers.alt {
-        parts.push("Alt");
-    }
-    if modifiers.shift {
-        parts.push("Shift");
-    }
-    if modifiers.command && !modifiers.ctrl {
-        parts.push("Cmd");
-    }
-    let key_name = match key {
-        egui::Key::ArrowDown => "Arrow Down",
-        egui::Key::ArrowLeft => "Arrow Left",
-        egui::Key::ArrowRight => "Arrow Right",
-        egui::Key::ArrowUp => "Arrow Up",
-        egui::Key::Backspace => "Backspace",
-        egui::Key::Delete => "Delete",
-        egui::Key::End => "End",
-        egui::Key::Enter => "Enter",
-        egui::Key::Escape => "Escape",
-        egui::Key::F1 => "F1",
-        egui::Key::F2 => "F2",
-        egui::Key::F3 => "F3",
-        egui::Key::F4 => "F4",
-        egui::Key::F5 => "F5",
-        egui::Key::F6 => "F6",
-        egui::Key::F7 => "F7",
-        egui::Key::F8 => "F8",
-        egui::Key::F9 => "F9",
-        egui::Key::F10 => "F10",
-        egui::Key::F11 => "F11",
-        egui::Key::F12 => "F12",
-        egui::Key::Home => "Home",
-        egui::Key::Tab => "Tab",
-        egui::Key::A => "A",
-        egui::Key::B => "B",
-        egui::Key::C => "C",
-        egui::Key::D => "D",
-        egui::Key::E => "E",
-        egui::Key::F => "F",
-        egui::Key::G => "G",
-        egui::Key::H => "H",
-        egui::Key::I => "I",
-        egui::Key::J => "J",
-        egui::Key::K => "K",
-        egui::Key::L => "L",
-        egui::Key::M => "M",
-        egui::Key::N => "N",
-        egui::Key::O => "O",
-        egui::Key::P => "P",
-        egui::Key::Q => "Q",
-        egui::Key::R => "R",
-        egui::Key::S => "S",
-        egui::Key::T => "T",
-        egui::Key::U => "U",
-        egui::Key::V => "V",
-        egui::Key::W => "W",
-        egui::Key::X => "X",
-        egui::Key::Y => "Y",
-        egui::Key::Z => "Z",
-        _ => return None,
-    };
-    parts.push(key_name);
-    Some(parts.join("+"))
-}
-
-fn draw_hotkeys_tab(
-    ui: &mut egui::Ui,
-    settings: &mut SettingsWindow,
-    palette: &ThemePalette,
-    i18n: &I18n,
-) {
+// Read-only list of the bindings hard-coded in the app (`handle_global_shortcuts`, item viewer
+// keyboard handling). Keep in sync when a binding changes.
+fn draw_hotkeys_tab(ui: &mut egui::Ui, palette: &ThemePalette, i18n: &I18n) {
     ui.spacing_mut().item_spacing.y = 0.0;
     ui.vertical(|ui| {
-        ui.horizontal(|ui| {
-            if eden_button(ui, palette, &i18n.tr("hotkeys_reset")).clicked() {
-                settings.show_reset_hotkeys_confirmation = true;
-            }
-        });
-        ui.add_space(2.0);
-
         for (group_name, indices) in HOTKEY_GROUPS {
             ui.add_space(8.0);
             ui.label(
@@ -146,57 +66,25 @@ fn draw_hotkeys_tab(
             ui.add_space(3.0);
 
             for index in *indices {
-                let (default_shortcut, description_key, can_rebind) = HOTKEYS[*index];
+                let (shortcut, description_key) = HOTKEYS[*index];
                 let description = i18n.tr(description_key);
-                let is_recording = settings.recording_hotkey == Some(*index);
-                let is_customized = settings
-                    .hotkey_values
-                    .get(*index)
-                    .is_some_and(|shortcut| shortcut != default_shortcut);
-                let shortcut = if is_recording {
-                    i18n.tr("hotkeys_record")
-                } else {
-                    settings
-                        .hotkey_values
-                        .get(*index)
-                        .map(String::as_str)
-                        .unwrap_or(default_shortcut)
-                        .to_string()
-                };
-                let shortcut_color = if is_recording {
-                    egui::Color32::RED
-                } else if is_customized {
-                    egui::Color32::WHITE
-                } else if can_rebind {
-                    palette.primary
-                } else {
-                    palette.borders_default
-                };
-                let mut shortcut_double_clicked = false;
 
                 ui.horizontal(|ui| {
-                    let (rect, response) =
-                        ui.allocate_exact_size(egui::vec2(205.0, 22.0), egui::Sense::click());
-                    let fill = if is_recording {
-                        shortcut_color.gamma_multiply(0.12)
-                    } else {
-                        egui::Color32::TRANSPARENT
-                    };
-                    ui.painter().rect_filled(rect, 4.0, fill);
+                    let (rect, _) =
+                        ui.allocate_exact_size(egui::vec2(205.0, 22.0), egui::Sense::hover());
                     ui.painter().rect_stroke(
                         rect,
                         4.0,
-                        egui::Stroke::new(if is_recording { 2.0 } else { 1.0 }, shortcut_color),
+                        egui::Stroke::new(1.0, palette.borders_default),
                         egui::StrokeKind::Inside,
                     );
                     ui.painter().text(
                         rect.center(),
                         egui::Align2::CENTER_CENTER,
-                        &shortcut,
+                        shortcut,
                         egui::FontId::proportional(palette.text_size),
-                        shortcut_color,
+                        palette.primary,
                     );
-                    shortcut_double_clicked = can_rebind && response.double_clicked();
                     // Keep descriptions inside the settings window. Without an explicit
                     // width, a larger font makes the row's content determine the window
                     // width and can cause the shortcuts view to grow horizontally.
@@ -207,49 +95,10 @@ fn draw_hotkeys_tab(
                             .truncate(),
                     );
                 });
-
-                if shortcut_double_clicked {
-                    settings.recording_hotkey = Some(*index);
-                }
                 ui.add_space(4.0);
             }
         }
     });
-
-    if let Some(index) = settings.recording_hotkey {
-        let mut recorded = None;
-        let mut reset_to_default = false;
-
-        ui.ctx().input(|input| {
-            for event in &input.events {
-                if let egui::Event::Key {
-                    key,
-                    pressed: true,
-                    modifiers,
-                    ..
-                } = event
-                {
-                    if *key == egui::Key::Escape {
-                        settings.recording_hotkey = None;
-                        return;
-                    }
-                    if *key == egui::Key::Backspace {
-                        reset_to_default = true;
-                    } else {
-                        recorded = format_recorded_hotkey(*key, *modifiers);
-                    }
-                }
-            }
-        });
-
-        if reset_to_default {
-            settings.hotkey_values[index] = HOTKEYS[index].0.to_string();
-            settings.recording_hotkey = None;
-        } else if let Some(hotkey) = recorded {
-            settings.hotkey_values[index] = hotkey;
-            settings.recording_hotkey = None;
-        }
-    }
 }
 
 impl Default for AppSettings {
@@ -858,7 +707,7 @@ fn draw_confirmation_dialog(
     message_lines: &[&str],
 ) -> Option<bool> {
     let mut result = None;
-    let mut should_close = false;
+    let mut should_close = ctx.input(|i| i.key_pressed(egui::Key::Escape));
 
     egui::Window::new(title)
         .collapsible(false)
@@ -1045,6 +894,12 @@ pub fn combo_box_string(
     changed
 }
 
+/// Escape dismisses the settings window, except while a confirmation dialog is open: that
+/// dialog consumes Escape itself as "cancel", so only the dialog closes.
+fn escape_closes_settings(escape_pressed: bool, confirmation_open: bool) -> bool {
+    escape_pressed && !confirmation_open
+}
+
 pub fn draw_settings_window(
     ctx: &egui::Context,
     settings: &mut SettingsWindow,
@@ -1077,6 +932,16 @@ pub fn draw_settings_window(
         .inner;
 
     if modal_bg_clicked {
+        should_close = true;
+    }
+
+    let confirmation_open = settings.show_reset_favorites_confirmation
+        || settings.show_reset_confirmation
+        || settings.show_clear_directory_cache_confirmation;
+    if escape_closes_settings(
+        ctx.input(|i| i.key_pressed(egui::Key::Escape)),
+        confirmation_open,
+    ) {
         should_close = true;
     }
 
@@ -1152,13 +1017,7 @@ pub fn draw_settings_window(
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
                     if settings.selected_tab == SettingsTab::Hotkeys {
-                        if settings.hotkey_values.len() != HOTKEYS.len() {
-                            settings.hotkey_values = HOTKEYS
-                                .iter()
-                                .map(|(shortcut, _, _)| (*shortcut).to_string())
-                                .collect();
-                        }
-                        draw_hotkeys_tab(ui, settings, palette, i18n);
+                        draw_hotkeys_tab(ui, palette, i18n);
                         return;
                     }
 
@@ -1208,28 +1067,6 @@ pub fn draw_settings_window(
                 }
             }
 
-            if settings.show_reset_hotkeys_confirmation {
-                if let Some(confirmed) = draw_confirmation_dialog(
-                    ctx,
-                    palette,
-                    i18n,
-                    &i18n.tr("hotkeys_reset_confirm"),
-                    &[
-                        &i18n.tr("hotkeys_reset_confirm_label1"),
-                        &i18n.tr("hotkeys_reset_confirm_label2"),
-                    ],
-                ) {
-                    settings.show_reset_hotkeys_confirmation = false;
-                    if confirmed {
-                        settings.hotkey_values = HOTKEYS
-                            .iter()
-                            .map(|(shortcut, _, _)| (*shortcut).to_string())
-                            .collect();
-                        settings.recording_hotkey = None;
-                    }
-                }
-            }
-
             if settings.show_clear_directory_cache_confirmation {
                 if let Some(confirmed) = draw_confirmation_dialog(
                     ctx,
@@ -1252,4 +1089,28 @@ pub fn draw_settings_window(
         settings.open = false;
     }
     action
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn escape_closes_settings_only_without_an_open_confirmation() {
+        assert!(escape_closes_settings(true, false));
+        assert!(!escape_closes_settings(true, true));
+        assert!(!escape_closes_settings(false, false));
+        assert!(!escape_closes_settings(false, true));
+    }
+
+    #[test]
+    fn hotkey_groups_list_every_binding_exactly_once() {
+        let mut seen: Vec<usize> = HOTKEY_GROUPS
+            .iter()
+            .flat_map(|(_, indices)| indices.iter().copied())
+            .collect();
+        seen.sort_unstable();
+
+        assert_eq!(seen, (0..HOTKEYS.len()).collect::<Vec<_>>());
+    }
 }
