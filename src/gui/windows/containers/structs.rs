@@ -871,10 +871,46 @@ pub struct RenameState {
     pub validation_error_show: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FavoriteItem {
     pub path: PathBuf,
+    /// Text shown in the sidebar: the custom label, else the folder name.
     pub label: String,
+}
+
+impl FavoriteItem {
+    /// Label shown when the user has not renamed the entry.
+    pub fn default_label(path: &std::path::Path) -> String {
+        path.file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.display().to_string())
+    }
+
+    pub fn new(path: PathBuf) -> Self {
+        let label = Self::default_label(&path);
+        Self { path, label }
+    }
+
+    pub fn from_entry(entry: crate::core::indexer::QuickAccessEntry) -> Self {
+        let label = entry
+            .label
+            .filter(|label| !label.trim().is_empty())
+            .unwrap_or_else(|| Self::default_label(&entry.path));
+        Self {
+            path: entry.path,
+            label,
+        }
+    }
+
+    /// Only a label that differs from the folder name is stored, so renamed
+    /// folders keep showing their current name.
+    pub fn to_entry(&self) -> crate::core::indexer::QuickAccessEntry {
+        let custom = self.label != Self::default_label(&self.path);
+        crate::core::indexer::QuickAccessEntry {
+            path: self.path.clone(),
+            label: custom.then(|| self.label.clone()),
+        }
+    }
 }
 
 #[derive(Default)]

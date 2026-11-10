@@ -4,5 +4,7 @@ pub mod i18n;
 pub mod icons;
 pub mod indexer;
 pub mod launch;
+pub mod legacy;
+pub mod persist;
 pub mod portable;
 pub mod utils;

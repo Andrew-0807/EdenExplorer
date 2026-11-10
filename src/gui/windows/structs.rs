@@ -38,7 +38,10 @@ pub struct Navigation {
     pub forward: Vec<PathBuf>,
 }
 
+/// Stored in `settings.json`. Missing fields take `AppSettings::default()`
+/// values, so new fields can be added without a migration.
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct AppSettings {
     pub folder_scanning_enabled: bool,
     pub show_hidden_files_folders: bool,

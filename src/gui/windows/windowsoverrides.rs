@@ -1,8 +1,7 @@
 use crate::core::drives::mark_drive_cache_dirty;
 use crate::core::i18n::I18n;
 use crate::core::indexer::{
-    WindowSizeMode, load_app_settings, save_app_settings, save_window_position,
-    save_window_was_maximized,
+    WindowSizeMode, load_settings, save_settings, save_window_position, save_window_was_maximized,
 };
 use crate::core::launch::receive_copydata;
 use crate::gui::icon_system::AppIcon;
@@ -208,66 +207,13 @@ fn save_manual_window_size(hwnd: HWND) {
             return;
         }
 
-        let (
-            folder_scanning_enabled,
-            show_hidden_files_folders,
-            show_item_viewer_icons,
-            windows_context_menu_enabled,
-            extra_actions_bar,
-            window_size_mode,
-            start_path,
-            saved_theme,
-            pinned_tabs,
-            remember_open_tabs,
-            unremembered_tabs,
-            remembered_active_tab,
-            time_format_24h,
-            sort_column,
-            sort_ascending,
-            _language,
-            date_style,
-            item_viewer_file_column_order,
-            item_viewer_drive_column_order,
-            recycle_bin_column_order,
-            item_viewer_file_column_sizes,
-            item_viewer_drive_column_sizes,
-            recycle_bin_column_sizes,
-            directory_settings,
-        ) = load_app_settings();
         // Keep the configured mode while maximized so the last normal size is
         // not replaced by the maximized client dimensions.
-        let window_size_mode = if is_maximized {
-            window_size_mode
-        } else {
-            WindowSizeMode::Custom { width, height }
-        };
-
-        save_app_settings(
-            folder_scanning_enabled,
-            show_hidden_files_folders,
-            show_item_viewer_icons,
-            windows_context_menu_enabled,
-            extra_actions_bar,
-            &window_size_mode,
-            &Some(start_path),
-            saved_theme.as_deref(),
-            &pinned_tabs,
-            remember_open_tabs,
-            &unremembered_tabs,
-            remembered_active_tab.as_ref(),
-            time_format_24h,
-            sort_column,
-            sort_ascending,
-            &_language,
-            date_style,
-            &item_viewer_file_column_order,
-            &item_viewer_drive_column_order,
-            &recycle_bin_column_order,
-            &item_viewer_file_column_sizes,
-            &item_viewer_drive_column_sizes,
-            &recycle_bin_column_sizes,
-            &directory_settings,
-        );
+        if !is_maximized {
+            let mut stored = load_settings();
+            stored.settings.window_size_mode = WindowSizeMode::Custom { width, height };
+            save_settings(&stored);
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::core::i18n::I18n;
 use crate::core::icons::IconCache;
 use crate::core::indexer::{
-    load_app_settings, load_favorites, load_tags, load_theme_settings,
+    StoredSettings, load_quick_access, load_settings, load_tags, load_theme_settings,
     load_window_position_on_start, load_window_was_maximized_on_start,
 };
 use crate::core::launch::take_forwarded_paths;
@@ -30,7 +30,7 @@ use crate::gui::windows::mainwindow_imp::{
     persist_directory_settings_snapshot,
 };
 use crate::gui::windows::structs::{
-    AboutWindow, AppSettings, Navigation, SettingsWindow, SidebarState, ThemeCustomizer,
+    AboutWindow, Navigation, SettingsWindow, SidebarState, ThemeCustomizer,
 };
 use crate::gui::windows::windowsoverrides::{
     CAPTION_CONTROLS_WIDTH, TITLE_BAR_HEIGHT, apply_window_override, apply_window_theme,
@@ -116,64 +116,21 @@ fn default_locale_for_system(system_locale: &str) -> &'static str {
 
 impl Default for MainWindow {
     fn default() -> Self {
-        // Load saved settings
-        let (
-            folder_scanning_enabled,
-            show_hidden_files_folders,
-            show_item_viewer_icons,
-            windows_context_menu_enabled,
-            extra_actions_bar,
-            window_size_mode,
-            start_path,
-            saved_theme,
-            pinned_tabs,
-            remember_open_tabs,
-            unremembered_tabs,
-            remembered_active_tab,
-            time_format_24h,
-            sort_column,
-            sort_ascending,
-            language,
-            date_style,
-            item_viewer_file_column_order,
-            item_viewer_drive_column_order,
-            recycle_bin_column_order,
-            item_viewer_file_column_sizes,
-            item_viewer_drive_column_sizes,
-            recycle_bin_column_sizes,
-            directory_settings,
-        ) = load_app_settings();
-        let loaded_settings = AppSettings {
-            folder_scanning_enabled,
-            show_hidden_files_folders,
-            show_item_viewer_icons,
-            windows_context_menu_enabled,
-            extra_actions_bar,
-            window_size_mode: window_size_mode.clone(),
-            start_path: Some(start_path.clone()), // important
-            pinned_tabs: pinned_tabs.clone(),
-            remember_open_tabs,
-            unremembered_tabs,
-            remembered_active_tab,
-            time_format_24h,
-            date_style,
-            sort_column,
-            sort_ascending,
-            language,
-            item_viewer_file_column_order,
-            item_viewer_drive_column_order,
-            recycle_bin_column_order,
-            item_viewer_file_column_sizes,
-            item_viewer_drive_column_sizes,
-            recycle_bin_column_sizes,
-            directory_settings,
-        };
+        // Load saved settings (migrates a v1.3.0 settings.bin on first run)
+        let StoredSettings {
+            settings: loaded_settings,
+            theme: saved_theme,
+        } = load_settings();
+        let start_path = loaded_settings
+            .start_path
+            .clone()
+            .unwrap_or_else(|| PathBuf::from(crate::core::fs::MY_PC_PATH));
+        let pinned_tabs = loaded_settings.pinned_tabs.clone();
 
         let system_locale = sys_locale::get_locale().unwrap_or_else(|| "en-US".to_string());
 
         let default_locale = default_locale_for_system(&system_locale);
 
-        let pinned_tabs = pinned_tabs;
         let mut tabs = Vec::new();
         let mut next_tab_id = 1;
 
@@ -315,22 +272,15 @@ impl Default for MainWindow {
 
         app.theme_customizer.light_palette = get_palette(ThemeMode::Light);
         app.theme_customizer.dark_palette = get_palette(ThemeMode::Dark);
-        let stored = load_favorites('C');
-        if stored.is_empty() {
-            app.sidebar_state.favorites = app.default_favorites();
-            app.persist_favorites();
-        } else {
-            app.sidebar_state.favorites = stored
-                .into_iter()
-                .map(|path| {
-                    let path = PathBuf::from(path);
-                    let label = path
-                        .file_name()
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_else(|| path.display().to_string());
-                    FavoriteItem { path, label }
-                })
-                .collect();
+        match load_quick_access() {
+            Some(entries) => {
+                app.sidebar_state.favorites =
+                    entries.into_iter().map(FavoriteItem::from_entry).collect();
+            }
+            None => {
+                app.sidebar_state.favorites = app.default_favorites();
+                app.persist_favorites();
+            }
         }
         app.load_path();
         app

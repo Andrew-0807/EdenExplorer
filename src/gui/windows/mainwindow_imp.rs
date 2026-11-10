@@ -3,8 +3,8 @@ use crate::core::fs::{FileItem, get_shell_item_metadata};
 use crate::core::fs::{MY_RECYCLE_BIN_PATH, parallel_directory_scan, scan_dir_async};
 use crate::core::i18n::I18n;
 use crate::core::indexer::{
-    DirectorySettingsSnapshot, WindowSizeMode, load_app_settings, save_app_settings,
-    save_favorites, save_tags, save_theme_settings,
+    DirectorySettingsSnapshot, QuickAccessEntry, StoredSettings, WindowSizeMode, save_quick_access,
+    save_settings, save_tags, save_theme_settings,
 };
 use crate::core::utils::files::resolve_shortcut_target;
 use crate::core::utils::widgets::{loading_spinner, request_animation_frame};
@@ -426,59 +426,19 @@ impl MainWindow {
         } else {
             None
         };
-        save_app_settings(
-            self.settings_window
-                .current_settings
-                .folder_scanning_enabled,
-            self.settings_window
-                .current_settings
-                .show_hidden_files_folders,
-            self.settings_window.current_settings.show_item_viewer_icons,
-            self.settings_window
-                .current_settings
-                .windows_context_menu_enabled,
-            self.settings_window.current_settings.extra_actions_bar,
-            &self.settings_window.current_settings.window_size_mode,
-            &self.settings_window.current_settings.start_path,
-            Some(match self.theme {
-                ThemeMode::Dark => "dark",
-                ThemeMode::Light => "light",
-            }),
-            &tabs_to_save,
-            self.settings_window.current_settings.remember_open_tabs,
-            &self.settings_window.current_settings.unremembered_tabs,
-            remembered_active_tab.as_ref(),
-            self.settings_window.current_settings.time_format_24h,
-            self.settings_window.current_settings.sort_column,
-            self.settings_window.current_settings.sort_ascending,
-            &self.settings_window.current_settings.language,
-            self.settings_window.current_settings.date_style,
-            &self
-                .settings_window
-                .current_settings
-                .item_viewer_file_column_order,
-            &self
-                .settings_window
-                .current_settings
-                .item_viewer_drive_column_order,
-            &self
-                .settings_window
-                .current_settings
-                .recycle_bin_column_order,
-            &self
-                .settings_window
-                .current_settings
-                .item_viewer_file_column_sizes,
-            &self
-                .settings_window
-                .current_settings
-                .item_viewer_drive_column_sizes,
-            &self
-                .settings_window
-                .current_settings
-                .recycle_bin_column_sizes,
-            &self.settings_window.current_settings.directory_settings,
-        );
+        let mut settings = self.settings_window.current_settings.clone();
+        settings.pinned_tabs = tabs_to_save;
+        settings.remembered_active_tab = remembered_active_tab;
+        save_settings(&StoredSettings {
+            settings,
+            theme: Some(
+                match self.theme {
+                    ThemeMode::Dark => "dark",
+                    ThemeMode::Light => "light",
+                }
+                .to_string(),
+            ),
+        });
     }
 
     fn save_remembered_tabs_if_enabled(&self) {
@@ -1034,14 +994,7 @@ impl MainWindow {
             return;
         }
 
-        let label = path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| path.display().to_string());
-
-        self.sidebar_state
-            .favorites
-            .push(FavoriteItem { path, label });
+        self.sidebar_state.favorites.push(FavoriteItem::new(path));
         self.persist_favorites();
     }
 
@@ -1060,13 +1013,13 @@ impl MainWindow {
     }
 
     pub fn persist_favorites(&self) {
-        let items: Vec<String> = self
+        let items: Vec<QuickAccessEntry> = self
             .sidebar_state
             .favorites
             .iter()
-            .map(|fav| fav.path.display().to_string())
+            .map(FavoriteItem::to_entry)
             .collect();
-        save_favorites('C', &items);
+        save_quick_access(&items);
     }
 
     pub fn persist_tags(&self) {
@@ -1682,32 +1635,12 @@ impl MainWindow {
                         &mut self.settings_window.current_settings.directory_settings,
                         snapshot,
                     );
-                    let (
-                        _folder_scanning_enabled,
-                        _show_hidden_files_folders,
-                        _show_item_viewer_icons,
-                        _windows_context_menu_enabled,
-                        _extra_actions_bar,
-                        _window_size_mode,
-                        start_path,
-                        _saved_theme,
-                        _pinned_tabs,
-                        _remember_open_tabs,
-                        _unremembered_tabs,
-                        _remembered_active_tab,
-                        _time_format_24h,
-                        _sort_column,
-                        _sort_ascending,
-                        _language,
-                        _date_style,
-                        _item_viewer_file_column_order,
-                        _item_viewer_drive_column_order,
-                        _recycle_bin_column_order,
-                        _item_viewer_file_column_sizes,
-                        _item_viewer_drive_column_sizes,
-                        _recycle_bin_column_sizes,
-                        _directory_settings,
-                    ) = load_app_settings();
+                    let start_path = self
+                        .settings_window
+                        .current_settings
+                        .start_path
+                        .clone()
+                        .unwrap_or_else(|| PathBuf::from(crate::core::fs::MY_PC_PATH));
                     self.tabs[0].primary_view.nav = Navigation::new(start_path);
                     self.tabs[0].split_view = None;
                     self.active_tab = 0;

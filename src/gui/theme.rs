@@ -4,7 +4,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::{LazyLock, RwLock};
 
-pub const THEME_VERSION: u32 = 8;
+/// Schema version of `theme.json` and exported theme files. Version 8 and
+/// earlier were the positional postcard `theme.bin` (see `core::legacy`).
+/// Adding a field to `ThemePalette` does NOT need a bump: missing fields take
+/// the defaults of the palette's mode when a file is read.
+pub const THEME_VERSION: u32 = 9;
 
 fn default_itemviewer_row_height() -> f32 {
     22.0
@@ -343,6 +347,17 @@ pub fn get_default_palette(mode: ThemeMode) -> ThemePalette {
         ThemeMode::Dark => DEFAULT_PALETTE_DARK.clone(),
         ThemeMode::Light => DEFAULT_PALETTE_LIGHT.clone(),
     }
+}
+
+/// Builds a palette from stored JSON (theme store or an imported file): stored
+/// values are applied over the defaults of `mode`, so fields the file does not
+/// know about get their default and invalid values are skipped.
+pub fn palette_from_json(mode: ThemeMode, stored: serde_json::Value) -> ThemePalette {
+    let merged = crate::core::persist::from_value_with_defaults(&get_default_palette(mode), stored);
+    if !merged.rejected.is_empty() {
+        eprintln!("theme: ignored invalid fields {:?}", merged.rejected);
+    }
+    merged.value
 }
 
 pub fn set_palette(mode: ThemeMode, palette: ThemePalette) {
