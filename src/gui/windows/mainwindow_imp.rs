@@ -2454,11 +2454,20 @@ fn rename_item_via_shell(source: &Path, new_name: &str) -> windows::core::Result
         )?;
 
         // Rename keeps same parent, so only pass new name
-        file_op
-            .RenameItem(&source_item, &HSTRING::from(new_name), None)
-            .ok();
+        file_op.RenameItem(&source_item, &HSTRING::from(new_name), None)?;
 
-        file_op.PerformOperations().ok();
+        file_op.PerformOperations()?;
+        // A refused rename (name taken, dialog dismissed) can still return S_OK.
+        if file_op.GetAnyOperationsAborted()?.as_bool() {
+            // HRESULT_FROM_WIN32(ERROR_CANCELLED)
+            return Err(Error::from(HRESULT(0x8007_04C7u32 as i32)));
+        }
+    }
+    if let Some(parent) = source.parent()
+        && !parent.join(new_name).exists()
+    {
+        // HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)
+        return Err(Error::from(HRESULT(0x8007_0002u32 as i32)));
     }
     Ok(())
 }
