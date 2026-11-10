@@ -14,22 +14,26 @@ pub struct AboutWindow {
 }
 
 pub struct ThemeCustomizer {
-    pub open: bool,
     pub selected_mode: ThemeMode,
     pub light_palette: ThemePalette,
     pub dark_palette: ThemePalette,
     /// Result of the last import/export: (i18n key, is_error).
     pub status: Option<(&'static str, bool)>,
+    /// Set by the Appearance section; applied by `handle_draw_customizetheme_window`.
+    pub pending_action: Option<crate::gui::windows::enums::ThemeCustomizerAction>,
+    /// Base theme the user picked; applied by the main window.
+    pub requested_mode: Option<ThemeMode>,
 }
 
 impl Default for ThemeCustomizer {
     fn default() -> Self {
         Self {
-            open: false,
             selected_mode: ThemeMode::Dark,
             light_palette: crate::gui::theme::get_palette(ThemeMode::Light),
             dark_palette: crate::gui::theme::get_palette(ThemeMode::Dark),
             status: None,
+            pending_action: None,
+            requested_mode: None,
         }
     }
 }
@@ -107,9 +111,11 @@ pub struct SettingsWindow {
 pub enum SettingsTab {
     #[default]
     General,
+    Files,
+    Interface,
     Appearance,
-    ViewDefaults,
     Hotkeys,
+    Integrations,
 }
 
 pub struct SidebarState {
