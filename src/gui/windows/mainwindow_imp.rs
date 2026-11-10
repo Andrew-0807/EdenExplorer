@@ -2178,31 +2178,22 @@ impl MainWindow {
         }
     }
 
-    pub fn handle_throttle_size_requests(&mut self, ctx: &egui::Context) {
-        // Throttle size requests to keep UI responsive
-        let should_pause =
-            ctx.input(|i| i.pointer.any_down() || i.smooth_scroll_delta.y.abs() > 0.0);
-        if should_pause {
-            return;
-        }
-        self.handle_throttle_size_requests_for(SplitSide::Primary);
+    pub fn handle_size_requests(&mut self) {
+        self.handle_size_requests_for(SplitSide::Primary);
         if self.active_tab().split_view.is_some() {
-            self.handle_throttle_size_requests_for(SplitSide::Secondary);
+            self.handle_size_requests_for(SplitSide::Secondary);
         }
     }
 
-    fn handle_throttle_size_requests_for(&mut self, side: SplitSide) {
+    /// Hands every queued folder to the workers; the queue is already
+    /// deduplicated by `pending_size_set` and the worker count bounds concurrency.
+    fn handle_size_requests_for(&mut self, side: SplitSide) {
         let view = self.active_tab_mut().view_mut(side);
-        if view.size_req_tx.is_none() {
+        let Some(tx) = view.size_req_tx.as_ref() else {
             return;
-        }
-        for _ in 0..6 {
-            match view.pending_size_queue.pop_front() {
-                Some(path) => {
-                    let _ = view.size_req_tx.as_ref().unwrap().send(path);
-                }
-                None => break,
-            }
+        };
+        while let Some(path) = view.pending_size_queue.pop_front() {
+            let _ = tx.send(path);
         }
     }
 

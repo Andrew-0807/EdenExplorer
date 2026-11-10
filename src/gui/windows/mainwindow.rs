@@ -1223,7 +1223,7 @@ impl eframe::App for MainWindow {
         self.handle_directory_batch_recieve(ui.ctx());
         self.handle_file_op_progress(ui.ctx());
         self.handle_directory_size_updates(ui.ctx());
-        self.handle_throttle_size_requests(ui.ctx());
+        self.handle_size_requests();
         self.handle_topbar_action(topbar_action);
         self.handle_sidebar_action(sidebar_action, sidebar_drag_sources.as_deref());
         self.handle_tabs_action(tabs_action, tabs_drag_sources.as_deref());
