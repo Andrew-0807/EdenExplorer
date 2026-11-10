@@ -30,6 +30,9 @@ pub struct ExplorerState {
     pub selected_paths: HashSet<PathBuf>,
     pub selection_anchor: Option<usize>,
     pub selection_focus: Option<usize>,
+    /// Draw a focus ring on the focused row even when it is not selected
+    /// (set by Ctrl+Arrow, cleared by any other selection change).
+    pub focus_ring: bool,
     pub pending_selection_paths: Option<Vec<PathBuf>>, // select after refresh
     pub non_ntfs_popup_path: Option<PathBuf>,
     pub windows_context_menu_cache: Option<WindowsContextMenuCache>,

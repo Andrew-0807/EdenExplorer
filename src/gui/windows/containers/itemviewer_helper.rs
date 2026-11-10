@@ -15,6 +15,7 @@ use crate::gui::utils::{
 use crate::gui::windows::containers::enums::{
     ItemViewerAction, ItemViewerContextAction, ItemViewerHeaderColumn, ItemViewerNavAction,
 };
+use crate::gui::windows::containers::marquee::ctrl_focus_target;
 use crate::gui::windows::containers::structs::{
     DragState, ExplorerState, FilterState, ItemViewerColumnFitRequest, ItemViewerColumnLayout,
     ItemViewerColumnState, ItemViewerColumnWidths, ItemViewerFolderSizeState, ItemViewerLayout,
@@ -1575,6 +1576,38 @@ pub fn handle_keyboard_navigation(
             .find(|&i| is_selectable(i))
     };
 
+    // Ctrl+Up/Down moves the focus without touching the selection and Ctrl+Space
+    // toggles the focused item, so scattered items can be picked by keyboard.
+    let (ctrl_only, ctrl_down, ctrl_up, ctrl_space) = ctx.input(|i| {
+        (
+            i.modifiers.ctrl && !i.modifiers.shift && !i.modifiers.alt,
+            i.key_pressed(egui::Key::ArrowDown),
+            i.key_pressed(egui::Key::ArrowUp),
+            i.key_pressed(egui::Key::Space),
+        )
+    });
+    if ctrl_only && (ctrl_down || ctrl_up || ctrl_space) {
+        let focus = explorer_state
+            .selection_focus
+            .filter(|&f| f < filtered_indices.len());
+        explorer_state.focus_ring = true;
+        if ctrl_down || ctrl_up {
+            if let Some(target) =
+                ctrl_focus_target(focus, filtered_indices.len(), ctrl_down, is_selectable)
+            {
+                explorer_state.selection_focus = Some(target);
+            }
+            return None;
+        }
+        let focus = focus.filter(|&f| is_selectable(f))?;
+        explorer_state.selection_anchor = Some(focus);
+        let path = files[filtered_indices[focus]].path.clone();
+        return Some(if explorer_state.selected_paths.contains(&path) {
+            ItemViewerAction::Deselect(path)
+        } else {
+            ItemViewerAction::Select(path)
+        });
+    }
     let mut action: Option<ItemViewerAction> = None;
     let home_pressed = ctx.input(|i| keymap::pressed(i, Action::SelectFirst));
     let end_pressed = ctx.input(|i| keymap::pressed(i, Action::SelectLast));
@@ -1707,6 +1740,7 @@ pub fn handle_keyboard_navigation(
             .map(|&i| files[i].path.clone())
             .collect();
 
+        explorer_state.focus_ring = false;
         action = Some(ItemViewerAction::RangeSelect(range_paths));
     }
     // 🔹 NORMAL NAV
@@ -1738,6 +1772,7 @@ pub fn handle_keyboard_navigation(
 
             explorer_state.selection_anchor = Some(new_idx);
             explorer_state.selection_focus = Some(new_idx);
+            explorer_state.focus_ring = false;
 
             action = Some(ItemViewerAction::ReplaceSelection(new_path));
         }
@@ -1759,6 +1794,7 @@ pub fn handle_row_click(
         return None;
     }
 
+    explorer_state.focus_ring = false;
     if modifiers.shift {
         if let Some(anchor_idx) = explorer_state.selection_anchor {
             let current_idx = row_idx;
@@ -2235,7 +2271,7 @@ fn compute_item_viewer_column_widths(
     widths
 }
 
-fn measure_text_width(
+pub fn measure_text_width(
     ui: &mut egui::Ui,
     text: &str,
     font_id: &FontId,
@@ -2314,7 +2350,7 @@ pub fn table_background_response(ui: &mut egui::Ui) -> egui::Response {
     ui.interact(
         rect,
         ui.id().with("item_viewer_background"),
-        egui::Sense::click(),
+        egui::Sense::click_and_drag(),
     )
 }
 
@@ -2491,6 +2527,66 @@ mod tests {
         let out = handle_keyboard_navigation(&ctx, indices, files, false, state);
         let _ = ctx.end_pass();
         out
+    }
+
+    fn run_ctrl_keys(
+        keys: &[egui::Key],
+        files: &Vec<FileItem>,
+        state: &mut ExplorerState,
+    ) -> Option<ItemViewerAction> {
+        let ctx = egui::Context::default();
+        let mut raw = egui::RawInput::default();
+        raw.modifiers.ctrl = true;
+        raw.modifiers.command = true;
+        for &key in keys {
+            raw.events.push(egui::Event::Key {
+                key,
+                physical_key: Some(key),
+                pressed: true,
+                repeat: false,
+                modifiers: raw.modifiers,
+            });
+        }
+        ctx.begin_pass(raw);
+        let indices: Vec<usize> = (0..files.len()).collect();
+        let out = handle_keyboard_navigation(&ctx, &indices, files, false, state);
+        let _ = ctx.end_pass();
+        out
+    }
+
+    #[test]
+    fn ctrl_arrow_moves_focus_without_changing_selection() {
+        let f = files(4);
+        let mut st = selected(&["f0"]);
+        st.selection_anchor = Some(0);
+        st.selection_focus = Some(0);
+        let out = run_ctrl_keys(&[egui::Key::ArrowDown], &f, &mut st);
+        assert!(out.is_none());
+        assert_eq!(st.selection_focus, Some(1));
+        assert!(st.focus_ring);
+        assert_eq!(st.selected_paths.len(), 1);
+        assert!(st.selected_paths.contains(&PathBuf::from("f0")));
+    }
+
+    #[test]
+    fn ctrl_space_toggles_focused_item() {
+        let f = files(4);
+        let mut st = selected(&["f0"]);
+        st.selection_focus = Some(2);
+        let out = run_ctrl_keys(&[egui::Key::Space], &f, &mut st);
+        assert!(matches!(out, Some(ItemViewerAction::Select(p)) if p == PathBuf::from("f2")));
+
+        let mut st = selected(&["f0", "f2"]);
+        st.selection_focus = Some(2);
+        let out = run_ctrl_keys(&[egui::Key::Space], &f, &mut st);
+        assert!(matches!(out, Some(ItemViewerAction::Deselect(p)) if p == PathBuf::from("f2")));
+    }
+
+    #[test]
+    fn ctrl_space_without_focus_does_nothing() {
+        let f = files(3);
+        let mut st = selected(&[]);
+        assert!(run_ctrl_keys(&[egui::Key::Space], &f, &mut st).is_none());
     }
 
     fn selected(paths: &[&str]) -> ExplorerState {
