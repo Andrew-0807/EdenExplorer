@@ -5,12 +5,13 @@ use crate::core::fs::{MY_PC_PATH, MY_RECYCLE_BIN_PATH};
 use crate::core::i18n::I18n;
 use crate::core::icons::IconCache;
 use crate::core::utils::text::apply_eden_text_overrides;
+use crate::core::utils::widgets::request_animation_frame;
 use crate::core::wsl::{list_distributions, wsl_path};
 use crate::gui::customization::{SidebarPrefs, split_network_drives};
 use crate::gui::folder_icons::{FolderIcon, paint_folder_icon, resolve_for_path};
 use crate::gui::icon_system::{AppIcon, paint_icon};
 use crate::gui::theme::ThemePalette;
-use crate::gui::utils::{draw_object_drag_ghost, drive_usage_color, truncate_item_text};
+use crate::gui::utils::{drive_usage_color, truncate_item_text};
 use crate::gui::windows::containers::structs::SidebarAction;
 use crate::gui::windows::structs::SidebarState;
 use eframe::egui;
@@ -33,7 +34,6 @@ pub fn draw_sidebar(
 ) -> SidebarAction {
     const DRIVE_CACHE_DURATION: Duration = Duration::from_secs(30);
     let mut action = SidebarAction::default();
-    let mut drop_index: Option<usize> = None;
     let pointer_pos = ui.ctx().input(|i| i.pointer.hover_pos());
     let pointer_released = ui.ctx().input(|i| i.pointer.primary_released());
     let mut tab_drop_target: Option<PathBuf> = None;
@@ -145,75 +145,173 @@ pub fn draw_sidebar(
                         section_gap(ui, prefs);
                         section_title(ui, palette, prefs, &i18n.tr("favorites"));
 
-                        let is_dragging = sidebar_state.dragging_favorite.is_some();
-                        let mut item_layouts = Vec::with_capacity(sidebar_state.favorites.len());
+                        let count = sidebar_state.favorites.len();
+                        let mut item_layouts = Vec::with_capacity(count);
 
+                        // Layout pass: allocate every row at its resting position first so
+                        // the reorder math sees the whole section before anything is drawn.
                         for (i, _favorite) in sidebar_state.favorites.iter().enumerate() {
                             let (rect, resp) = favorites_item_layout(ui, palette);
 
-                            if !is_dragging && resp.drag_started() {
+                            if !drag_active
+                                && sidebar_state.dragging_favorite.is_none()
+                                && resp.drag_started()
+                            {
                                 sidebar_state.dragging_favorite = Some(i);
+                                sidebar_state.drag_grab_dy = resp
+                                    .interact_pointer_pos()
+                                    .map_or(rect.height() / 2.0, |p| p.y - rect.top());
                             }
 
                             item_layouts.push((rect, resp));
                         }
 
-                        if is_dragging {
-                            if let (Some(pos), Some(drag_idx)) =
-                                (pointer_pos, sidebar_state.dragging_favorite)
-                            {
-                                drop_index = None;
+                        let section_top = item_layouts.first().map_or(0.0, |(r, _)| r.top());
+                        let section_bottom = item_layouts.last().map_or(0.0, |(r, _)| r.bottom());
+                        let row_height = item_layouts.first().map_or(18.0, |(r, _)| r.height());
+                        let pitch = match item_layouts.as_slice() {
+                            [(a, _), (b, _), ..] => b.top() - a.top(),
+                            _ => row_height,
+                        };
 
-                                for (i, (rect, _)) in item_layouts.iter().enumerate() {
-                                    let mid_y = rect.center().y;
-
-                                    let new_index = if pos.y < mid_y { i } else { i + 1 };
-
-                                    if new_index != drag_idx && new_index != drag_idx + 1 {
-                                        drop_index = Some(new_index);
-                                    }
-
-                                    if pos.y < rect.bottom() {
-                                        break;
-                                    }
-                                }
-
-                                if let Some(last) = item_layouts.last() {
-                                    if pos.y > last.0.bottom() {
-                                        drop_index = Some(item_layouts.len());
-                                    }
-                                }
+                        if sidebar_state
+                            .dragging_favorite
+                            .is_some_and(|from| from >= count)
+                        {
+                            sidebar_state.dragging_favorite = None;
+                        } else if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                            // Cancel: the row glides back from where it was.
+                            if let Some(from) = sidebar_state.dragging_favorite.take() {
+                                let back =
+                                    (sidebar_state.drag_top - item_layouts[from].0.top()) / pitch;
+                                let path = sidebar_state.favorites[from].path.clone();
+                                sidebar_state.row_offsets.insert(path, back);
                             }
                         }
 
-                        let favorites_len = sidebar_state.favorites.len();
+                        // Where the dragged row sits and which slot it would drop into.
+                        let mut drag_top = sidebar_state.drag_top;
+                        let mut target_slot = sidebar_state.dragging_favorite.unwrap_or(0);
+                        if let (Some(_), Some(pos)) = (sidebar_state.dragging_favorite, pointer_pos)
+                        {
+                            drag_top = clamp_drag_top(
+                                pos.y,
+                                sidebar_state.drag_grab_dy,
+                                section_top,
+                                section_bottom,
+                                row_height,
+                            );
+                            sidebar_state.drag_top = drag_top;
+                            target_slot = favorite_target_slot(
+                                drag_top + row_height / 2.0,
+                                section_top,
+                                pitch,
+                                count,
+                            );
+                        }
+                        if sidebar_state.dragging_favorite.is_some() {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
+                        }
+
+                        let dt = ui.input(|i| i.stable_dt).min(0.05);
+                        let mut animating = false;
+                        let favorites_len = count;
                         let rename_target = &mut sidebar_state.rename_target;
                         let rename_buffer = &mut sidebar_state.rename_buffer;
                         for (i, favorite) in sidebar_state.favorites.iter().enumerate() {
-                            let (rect, resp) = &item_layouts[i];
-                            draw_sidebar_item(
-                                ui,
-                                icon_cache,
-                                &favorite.path,
-                                &favorite.label,
-                                true,
-                                false,
-                                palette,
-                                true,
-                                Some((*rect, resp.clone())),
-                            );
-                            if prefs.pin_glyphs && !resp.hovered() {
-                                let pin_rect = egui::Rect::from_min_size(
-                                    egui::pos2(rect.right() - 16.0, rect.top()),
-                                    egui::vec2(12.0, rect.height()),
+                            let (base_rect, resp) = &item_layouts[i];
+                            let is_dragged = sidebar_state.dragging_favorite == Some(i);
+
+                            // Slide toward the slot offset: neighbors open a gap at the target.
+                            let goal = match sidebar_state.dragging_favorite {
+                                Some(from) if !is_dragged => row_slot_offset(i, from, target_slot),
+                                _ => 0.0,
+                            };
+                            let offset = if is_dragged {
+                                0.0
+                            } else {
+                                let current = sidebar_state
+                                    .row_offsets
+                                    .get(&favorite.path)
+                                    .copied()
+                                    .unwrap_or(0.0);
+                                let next = step_row_offset(current, goal, dt);
+                                if next == 0.0 {
+                                    sidebar_state.row_offsets.remove(&favorite.path);
+                                } else {
+                                    sidebar_state
+                                        .row_offsets
+                                        .insert(favorite.path.clone(), next);
+                                    animating = true;
+                                }
+                                next
+                            };
+
+                            let rect = if is_dragged {
+                                egui::Rect::from_min_size(
+                                    egui::pos2(base_rect.left(), drag_top),
+                                    base_rect.size(),
+                                )
+                            } else {
+                                base_rect.translate(egui::vec2(0.0, offset * pitch))
+                            };
+
+                            // The dragged row lives on its own layer so it sits above the
+                            // others, with an accent background and a soft shadow.
+                            let mut overlay = is_dragged.then(|| {
+                                let mut child = ui.new_child(
+                                    egui::UiBuilder::new()
+                                        .layer_id(egui::LayerId::new(
+                                            egui::Order::Tooltip,
+                                            ui.id().with("favorite_drag_row"),
+                                        ))
+                                        .max_rect(rect),
                                 );
-                                paint_icon(
-                                    ui,
-                                    pin_rect,
-                                    AppIcon::PushPin.regular(),
-                                    11.0,
-                                    palette.text_normal.gamma_multiply(0.8),
+                                let radius = egui::CornerRadius::same(palette.medium_radius);
+                                let painter = child.painter();
+                                painter.add(
+                                    egui::Shadow {
+                                        offset: [0, 2],
+                                        blur: 8,
+                                        spread: 0,
+                                        color: egui::Color32::from_black_alpha(70),
+                                    }
+                                    .as_shape(rect, radius),
                                 );
+                                painter.rect_filled(
+                                    rect,
+                                    radius,
+                                    palette.primary_active.gamma_multiply(0.35),
+                                );
+                                child.set_clip_rect(rect.expand(16.0));
+                                child
+                            });
+                            {
+                                let row_ui: &mut egui::Ui = overlay.as_mut().unwrap_or(&mut *ui);
+                                draw_sidebar_item(
+                                    row_ui,
+                                    icon_cache,
+                                    &favorite.path,
+                                    &favorite.label,
+                                    true,
+                                    false,
+                                    palette,
+                                    true,
+                                    Some((rect, resp.clone())),
+                                );
+                                if prefs.pin_glyphs && !resp.hovered() {
+                                    let pin_rect = egui::Rect::from_min_size(
+                                        egui::pos2(rect.right() - 16.0, rect.top()),
+                                        egui::vec2(12.0, rect.height()),
+                                    );
+                                    paint_icon(
+                                        row_ui,
+                                        pin_rect,
+                                        AppIcon::PushPin.regular(),
+                                        11.0,
+                                        palette.text_normal.gamma_multiply(0.8),
+                                    );
+                                }
                             }
 
                             if drag_active {
@@ -233,7 +331,7 @@ pub fn draw_sidebar(
                                         ))
                                         .with_clip_rect(ui.clip_rect());
                                     painter.rect_filled(
-                                        *rect,
+                                        rect,
                                         egui::CornerRadius::same(palette.medium_radius),
                                         palette.primary_hover,
                                     );
@@ -242,10 +340,6 @@ pub fn draw_sidebar(
                                         tab_drop_target = Some(favorite.path.clone());
                                     }
                                 }
-                            }
-
-                            if !is_dragging && resp.drag_started() {
-                                sidebar_state.dragging_favorite = Some(i);
                             }
 
                             if resp.clicked() {
@@ -304,66 +398,27 @@ pub fn draw_sidebar(
                                         ui.close();
                                     }
                                 });
-
-                            if let Some(drop) = drop_index {
-                                if drop == i {
-                                    let painter = ui.ctx().layer_painter(egui::LayerId::new(
-                                        egui::Order::Background,
-                                        egui::Id::new(format!("insert_line_{}", i)),
-                                    ));
-
-                                    let y = resp.rect.top();
-                                    let left = resp.rect.left() + 6.0;
-                                    let right = resp.rect.right() - 6.0;
-
-                                    painter.line_segment(
-                                        [egui::pos2(left, y), egui::pos2(right, y)],
-                                        egui::Stroke::new(2.0, palette.primary_active),
-                                    );
-                                }
-                            }
                         }
 
-                        if is_dragging {
-                            if let Some(drop) = drop_index {
-                                if drop == sidebar_state.favorites.len() {
-                                    if let Some(rect) = item_layouts.last().map(|(r, _)| r) {
-                                        let painter = ui.ctx().layer_painter(egui::LayerId::new(
-                                            egui::Order::Background,
-                                            egui::Id::new("insert_line_end"),
-                                        ));
-
-                                        let y = rect.bottom();
-                                        let left = rect.left() + 6.0;
-                                        let right = rect.right() - 6.0;
-
-                                        painter.line_segment(
-                                            [egui::pos2(left, y), egui::pos2(right, y)],
-                                            egui::Stroke::new(2.0, palette.primary_active),
-                                        );
+                        // Drop: the row settles from where it was released into its slot.
+                        if let Some(from) = sidebar_state.dragging_favorite {
+                            if pointer_released {
+                                let slot = target_slot.min(count.saturating_sub(1));
+                                if slot != from {
+                                    for row in sidebar_state.row_offsets.values_mut() {
+                                        *row = 0.0;
                                     }
+                                    action.reorder = Some((from, reorder_insertion(from, slot)));
                                 }
+                                let settle = (drag_top - item_layouts[slot].0.top()) / pitch;
+                                let path = sidebar_state.favorites[from].path.clone();
+                                sidebar_state.row_offsets.insert(path, settle);
+                                sidebar_state.dragging_favorite = None;
+                                animating = true;
                             }
-
-                            if let Some(drag_idx) = sidebar_state.dragging_favorite {
-                                draw_object_drag_ghost(
-                                    ui,
-                                    palette,
-                                    &sidebar_state.favorites[drag_idx].label,
-                                    true,
-                                );
-                            }
-
-                            if let Some(from) = sidebar_state.dragging_favorite {
-                                if pointer_released {
-                                    if let Some(to) = drop_index {
-                                        action.reorder = Some((from, to));
-                                    }
-
-                                    sidebar_state.dragging_favorite = None;
-                                    drop_index = None;
-                                }
-                            }
+                        }
+                        if animating {
+                            request_animation_frame(ui.ctx());
                         }
                     }
 
@@ -670,6 +725,48 @@ fn section_gap(ui: &mut egui::Ui, prefs: SidebarPrefs) {
     }
 }
 
+/// Top edge of the dragged favorite: follows the pointer (minus the grab point)
+/// and stays inside the favorites section.
+fn clamp_drag_top(pointer_y: f32, grab_dy: f32, top: f32, bottom: f32, row_height: f32) -> f32 {
+    let max = (bottom - row_height).max(top);
+    (pointer_y - grab_dy).clamp(top, max)
+}
+
+/// Slot (0..count) the dragged row's center falls in.
+fn favorite_target_slot(center_y: f32, top: f32, pitch: f32, count: usize) -> usize {
+    if count == 0 || pitch <= 0.0 {
+        return 0;
+    }
+    (((center_y - top) / pitch).floor().max(0.0) as usize).min(count - 1)
+}
+
+/// Offset in rows (-1, 0 or 1) a non-dragged row takes so a gap opens at `target`.
+fn row_slot_offset(index: usize, drag: usize, target: usize) -> f32 {
+    if drag < target && index > drag && index <= target {
+        -1.0
+    } else if target < drag && index >= target && index < drag {
+        1.0
+    } else {
+        0.0
+    }
+}
+
+/// Insertion index for `SidebarAction::reorder` when moving `from` into `slot`.
+fn reorder_insertion(from: usize, slot: usize) -> usize {
+    if slot > from { slot + 1 } else { slot }
+}
+
+/// Ease-out step (about 140 ms to settle) of a row offset toward its goal.
+fn step_row_offset(current: f32, goal: f32, dt: f32) -> f32 {
+    const TIME_CONSTANT: f32 = 0.04;
+    let next = current + (goal - current) * (1.0 - (-dt / TIME_CONSTANT).exp());
+    if (goal - next).abs() < 0.01 {
+        goal
+    } else {
+        next
+    }
+}
+
 fn favorites_item_layout(
     ui: &mut egui::Ui,
     palette: &ThemePalette,
@@ -830,4 +927,56 @@ fn sidebar_drive_item(
     }
 
     resp
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn drag_top_is_clamped_to_section() {
+        assert_eq!(clamp_drag_top(50.0, 5.0, 100.0, 200.0, 20.0), 100.0);
+        assert_eq!(clamp_drag_top(500.0, 5.0, 100.0, 200.0, 20.0), 180.0);
+        assert_eq!(clamp_drag_top(150.0, 5.0, 100.0, 200.0, 20.0), 145.0);
+    }
+
+    #[test]
+    fn target_slot_follows_center_and_clamps() {
+        assert_eq!(favorite_target_slot(95.0, 100.0, 20.0, 5), 0);
+        assert_eq!(favorite_target_slot(119.0, 100.0, 20.0, 5), 0);
+        assert_eq!(favorite_target_slot(121.0, 100.0, 20.0, 5), 1);
+        assert_eq!(favorite_target_slot(900.0, 100.0, 20.0, 5), 4);
+        assert_eq!(favorite_target_slot(120.0, 100.0, 20.0, 0), 0);
+    }
+
+    #[test]
+    fn rows_open_a_gap_at_the_target() {
+        // Dragging 1 down to 3: rows 2 and 3 move up.
+        let down: Vec<f32> = (0..5).map(|i| row_slot_offset(i, 1, 3)).collect();
+        assert_eq!(down, [0.0, 0.0, -1.0, -1.0, 0.0]);
+        // Dragging 3 up to 1: rows 1 and 2 move down.
+        let up: Vec<f32> = (0..5).map(|i| row_slot_offset(i, 3, 1)).collect();
+        assert_eq!(up, [0.0, 1.0, 1.0, 0.0, 0.0]);
+        // Same slot: nothing moves.
+        assert!((0..5).all(|i| row_slot_offset(i, 2, 2) == 0.0));
+    }
+
+    #[test]
+    fn reorder_insertion_matches_remove_then_insert() {
+        assert_eq!(reorder_insertion(1, 3), 4);
+        assert_eq!(reorder_insertion(3, 1), 1);
+    }
+
+    #[test]
+    fn row_offset_eases_to_goal() {
+        let mut v = 1.0;
+        for _ in 0..9 {
+            v = step_row_offset(v, 0.0, 1.0 / 60.0);
+        }
+        assert!(v > 0.0 && v < 0.1);
+        for _ in 0..20 {
+            v = step_row_offset(v, 0.0, 1.0 / 60.0);
+        }
+        assert_eq!(v, 0.0);
+    }
 }
