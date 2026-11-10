@@ -3300,11 +3300,6 @@ mod tests {
         assert!(font_needs_reload(&mut applied, "Arial"));
         assert!(!font_needs_reload(&mut applied, "Arial"));
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 
     fn init_com() {
         // Shell calls need COM on the test thread; the app does this in main.rs.
