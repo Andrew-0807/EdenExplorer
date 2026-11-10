@@ -850,10 +850,46 @@ pub struct ItemViewerNavBarAction {
     pub sort_by: Option<crate::gui::utils::SortColumn>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ItemViewerFolderSizeState {
     pub bytes: u64,
     pub done: bool,
+    /// `bytes` is a finished size from an earlier scan, kept on screen while
+    /// a rescan runs. Progress values are ignored until the final result.
+    pub held: bool,
+}
+
+impl ItemViewerFolderSizeState {
+    /// State after a worker result. Returns `None` when the result must not
+    /// replace what is shown (progress for a held value).
+    pub fn after_result(existing: Option<&Self>, bytes: u64, done: bool) -> Option<Self> {
+        if !done && existing.is_some_and(|state| state.held) {
+            return None;
+        }
+        Some(Self {
+            bytes,
+            done,
+            held: false,
+        })
+    }
+
+    /// State when a folder is listed again and a rescan is starting or
+    /// already running. A finished size is held until the rescan completes.
+    pub fn on_listed(existing: Option<&Self>) -> Self {
+        match existing {
+            Some(state) if state.done => Self {
+                bytes: state.bytes,
+                done: false,
+                held: true,
+            },
+            Some(state) => *state,
+            None => Self {
+                bytes: 0,
+                done: false,
+                held: false,
+            },
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -1751,5 +1787,57 @@ mod tests {
         assert!(state.dir_cache.is_dir(&file));
 
         let _ = std::fs::remove_dir_all(&root);
+    }
+}
+
+#[cfg(test)]
+mod folder_size_state_tests {
+    use super::ItemViewerFolderSizeState as State;
+
+    fn state(bytes: u64, done: bool, held: bool) -> State {
+        State { bytes, done, held }
+    }
+
+    #[test]
+    fn progress_without_cache_is_shown() {
+        assert_eq!(
+            State::after_result(None, 5, false),
+            Some(state(5, false, false))
+        );
+        let running = state(5, false, false);
+        assert_eq!(
+            State::after_result(Some(&running), 9, false),
+            Some(state(9, false, false))
+        );
+    }
+
+    #[test]
+    fn progress_is_ignored_while_cached_value_is_held() {
+        let held = state(100, false, true);
+        assert_eq!(State::after_result(Some(&held), 3, false), None);
+    }
+
+    #[test]
+    fn final_result_replaces_held_value() {
+        let held = state(100, false, true);
+        assert_eq!(
+            State::after_result(Some(&held), 40, true),
+            Some(state(40, true, false))
+        );
+    }
+
+    #[test]
+    fn relisting_holds_finished_size() {
+        let done = state(100, true, false);
+        assert_eq!(State::on_listed(Some(&done)), state(100, false, true));
+        assert_eq!(State::on_listed(None), state(0, false, false));
+    }
+
+    #[test]
+    fn relisting_keeps_running_scan_state() {
+        let running = state(7, false, false);
+        assert_eq!(State::on_listed(Some(&running)), running);
+        let held = state(100, false, true);
+        assert_eq!(State::on_listed(Some(&held)), held);
     }
 }

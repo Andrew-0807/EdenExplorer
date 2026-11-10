@@ -632,10 +632,12 @@ impl MainWindow {
             view.directory_change_rx = None;
             view.directory_watcher = None;
             view.directory_change_debounce = Default::default();
-            view.size_req_tx = None;
-            view.size_rx = None;
-            view.pending_size_queue.clear();
-            view.pending_size_set.clear();
+            // The size channels and workers outlive navigation so scans for a
+            // folder that was left still finish and fill the cache. Only
+            // requests not yet handed to a worker are withdrawn.
+            while let Some(path) = view.pending_size_queue.pop_front() {
+                view.pending_size_set.remove(&path);
+            }
             view.is_loading = false;
             view.explorer_state.selected_paths.clear();
             view.explorer_state.selection_anchor = None;
@@ -718,8 +720,8 @@ impl MainWindow {
         view.rx = Some(rx);
         view.is_loading = true;
 
-        // Setup folder size calculation channels only if folder scanning is enabled
-        if folder_scanning_enabled {
+        // Set up folder size calculation channels once per view, only if folder scanning is enabled
+        if folder_scanning_enabled && view.size_req_tx.is_none() {
             let (size_req_tx, size_req_rx) = unbounded::<PathBuf>();
             let (size_done_tx, size_done_rx) = unbounded::<(PathBuf, u64, bool)>();
             view.size_req_tx = Some(size_req_tx);
@@ -2240,11 +2242,15 @@ impl MainWindow {
                             .pending_size_set
                             .remove(&path);
                     }
-                    self.folder_sizes.insert(
-                        path.clone(),
-                        ItemViewerFolderSizeState { bytes: size, done },
-                    );
-                    latest.insert(path, size);
+                    // Results land in the cache even for folders no longer shown.
+                    if let Some(state) = ItemViewerFolderSizeState::after_result(
+                        self.folder_sizes.get(&path),
+                        size,
+                        done,
+                    ) {
+                        self.folder_sizes.insert(path.clone(), state);
+                        latest.insert(path, size);
+                    }
                 }
                 Err(_) => break,
             }
@@ -2332,14 +2338,10 @@ impl MainWindow {
             for item in batch.iter_mut() {
                 if item.is_dir && folder_scanning_enabled {
                     // Only set up folder size tracking if scanning is enabled.
-                    // A cached size is shown right away and corrected by the rescan.
-                    let state = self.folder_sizes.entry(item.path.clone()).or_insert(
-                        ItemViewerFolderSizeState {
-                            bytes: 0,
-                            done: false,
-                        },
-                    );
-                    state.done = false;
+                    // A cached size is shown (held) until the rescan's final result.
+                    let state =
+                        ItemViewerFolderSizeState::on_listed(self.folder_sizes.get(&item.path));
+                    self.folder_sizes.insert(item.path.clone(), state);
                     if state.bytes > 0 {
                         item.file_size = Some(state.bytes);
                     }
