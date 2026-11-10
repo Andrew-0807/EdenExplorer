@@ -402,6 +402,19 @@ unsafe extern "system" fn custom_wndproc(
             LRESULT(0)
         }
 
+        // Accent color or light/dark mode changed: re-read on the next frame.
+        WM_SETTINGCHANGE | WM_DWMCOLORIZATIONCOLORCHANGED => {
+            crate::core::system_theme::mark_system_theme_dirty();
+            request_repaint();
+            unsafe {
+                if let Some(orig) = get_original_wndproc() {
+                    CallWindowProcW(orig, hwnd, msg, wparam, lparam)
+                } else {
+                    DefWindowProcW(hwnd, msg, wparam, lparam)
+                }
+            }
+        }
+
         WM_DEVICECHANGE => {
             mark_drive_cache_dirty();
             request_repaint();

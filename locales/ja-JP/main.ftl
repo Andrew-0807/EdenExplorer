@@ -374,3 +374,13 @@ sidebar_linux = Linux
 sidebar_move_up = 上へ移動
 sidebar_move_down = 下へ移動
 sidebar_rename = 名前の変更
+
+# System theme, density, zoom
+theme_follow_accent = Windows のアクセント カラーを使用
+theme_density = 密度:
+theme_density_compact = コンパクト
+theme_density_normal = 標準
+theme_density_touch = タッチ
+settings_theme_group = テーマ
+settings_theme_follow_system = Windows のライト/ダーク モードに従う
+settings_zoom = 表示倍率

@@ -7,5 +7,6 @@ pub mod launch;
 pub mod legacy;
 pub mod persist;
 pub mod portable;
+pub mod system_theme;
 pub mod utils;
 pub mod wsl;

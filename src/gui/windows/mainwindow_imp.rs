@@ -1876,9 +1876,45 @@ impl MainWindow {
         }
     }
 
+    /// Applies the Windows app mode and accent color where the user asked
+    /// to follow them. Runs at startup and after WM_SETTINGCHANGE.
+    pub(crate) fn sync_system_theme(&mut self) {
+        if self.settings_window.current_settings.ui.theme_follow_system
+            && let Some(light) = crate::core::system_theme::apps_use_light_theme()
+        {
+            let mode = if light {
+                ThemeMode::Light
+            } else {
+                ThemeMode::Dark
+            };
+            if mode != self.theme {
+                self.theme = mode;
+                self.theme_dirty = true;
+            }
+        }
+
+        let Some(accent) = crate::core::system_theme::accent_color() else {
+            return;
+        };
+        for mode in [ThemeMode::Dark, ThemeMode::Light] {
+            let palette = crate::gui::theme::get_palette(mode);
+            if let Some(updated) =
+                crate::gui::theme::accent_palette(&palette, accent, mode == ThemeMode::Dark)
+            {
+                *self.theme_customizer.palette_mut(mode) = updated.clone();
+                set_palette(mode, updated);
+                if mode == self.theme {
+                    self.theme_dirty = true;
+                }
+            }
+        }
+    }
+
     pub fn handle_topbar_action(&mut self, topbar_action: Option<TopbarAction>) {
         if let Some(action) = topbar_action {
             if action.toggle_theme {
+                // A manual switch stops following the Windows mode.
+                self.settings_window.current_settings.ui.theme_follow_system = false;
                 self.theme = match self.theme {
                     ThemeMode::Dark => ThemeMode::Light,
                     ThemeMode::Light => ThemeMode::Dark,

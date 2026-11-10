@@ -356,6 +356,39 @@ fn draw_appearance_tab(
     let prefs = &mut settings.current_settings.ui;
 
     ui.group(|ui| {
+        appearance_heading(ui, palette, &i18n.tr("settings_theme_group"));
+        if pref_checkbox(
+            ui,
+            palette,
+            i18n,
+            "settings_theme_follow_system",
+            &mut prefs.theme_follow_system,
+        ) {
+            crate::core::system_theme::mark_system_theme_dirty();
+            changed = true;
+        }
+        setting_row(
+            ui,
+            |ui| setting_label(ui, &i18n.tr("settings_zoom"), None, palette),
+            |ui| {
+                let mut percent = (prefs.zoom * 100.0).round();
+                if ui
+                    .add(
+                        egui::DragValue::new(&mut percent)
+                            .range(50.0..=300.0)
+                            .speed(1.0)
+                            .suffix("%"),
+                    )
+                    .changed()
+                {
+                    prefs.zoom = percent / 100.0;
+                    changed = true;
+                }
+            },
+        );
+    });
+
+    ui.group(|ui| {
         appearance_heading(ui, palette, &i18n.tr("settings_toolbar"));
         setting_row(
             ui,

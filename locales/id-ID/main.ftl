@@ -374,3 +374,13 @@ sidebar_linux = Linux
 sidebar_move_up = Pindah ke atas
 sidebar_move_down = Pindah ke bawah
 sidebar_rename = Ganti nama
+
+# System theme, density, zoom
+theme_follow_accent = Gunakan warna aksen Windows
+theme_density = Kerapatan:
+theme_density_compact = Ringkas
+theme_density_normal = Normal
+theme_density_touch = Sentuh
+settings_theme_group = Tema
+settings_theme_follow_system = Ikuti mode terang/gelap Windows
+settings_zoom = Perbesaran antarmuka

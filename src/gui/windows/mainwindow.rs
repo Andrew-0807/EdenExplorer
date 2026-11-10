@@ -5,10 +5,12 @@ use crate::core::indexer::{
     load_window_position_on_start, load_window_was_maximized_on_start,
 };
 use crate::core::launch::take_forwarded_paths;
+use crate::core::system_theme::consume_system_theme_dirty;
 use crate::core::utils::tabs::update_tab_infos_cache;
 use crate::gui::backdrop::{
     backdrop_effective, gradient_colors, gradient_mesh, transparent_surface,
 };
+use crate::gui::customization::effective_zoom;
 use crate::gui::dragdrop::{DragDropBackend, DropTargets};
 use crate::gui::theme::{
     ThemeMode, apply_font_to_context, apply_theme, get_default_palette, get_palette, set_palette,
@@ -58,6 +60,8 @@ pub struct MainWindow {
     pub(crate) theme_dirty: bool,
     /// A DWM backdrop is showing behind a transparent surface right now.
     pub(crate) backdrop_active: bool,
+    /// Zoom factor last handed to egui.
+    pub(crate) applied_zoom: f32,
     applied_font_name: Option<String>,
     theme_save_pending: bool,
     pub(crate) window_override_set: bool,
@@ -213,6 +217,7 @@ impl Default for MainWindow {
             sidebar_collapsed: false,
             theme_dirty: true,
             backdrop_active: false,
+            applied_zoom: 1.0,
             applied_font_name: None,
             theme_save_pending: false,
             window_override_set: false,
@@ -334,6 +339,15 @@ impl eframe::App for MainWindow {
                 self.load_path();
             }
         }
+        if consume_system_theme_dirty() {
+            self.sync_system_theme();
+        }
+        let zoom = effective_zoom(self.settings_window.current_settings.ui.zoom);
+        if zoom != self.applied_zoom {
+            ui.ctx().set_zoom_factor(zoom);
+            self.applied_zoom = zoom;
+        }
+
         let palette = get_palette(self.theme);
 
         if self.hwnd.is_none() {

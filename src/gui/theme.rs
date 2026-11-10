@@ -105,6 +105,9 @@ pub struct ThemePalette {
     /// Flat style colors of Desktop, Documents, Downloads, ...
     pub known_folder_colors: crate::gui::folder_icons::KnownFolderColors,
 
+    /// Use the Windows accent color as `primary` (kept in sync live).
+    pub follow_system_accent: bool,
+
     // 🎯 Icons & text
     pub icon_color: Color32,
     pub icon_windows: Color32,
@@ -260,6 +263,7 @@ pub static DEFAULT_PALETTE_DARK: LazyLock<ThemePalette> = LazyLock::new(|| {
         icon_style: crate::gui::folder_icons::IconStyle::Classic,
         folder_color: Color32::from_rgb(240, 190, 70),
         known_folder_colors: crate::gui::folder_icons::KnownFolderColors::default(),
+        follow_system_accent: false,
 
         // 🎯 Icons & text
         icon_color: Color32::WHITE,
@@ -366,6 +370,7 @@ pub static DEFAULT_PALETTE_LIGHT: LazyLock<ThemePalette> = LazyLock::new(|| {
         icon_style: crate::gui::folder_icons::IconStyle::Classic,
         folder_color: Color32::from_rgb(240, 190, 70),
         known_folder_colors: crate::gui::folder_icons::KnownFolderColors::default(),
+        follow_system_accent: false,
 
         // 🎯 Icons & text
         icon_color: Color32::from_rgb(40, 40, 40),
@@ -639,6 +644,18 @@ pub fn regenerate_base_derived_colors(palette: &mut ThemePalette, is_dark: bool)
     palette.checkbox_bg_active = base;
 }
 
+/// The palette with `accent` as its primary color, when it follows the
+/// system accent and the accent differs. `None` means nothing to change.
+pub fn accent_palette(palette: &ThemePalette, accent: Color32, dark: bool) -> Option<ThemePalette> {
+    if !palette.follow_system_accent || palette.primary == accent {
+        return None;
+    }
+    let mut updated = palette.clone();
+    updated.primary = accent;
+    regenerate_base_derived_colors(&mut updated, dark);
+    Some(updated)
+}
+
 pub fn apply_font_to_context(ctx: &egui::Context, palette: &ThemePalette) {
     let mut fonts = egui::FontDefinitions::default();
 
@@ -766,6 +783,18 @@ pub(crate) mod tests {
         let text = active_tab_text_color(&p, true);
         assert_contrast("active tab on light accent", text, p.primary_active);
         assert_eq!(text, Color32::BLACK);
+    }
+
+    #[test]
+    fn accent_is_applied_only_when_following() {
+        let accent = Color32::from_rgb(0x83, 0x86, 0x8C);
+        let mut p = DEFAULT_PALETTE_DARK.clone();
+        assert!(accent_palette(&p, accent, true).is_none());
+        p.follow_system_accent = true;
+        let updated = accent_palette(&p, accent, true).unwrap();
+        assert_eq!(updated.primary, accent);
+        assert_eq!(updated.borders_active, accent);
+        assert!(accent_palette(&updated, accent, true).is_none());
     }
 
     #[test]

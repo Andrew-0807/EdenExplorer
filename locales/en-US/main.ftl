@@ -374,3 +374,13 @@ sidebar_linux = Linux
 sidebar_move_up = Move up
 sidebar_move_down = Move down
 sidebar_rename = Rename
+
+# System theme, density, zoom
+theme_follow_accent = Use the Windows accent color
+theme_density = Density:
+theme_density_compact = Compact
+theme_density_normal = Normal
+theme_density_touch = Touch
+settings_theme_group = Theme
+settings_theme_follow_system = Follow the Windows light/dark mode
+settings_zoom = Interface zoom

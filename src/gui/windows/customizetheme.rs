@@ -6,7 +6,7 @@ use crate::gui::selection::{HoverStyle, SelectionStyle};
 use crate::gui::theme::{
     ThemeMode, ThemePalette, apply_font_to_context, error_color, regenerate_base_derived_colors,
 };
-use crate::gui::theme_presets::{ThemePreset, preset_palette};
+use crate::gui::theme_presets::{Density, ThemePreset, apply_density, preset_palette};
 use crate::gui::utils::rgba_color_edit_button;
 use crate::gui::utils::widgets::{
     apply_eden_visual_overrides, draw_dropdown, eden_button, eden_text_label, eden_toggle_button,
@@ -329,6 +329,16 @@ fn draw_sections(
     p: &mut ThemePalette,
     mode: ThemeMode,
 ) {
+    ui.horizontal(|ui| {
+        eden_text_label(ui, rows.style, &rows.i18n.tr("theme_density"));
+        for density in Density::ALL {
+            if eden_button(ui, rows.style, &rows.i18n.tr(density.label_key())).clicked() {
+                apply_density(p, density);
+                rows.changed = true;
+            }
+        }
+    });
+
     section(ui, rows, "theme_typography", true, |ui, rows| {
         rows.number(ui, "theme_textsize", &mut p.text_size, 8.0..=24.0, 0.2);
         rows.number(
@@ -380,7 +390,14 @@ fn draw_sections(
     });
 
     section(ui, rows, "theme_core_colors", true, |ui, rows| {
+        if rows.toggle(ui, "theme_follow_accent", &mut p.follow_system_accent)
+            && p.follow_system_accent
+        {
+            // Picked up on the next frame, like a Windows accent change.
+            crate::core::system_theme::mark_system_theme_dirty();
+        }
         if rows.color(ui, "theme_colors_primary", &mut p.primary) {
+            p.follow_system_accent = false;
             regenerate_base_derived_colors(p, mode == ThemeMode::Dark);
         }
         rows.color(ui, "theme_colors_primary_hover", &mut p.primary_hover);

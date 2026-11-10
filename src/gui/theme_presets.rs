@@ -237,6 +237,40 @@ fn keep_layout(palette: &mut ThemePalette, base: &ThemePalette) {
     palette.sidebar_item_spacing_y = base.sidebar_item_spacing_y;
 }
 
+/// Row and icon size presets.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Density {
+    Compact,
+    Normal,
+    Touch,
+}
+
+impl Density {
+    pub const ALL: [Density; 3] = [Density::Compact, Density::Normal, Density::Touch];
+
+    pub fn label_key(self) -> &'static str {
+        match self {
+            Density::Compact => "theme_density_compact",
+            Density::Normal => "theme_density_normal",
+            Density::Touch => "theme_density_touch",
+        }
+    }
+}
+
+/// Sets row height, sidebar spacing and icon sizes for `density`; colors,
+/// fonts and text sizes are left alone.
+pub fn apply_density(palette: &mut ThemePalette, density: Density) {
+    let (row, spacing, sidebar_icon, tab_icon) = match density {
+        Density::Compact => (18.0, 0.3, 16.0, 14.0),
+        Density::Normal => (22.0, 0.5, 18.0, 16.0),
+        Density::Touch => (30.0, 1.6, 22.0, 18.0),
+    };
+    palette.row_height = row;
+    palette.sidebar_item_spacing_y = spacing;
+    palette.sidebar_icon_size = sidebar_icon;
+    palette.tab_icon_size = tab_icon;
+}
+
 /// Serializes one palette as an exported theme file.
 pub fn export_theme_json(mode: ThemeMode, palette: &ThemePalette) -> Option<String> {
     let mut map = serde_json::Map::new();
@@ -352,6 +386,32 @@ mod tests {
         assert!(!p.show_separators);
         let p = preset_palette(ThemePreset::Nord, ThemeMode::Dark, &base);
         assert_eq!(p.backdrop, Backdrop::None);
+    }
+
+    #[test]
+    fn density_presets() {
+        let mut p = get_default_palette(ThemeMode::Dark);
+        apply_density(&mut p, Density::Normal);
+        let d = get_default_palette(ThemeMode::Dark);
+        assert_eq!(
+            (
+                p.row_height,
+                p.sidebar_icon_size,
+                p.tab_icon_size,
+                p.sidebar_item_spacing_y
+            ),
+            (
+                d.row_height,
+                d.sidebar_icon_size,
+                d.tab_icon_size,
+                d.sidebar_item_spacing_y
+            )
+        );
+        apply_density(&mut p, Density::Compact);
+        assert!(p.row_height < d.row_height);
+        apply_density(&mut p, Density::Touch);
+        assert!(p.row_height >= 28.0);
+        assert_eq!(p.text_size, d.text_size);
     }
 
     #[test]

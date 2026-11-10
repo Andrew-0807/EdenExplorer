@@ -356,12 +356,37 @@ pub fn split_network_drives<T>(
 }
 
 /// Everything under `ui` in `settings.json`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct UiPreferences {
     pub toolbar: ToolbarPrefs,
     pub status_bar: StatusBarPrefs,
     pub sidebar: SidebarPrefs,
+    /// Switch light/dark with the Windows app mode.
+    pub theme_follow_system: bool,
+    /// Interface zoom (1.0 = 100%).
+    pub zoom: f32,
+}
+
+impl Default for UiPreferences {
+    fn default() -> Self {
+        Self {
+            toolbar: ToolbarPrefs::default(),
+            status_bar: StatusBarPrefs::default(),
+            sidebar: SidebarPrefs::default(),
+            theme_follow_system: false,
+            zoom: 1.0,
+        }
+    }
+}
+
+/// Zoom actually applied: invalid stored values fall back to 100%.
+pub fn effective_zoom(zoom: f32) -> f32 {
+    if zoom.is_finite() {
+        zoom.clamp(0.5, 3.0)
+    } else {
+        1.0
+    }
 }
 
 #[cfg(test)]
@@ -479,6 +504,15 @@ mod tests {
             status_left_text(&StatusBarPrefs::default(), stats, "a", "b", "c", size),
             ""
         );
+    }
+
+    #[test]
+    fn zoom_is_clamped() {
+        assert_eq!(effective_zoom(1.25), 1.25);
+        assert_eq!(effective_zoom(9.0), 3.0);
+        assert_eq!(effective_zoom(0.0), 0.5);
+        assert_eq!(effective_zoom(f32::NAN), 1.0);
+        assert_eq!(UiPreferences::default().zoom, 1.0);
     }
 
     #[test]

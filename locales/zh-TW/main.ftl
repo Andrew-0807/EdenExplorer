@@ -374,3 +374,13 @@ sidebar_linux = Linux
 sidebar_move_up = 上移
 sidebar_move_down = 下移
 sidebar_rename = 重新命名
+
+# System theme, density, zoom
+theme_follow_accent = 使用 Windows 輔色
+theme_density = 密度：
+theme_density_compact = 緊湊
+theme_density_normal = 標準
+theme_density_touch = 觸控
+settings_theme_group = 佈景主題
+settings_theme_follow_system = 跟隨 Windows 淺色/深色模式
+settings_zoom = 介面縮放
