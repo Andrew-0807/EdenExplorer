@@ -7,8 +7,8 @@ use crate::core::{
     },
     utils::text::apply_eden_text_overrides,
     utils::widgets::{
-        apply_eden_visual_overrides, draw_checkbox_sized, draw_dropdown_sized, eden_button,
-        eden_icon_button, eden_text_label, eden_toggle_button,
+        apply_eden_visual_overrides, draw_dropdown_sized, eden_button, eden_icon_button,
+        eden_text_label, paint_focus_ring,
     },
 };
 use crate::gui::customization::{
@@ -35,9 +35,13 @@ const SETTINGS_COMBO_WIDTH: f32 = 200.0;
 const SETTINGS_VALUE_WIDTH: f32 = 110.0;
 /// Height of combo buttons, drag values and push buttons.
 const SETTINGS_CONTROL_HEIGHT: f32 = 32.0;
-/// Click target of a checkbox and its drawn box size.
-const SETTINGS_CHECKBOX_HIT: f32 = 30.0;
-const SETTINGS_CHECKBOX_SIZE: f32 = 20.0;
+/// Click target of a toggle switch and its drawn track.
+const SETTINGS_TOGGLE_HIT: egui::Vec2 = egui::vec2(48.0, 32.0);
+const SETTINGS_TOGGLE_TRACK: egui::Vec2 = egui::vec2(42.0, 22.0);
+/// Width of the left category list.
+const SETTINGS_NAV_WIDTH: f32 = 190.0;
+const SETTINGS_NAV_ITEM_HEIGHT: f32 = 38.0;
+const SETTINGS_CARD_MARGIN: i8 = 12;
 /// Square size of icon buttons.
 const SETTINGS_ICON_BUTTON: f32 = 32.0;
 /// Chip column of the shortcuts list; fits the longest binding.
@@ -95,7 +99,7 @@ fn truncate_path_tail(s: &str, max_chars: usize) -> String {
 fn draw_hotkeys_tab(ui: &mut egui::Ui, palette: &ThemePalette, i18n: &I18n) {
     for (group_name, indices) in HOTKEY_GROUPS {
         settings_heading(ui, palette, &i18n.tr(group_name));
-        settings_group(ui, |ui| {
+        settings_group(ui, palette, |ui| {
             for index in *indices {
                 let (shortcut, description_key) = HOTKEYS[*index];
                 let description = i18n.tr(description_key);
@@ -241,7 +245,7 @@ fn draw_view_defaults_tab(
     }
 
     settings_heading(ui, palette, &i18n.tr("settings_view_defaults_columns"));
-    settings_group(ui, |ui| {
+    settings_group(ui, palette, |ui| {
         for column in DEFAULT_FILE_COLUMNS {
             let mut visible = current_order.contains(&column);
             if setting_checkbox(
@@ -262,7 +266,7 @@ fn draw_view_defaults_tab(
     });
 
     settings_heading(ui, palette, &i18n.tr("settings_default_column_width"));
-    settings_group(ui, |ui| {
+    settings_group(ui, palette, |ui| {
         let defaults = default_item_viewer_file_column_size();
         if settings
             .current_settings
@@ -312,7 +316,7 @@ fn draw_view_defaults_tab(
     changed.then_some(SettingsAction::ApplySettings)
 }
 
-/// A checkbox row bound to one preference; true when it changed.
+/// A toggle row bound to one preference; true when it changed.
 fn pref_checkbox(
     ui: &mut egui::Ui,
     palette: &ThemePalette,
@@ -339,7 +343,7 @@ fn draw_appearance_tab(
     let prefs = &mut settings.current_settings.ui;
 
     settings_heading(ui, palette, &i18n.tr("settings_theme_group"));
-    settings_group(ui, |ui| {
+    settings_group(ui, palette, |ui| {
         if pref_checkbox(
             ui,
             palette,
@@ -376,7 +380,7 @@ fn draw_appearance_tab(
     });
 
     settings_heading(ui, palette, &i18n.tr("settings_item_list"));
-    settings_group(ui, |ui| {
+    settings_group(ui, palette, |ui| {
         setting_row(
             ui,
             palette,
@@ -411,7 +415,7 @@ fn draw_appearance_tab(
     });
 
     settings_heading(ui, palette, &i18n.tr("settings_toolbar"));
-    settings_group(ui, |ui| {
+    settings_group(ui, palette, |ui| {
         setting_row(
             ui,
             palette,
@@ -459,7 +463,7 @@ fn draw_appearance_tab(
     });
 
     settings_heading(ui, palette, &i18n.tr("settings_status_bar"));
-    settings_group(ui, |ui| {
+    settings_group(ui, palette, |ui| {
         let s = &mut prefs.status_bar;
         for (key, value) in [
             ("settings_status_bar_visible", &mut s.visible),
@@ -473,7 +477,7 @@ fn draw_appearance_tab(
     });
 
     settings_heading(ui, palette, &i18n.tr("settings_sidebar"));
-    settings_group(ui, |ui| {
+    settings_group(ui, palette, |ui| {
         let s = &mut prefs.sidebar;
         for (key, value) in [
             ("settings_sidebar_places", &mut s.places),
@@ -512,7 +516,7 @@ fn draw_general_tab(
         settings.show_reset_confirmation = true;
     }
 
-    settings_group(ui, |ui| {
+    settings_group(ui, palette, |ui| {
         let language_label = i18n.tr("language");
         let english = i18n.tr("english");
         let japanese = i18n.tr("japanese");
@@ -680,7 +684,7 @@ fn draw_general_tab(
             action = Some(SettingsAction::ApplySettings);
         }
     });
-    settings_group(ui, |ui| {
+    settings_group(ui, palette, |ui| {
         // Starting Path
         setting_row(
             ui,
@@ -976,12 +980,118 @@ fn settings_heading(ui: &mut egui::Ui, palette: &ThemePalette, text: &str) {
     ui.add_space(4.0);
 }
 
-/// Full-width container of related rows.
-fn settings_group(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui)) {
-    ui.group(|ui| {
-        ui.set_width(ui.available_width());
-        add_contents(ui);
+/// Full-width rounded card of related rows, painted with the theme's surface and border.
+fn settings_group(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    add_contents: impl FnOnce(&mut egui::Ui),
+) {
+    egui::Frame::new()
+        .fill(palette.faint_bg)
+        .stroke(egui::Stroke::new(1.0, palette.borders_default))
+        .corner_radius(egui::CornerRadius::same(palette.large_radius))
+        .inner_margin(egui::Margin::symmetric(SETTINGS_CARD_MARGIN, 6))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            add_contents(ui);
+        });
+    ui.add_space(4.0);
+}
+
+/// Left list entry: highlighted when selected, tinted on hover.
+fn nav_item(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    selected: bool,
+    text: &str,
+) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(
+        egui::vec2(ui.available_width(), SETTINGS_NAV_ITEM_HEIGHT),
+        egui::Sense::click(),
+    );
+    let radius = egui::CornerRadius::same(palette.medium_radius);
+    if selected {
+        ui.painter()
+            .rect_filled(rect, radius, palette.primary.gamma_multiply(0.25));
+        let bar = egui::Rect::from_center_size(
+            egui::pos2(rect.left() + 3.0, rect.center().y),
+            egui::vec2(3.0, SETTINGS_NAV_ITEM_HEIGHT - 16.0),
+        );
+        ui.painter().rect_filled(bar, 2.0, palette.primary);
+    } else if resp.hovered() {
+        ui.painter().rect_filled(rect, radius, palette.widget_bg);
+    }
+    ui.painter().text(
+        egui::pos2(rect.left() + 14.0, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        text,
+        egui::FontId::proportional(body_size(palette)),
+        if selected {
+            palette.text_header_section
+        } else {
+            palette.text_normal
+        },
+    );
+    resp.widget_info(|| {
+        egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, selected, text)
     });
+    paint_focus_ring(ui, rect, &resp, radius);
+    resp
+}
+
+/// Toggle switch bound to a bool: accent track when on, sliding knob. Click target is
+/// `SETTINGS_TOGGLE_HIT`; the drawn track is smaller and centered in it.
+fn draw_toggle_switch(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    on: &mut bool,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    label: &str,
+) -> egui::Response {
+    let (cell, _) = ui.allocate_exact_size(SETTINGS_TOGGLE_HIT, egui::Sense::hover());
+    let mut resp = ui.interact(cell, ui.id().with(id), egui::Sense::click());
+    if resp.clicked() {
+        *on = !*on;
+        resp.mark_changed();
+    }
+    resp.widget_info(|| {
+        egui::WidgetInfo::selected(egui::WidgetType::Checkbox, ui.is_enabled(), *on, label)
+    });
+
+    let t = ui.ctx().animate_bool_responsive(resp.id, *on);
+    let track = egui::Rect::from_center_size(cell.center(), SETTINGS_TOGGLE_TRACK);
+    let off_fill = if resp.hovered() {
+        palette.checkbox_bg_hover
+    } else {
+        palette.checkbox_bg_default
+    };
+    let on_fill = if resp.hovered() {
+        palette.primary_hover
+    } else {
+        palette.primary
+    };
+    let radius = (SETTINGS_TOGGLE_TRACK.y / 2.0).round() as u8;
+    ui.painter().rect(
+        track,
+        egui::CornerRadius::same(radius),
+        off_fill.lerp_to_gamma(on_fill, t),
+        egui::Stroke::new(1.0, palette.borders_default.lerp_to_gamma(on_fill, t)),
+        egui::StrokeKind::Inside,
+    );
+    let knob_radius = SETTINGS_TOGGLE_TRACK.y / 2.0 - 4.0;
+    let travel = SETTINGS_TOGGLE_TRACK.x / 2.0 - knob_radius - 4.0;
+    ui.painter().circle_filled(
+        egui::pos2(
+            track.center().x + travel * (2.0 * t - 1.0),
+            track.center().y,
+        ),
+        knob_radius,
+        palette
+            .text_normal
+            .lerp_to_gamma(palette.checkbox_checkmark_color, t),
+    );
+    paint_focus_ring(ui, track, &resp, egui::CornerRadius::same(radius));
+    resp
 }
 
 fn settings_button(ui: &mut egui::Ui, palette: &ThemePalette, text: &str) -> egui::Response {
@@ -1066,7 +1176,7 @@ fn setting_label(
     resp
 }
 
-/// A checkbox row (no info icon); true when it changed.
+/// A toggle row (no info icon); true when it changed.
 fn setting_checkbox(
     ui: &mut egui::Ui,
     palette: &ThemePalette,
@@ -1077,7 +1187,7 @@ fn setting_checkbox(
     setting_toggle(ui, palette, checked, label.text(), None, id)
 }
 
-/// A checkbox row: label (with optional info icon) left, checkbox right. Clicking the label
+/// A toggle row: label (with optional info icon) left, switch right. Clicking the label
 /// toggles too. True when it changed.
 fn setting_toggle(
     ui: &mut egui::Ui,
@@ -1088,15 +1198,8 @@ fn setting_toggle(
     id: impl std::hash::Hash + std::fmt::Debug,
 ) -> bool {
     let mut changed = false;
-    let label_resp = setting_row(ui, palette, label, info, SETTINGS_CHECKBOX_HIT, |ui| {
-        let resp = ui
-            .allocate_ui_with_layout(
-                egui::vec2(SETTINGS_CHECKBOX_HIT, SETTINGS_CHECKBOX_HIT),
-                egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
-                |ui| draw_checkbox_sized(ui, palette, checked, id, label, SETTINGS_CHECKBOX_SIZE),
-            )
-            .inner;
-        changed |= resp.clicked();
+    let label_resp = setting_row(ui, palette, label, info, SETTINGS_TOGGLE_HIT.x, |ui| {
+        changed |= draw_toggle_switch(ui, palette, checked, id, label).clicked();
     });
     if label_resp.is_some_and(|resp| resp.clicked()) {
         *checked = !*checked;
@@ -1177,6 +1280,23 @@ const SETTINGS_TABS: [(SettingsTab, &str); 4] = [
     (SettingsTab::ViewDefaults, "settings_tab_view_defaults"),
     (SettingsTab::Hotkeys, "settings_tab_hotkeys"),
 ];
+
+fn tab_label_key(tab: SettingsTab) -> &'static str {
+    SETTINGS_TABS
+        .iter()
+        .find(|(candidate, _)| *candidate == tab)
+        .map_or("settings", |(_, key)| key)
+}
+
+/// Large title of the page shown at the top of the content.
+fn settings_page_title(ui: &mut egui::Ui, palette: &ThemePalette, text: &str) {
+    ui.label(
+        RichText::new(text)
+            .size(body_size(palette) + 7.0)
+            .strong()
+            .color(palette.text_header_section),
+    );
+}
 
 /// Bigger text, spacing and hit targets for the settings window only.
 fn apply_settings_style(ui: &mut egui::Ui, palette: &ThemePalette) {
@@ -1264,35 +1384,58 @@ pub fn draw_settings_window(
         .show(ctx, |ui| {
             apply_settings_style(ui, palette);
 
-            ui.horizontal(|ui| {
-                for (tab, key) in SETTINGS_TABS {
-                    if eden_toggle_button(ui, palette, settings.selected_tab == tab, &i18n.tr(key))
-                        .clicked()
-                    {
-                        settings.selected_tab = tab;
-                    }
-                }
-            });
-            ui.separator();
+            let size = ui.available_size();
+            ui.horizontal_top(|ui| {
+                ui.spacing_mut().item_spacing.x = 14.0;
 
-            // SCROLLABLE CONTENT
-            egui::ScrollArea::vertical()
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    // Keep content clear of the scroll bar.
-                    ui.set_max_width(ui.available_width() - 14.0);
-                    action = match settings.selected_tab {
-                        SettingsTab::Hotkeys => {
-                            draw_hotkeys_tab(ui, palette, i18n);
-                            None
+                ui.allocate_ui_with_layout(
+                    egui::vec2(SETTINGS_NAV_WIDTH, size.y),
+                    egui::Layout::top_down(egui::Align::Min),
+                    |ui| {
+                        ui.spacing_mut().item_spacing.y = 4.0;
+                        for (tab, key) in SETTINGS_TABS {
+                            if nav_item(ui, palette, settings.selected_tab == tab, &i18n.tr(key))
+                                .clicked()
+                            {
+                                settings.selected_tab = tab;
+                            }
                         }
-                        SettingsTab::Appearance => draw_appearance_tab(ui, settings, palette, i18n),
-                        SettingsTab::ViewDefaults => {
-                            draw_view_defaults_tab(ui, settings, palette, i18n)
-                        }
-                        SettingsTab::General => draw_general_tab(ui, settings, palette, i18n),
-                    };
-                });
+                    },
+                );
+
+                ui.allocate_ui_with_layout(
+                    egui::vec2(ui.available_width(), size.y),
+                    egui::Layout::top_down(egui::Align::Min),
+                    |ui| {
+                        egui::ScrollArea::vertical()
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| {
+                                // Keep content clear of the scroll bar.
+                                ui.set_max_width(ui.available_width() - 14.0);
+                                settings_page_title(
+                                    ui,
+                                    palette,
+                                    &i18n.tr(tab_label_key(settings.selected_tab)),
+                                );
+                                action = match settings.selected_tab {
+                                    SettingsTab::Hotkeys => {
+                                        draw_hotkeys_tab(ui, palette, i18n);
+                                        None
+                                    }
+                                    SettingsTab::Appearance => {
+                                        draw_appearance_tab(ui, settings, palette, i18n)
+                                    }
+                                    SettingsTab::ViewDefaults => {
+                                        draw_view_defaults_tab(ui, settings, palette, i18n)
+                                    }
+                                    SettingsTab::General => {
+                                        draw_general_tab(ui, settings, palette, i18n)
+                                    }
+                                };
+                            });
+                    },
+                );
+            });
 
             // These confirmation dialogs live outside the selected-tab content so they
             // remain visible if the user changes tabs while a destructive action is pending.
