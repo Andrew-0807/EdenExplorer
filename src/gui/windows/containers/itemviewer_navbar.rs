@@ -1,4 +1,5 @@
 use crate::core::fs::{MY_PC_PATH, MY_RECYCLE_BIN_PATH};
+use crate::core::herdr;
 use crate::core::i18n::I18n;
 use crate::core::icons::IconCache;
 use crate::core::portable;
@@ -687,6 +688,19 @@ fn draw_toolbar_items(
                     }
                 });
             }
+            ToolbarItem::Terminal => {
+                if resp.clicked() && enabled {
+                    open_default_terminal(t.current_dir);
+                }
+                if enabled && !herdr::is_missing() {
+                    if resp.secondary_clicked() {
+                        herdr::refresh_in_background(ui.ctx());
+                    }
+                    egui::Popup::context_menu(&resp).show(|ui| {
+                        herdr_menu(ui, i18n, t.current_dir);
+                    });
+                }
+            }
             _ if resp.clicked() && enabled => match item {
                 ToolbarItem::NewFolder => action.create_folder = true,
                 ToolbarItem::NewFile => action.create_file = true,
@@ -715,8 +729,7 @@ fn draw_toolbar_items(
                         action.add_favorite = true;
                     }
                 }
-                ToolbarItem::Terminal => open_default_terminal(t.current_dir),
-                ToolbarItem::Sort | ToolbarItem::Separator => {}
+                ToolbarItem::Sort | ToolbarItem::Terminal | ToolbarItem::Separator => {}
             },
             _ => {}
         }
@@ -735,12 +748,53 @@ fn navbar_separator(ui: &mut egui::Ui, palette: &ThemePalette) {
     }
 }
 
-pub(crate) fn open_default_terminal(current_dir: &Path) {
-    let start_dir = if current_dir.to_string_lossy() == MY_PC_PATH || !current_dir.exists() {
+fn terminal_start_dir(current_dir: &Path) -> PathBuf {
+    if current_dir.to_string_lossy() == MY_PC_PATH || !current_dir.exists() {
         dirs::home_dir().unwrap_or_else(|| current_dir.to_path_buf())
     } else {
         current_dir.to_path_buf()
-    };
+    }
+}
+
+/// Right-click menu of the terminal button: herdr workspace, pane and tab actions.
+fn herdr_menu(ui: &mut egui::Ui, i18n: &I18n, current_dir: &Path) {
+    let dir = terminal_start_dir(current_dir);
+    let ctx = ui.ctx().clone();
+    match herdr::snapshot() {
+        herdr::Snapshot::Unknown => {
+            ui.add_enabled(false, egui::Button::new(i18n.tr("herdr_loading")));
+        }
+        herdr::Snapshot::NoServer => {
+            ui.add_enabled(false, egui::Button::new(i18n.tr("herdr_new_workspace")))
+                .on_disabled_hover_text(i18n.tr("herdr_no_server"));
+        }
+        herdr::Snapshot::Workspaces(workspaces) => {
+            if ui.button(i18n.tr("herdr_new_workspace")).clicked() {
+                herdr::create_workspace(&dir, &ctx);
+                ui.close();
+            }
+            for ws in &workspaces {
+                ui.separator();
+                let pane_label = format!("{} {}", i18n.tr("herdr_new_pane_in"), ws.label);
+                let tab_label = format!("{} {}", i18n.tr("herdr_new_tab_in"), ws.label);
+                let pane = ui.add_enabled(ws.anchor_pane.is_some(), egui::Button::new(pane_label));
+                if pane.clicked()
+                    && let Some(anchor) = &ws.anchor_pane
+                {
+                    herdr::create_pane(anchor, &dir, &ctx);
+                    ui.close();
+                }
+                if ui.button(tab_label).clicked() {
+                    herdr::create_tab(&ws.id, &dir, &ctx);
+                    ui.close();
+                }
+            }
+        }
+    }
+}
+
+pub(crate) fn open_default_terminal(current_dir: &Path) {
+    let start_dir = terminal_start_dir(current_dir);
 
     let launched = Command::new("wt.exe")
         .arg("-d")
