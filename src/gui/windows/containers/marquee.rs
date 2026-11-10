@@ -84,6 +84,30 @@ pub fn is_blank_name_press(x: f32, content_end: f32, cell_right: f32) -> bool {
     x > content_end + NAME_END_PAD && x < cell_right
 }
 
+/// Where Ctrl+Up/Down moves the keyboard focus. `focus` is the current focus
+/// row, `down` the direction, `selectable` tells which rows may take focus.
+pub fn ctrl_focus_target(
+    focus: Option<usize>,
+    count: usize,
+    down: bool,
+    selectable: impl Fn(usize) -> bool,
+) -> Option<usize> {
+    if count == 0 {
+        return None;
+    }
+    match focus.filter(|&f| f < count) {
+        None => {
+            if down {
+                (0..count).find(|&i| selectable(i))
+            } else {
+                (0..count).rev().find(|&i| selectable(i))
+            }
+        }
+        Some(f) if down => (f + 1..count).find(|&i| selectable(i)),
+        Some(f) => (0..f).rev().find(|&i| selectable(i)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,5 +157,18 @@ mod tests {
         assert!(!is_blank_name_press(162.0, 160.0, 300.0));
         assert!(is_blank_name_press(200.0, 160.0, 300.0));
         assert!(!is_blank_name_press(310.0, 160.0, 300.0));
+    }
+
+    #[test]
+    fn ctrl_focus_moves_and_stops_at_ends() {
+        let all = |_: usize| true;
+        assert_eq!(ctrl_focus_target(Some(2), 5, true, all), Some(3));
+        assert_eq!(ctrl_focus_target(Some(2), 5, false, all), Some(1));
+        assert_eq!(ctrl_focus_target(Some(4), 5, true, all), None);
+        assert_eq!(ctrl_focus_target(Some(0), 5, false, all), None);
+        assert_eq!(ctrl_focus_target(None, 5, true, all), Some(0));
+        assert_eq!(ctrl_focus_target(None, 5, false, all), Some(4));
+        // skips rows that cannot take focus
+        assert_eq!(ctrl_focus_target(Some(0), 5, true, |i| i != 1), Some(2));
     }
 }

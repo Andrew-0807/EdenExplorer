@@ -583,13 +583,20 @@ pub fn draw_item_viewer(
 
                         let row_resp = row.response();
 
-                        let row_paint = item_paint(
+                        let mut row_paint = item_paint(
                             palette,
                             is_selected,
                             row_resp.hovered(),
                             row_selection_fill,
                             row_hover_fill,
                         );
+                        if explorer_state.focus_ring
+                            && !is_selected
+                            && explorer_state.selection_focus == Some(idx)
+                        {
+                            // Ctrl+Arrow focus: outline the row the next Ctrl+Space toggles.
+                            row_paint.stroke = Some(egui::Stroke::new(1.0, palette.primary));
+                        }
                         if !row_paint.is_empty() {
                             // The row response can be taller than the row, so cap it at
                             // the row height (same as the drop target rect below).
@@ -793,6 +800,7 @@ pub fn draw_item_viewer(
                 }
                 if let Some((origin, content_y)) = start {
                     let additive = modifiers.ctrl;
+                    explorer_state.focus_ring = false;
                     marquee = Marquee {
                         active: true,
                         origin_x: origin.x,
@@ -1008,6 +1016,7 @@ pub fn draw_item_viewer(
 
             if !modal_input_blocked {
                 if bg_response.clicked() {
+                    explorer_state.focus_ring = false;
                     action = Some(ItemViewerAction::DeselectAll);
                 }
 
