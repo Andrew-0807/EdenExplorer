@@ -386,6 +386,6 @@ settings_theme_follow_system = 跟隨 Windows 淺色/深色模式
 settings_zoom = 介面縮放
 settings_checkboxes = 項目核取方塊
 settings_checkboxes_always = 一律顯示
-settings_checkboxes_hover = 滑過與選取時顯示
+settings_checkboxes_selection = 選取時
 settings_checkboxes_never = 一律隱藏
 settings_item_list = 項目清單

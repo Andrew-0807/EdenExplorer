@@ -386,6 +386,6 @@ settings_theme_follow_system = 跟随 Windows 浅色/深色模式
 settings_zoom = 界面缩放
 settings_checkboxes = 项目复选框
 settings_checkboxes_always = 始终显示
-settings_checkboxes_hover = 悬停和选中时显示
+settings_checkboxes_selection = 选中时
 settings_checkboxes_never = 始终隐藏
 settings_item_list = 项目列表

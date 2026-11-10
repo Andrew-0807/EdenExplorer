@@ -386,6 +386,6 @@ settings_theme_follow_system = Windows のライト/ダーク モードに従う
 settings_zoom = 表示倍率
 settings_checkboxes = 項目のチェックボックス
 settings_checkboxes_always = 常に表示
-settings_checkboxes_hover = ホバー時と選択時に表示
+settings_checkboxes_selection = 選択時
 settings_checkboxes_never = 常に非表示
 settings_item_list = 項目リスト
