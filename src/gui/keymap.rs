@@ -201,6 +201,7 @@ impl Action {
             .flat_map(|(_, actions)| actions.iter().copied())
     }
 
+    #[cfg(test)]
     pub fn from_name(name: &str) -> Option<Action> {
         Action::all().find(|a| a.name() == name)
     }

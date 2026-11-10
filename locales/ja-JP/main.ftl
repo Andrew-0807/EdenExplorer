@@ -229,6 +229,18 @@ hotkey_navigate_forward = 進む（マウスボタン4）
 hotkey_navigate_up = 上へ移動（マウスボタン5）
 hotkey_run_default_program = 選択したファイルを既定のプログラムで実行
 hotkey_permanent_delete = 選択した項目を完全に削除（ごみ箱をスキップ）
+hotkey_delete = 選択した項目を削除（ごみ箱へ）
+hotkey_select_all = すべて選択
+hotkey_select_first = 最初の項目を選択
+hotkey_select_last = 最後の項目を選択
+hotkey_unbound = 未割り当て
+hotkey_press_keys = キーの組み合わせを押してください（Esc でキャンセル、Backspace で解除）
+hotkey_change = 変更
+hotkey_add = ショートカットを追加
+hotkey_reset = リセット
+hotkey_cancel = キャンセル
+hotkey_swap = 入れ替え
+hotkey_conflict_used_by = は次の操作で使用されています
 
 # Theme editor: presets, files and every palette token
 theme_presets = プリセット

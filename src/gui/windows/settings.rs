@@ -19,6 +19,7 @@ use crate::gui::theme::ThemePalette;
 use crate::gui::utils::SortColumn;
 use crate::gui::windows::containers::enums::ItemViewerHeaderColumn;
 use crate::gui::windows::enums::SettingsAction;
+use crate::gui::windows::hotkey_editor;
 use crate::gui::windows::structs::{AppSettings, SettingsTab, SettingsWindow};
 use crate::gui::windows::windowsoverrides::clamp_dialog_size;
 use eframe::egui;
@@ -27,34 +28,6 @@ use std::path::PathBuf;
 
 const SETTINGS_COMBO_WIDTH: f32 = 180.0;
 const SETTINGS_VALUE_WIDTH: f32 = 92.0;
-
-const HOTKEYS: &[(&str, &str)] = &[
-    ("F1", "hotkey_toggle_fullscreen"),
-    ("Ctrl+Shift+C", "hotkey_copy_selected_path"),
-    ("Ctrl+W", "hotkey_close_current_tab"),
-    ("Ctrl+T", "hotkey_new_tab"),
-    ("Ctrl+Tab", "hotkey_next_tab"),
-    ("Ctrl+Shift+Tab", "hotkey_previous_tab"),
-    ("Ctrl+Shift+N", "hotkey_new_folder"),
-    ("Ctrl+R (F5)", "hotkey_refresh_directory"),
-    ("Alt+D", "hotkey_select_address_bar"),
-    ("F2", "hotkey_rename_file"),
-    ("Alt+Enter", "hotkey_open_properties"),
-    ("Home / End", "hotkey_scroll_and_select_edges"),
-    ("Alt+Left Arrow (Backspace)", "hotkey_navigate_back"),
-    ("Alt+Right Arrow", "hotkey_navigate_forward"),
-    ("Alt+Up Arrow", "hotkey_navigate_up"),
-    ("Enter", "hotkey_run_default_program"),
-    ("Ctrl+Delete", "hotkey_permanent_delete"),
-    ("Ctrl+K", "hotkey_zoxide_jump"),
-];
-
-const HOTKEY_GROUPS: &[(&str, &[usize])] = &[
-    ("hotkey_group_application", &[0]),
-    ("hotkey_group_tabs", &[2, 3, 4, 5]),
-    ("hotkey_group_files_folders", &[1, 6, 9, 10, 15, 16]),
-    ("hotkey_group_navigation", &[7, 8, 11, 12, 13, 14, 17]),
-];
 
 /// Returns the last `max_chars` characters of `s` prefixed with "...", or `s`
 /// unchanged when it already fits. Counts chars, not bytes, so multi-byte
@@ -67,56 +40,6 @@ fn truncate_path_tail(s: &str, max_chars: usize) -> String {
     } else {
         s.to_string()
     }
-}
-
-// Read-only list of the bindings hard-coded in the app (`handle_global_shortcuts`, item viewer
-// keyboard handling). Keep in sync when a binding changes.
-fn draw_hotkeys_tab(ui: &mut egui::Ui, palette: &ThemePalette, i18n: &I18n) {
-    ui.spacing_mut().item_spacing.y = 0.0;
-    ui.vertical(|ui| {
-        for (group_name, indices) in HOTKEY_GROUPS {
-            ui.add_space(8.0);
-            ui.label(
-                RichText::new(i18n.tr(group_name))
-                    .strong()
-                    .color(palette.text_header_section),
-            );
-            ui.add_space(3.0);
-
-            for index in *indices {
-                let (shortcut, description_key) = HOTKEYS[*index];
-                let description = i18n.tr(description_key);
-
-                ui.horizontal(|ui| {
-                    let (rect, _) =
-                        ui.allocate_exact_size(egui::vec2(205.0, 22.0), egui::Sense::hover());
-                    ui.painter().rect_stroke(
-                        rect,
-                        4.0,
-                        egui::Stroke::new(1.0, palette.borders_default),
-                        egui::StrokeKind::Inside,
-                    );
-                    ui.painter().text(
-                        rect.center(),
-                        egui::Align2::CENTER_CENTER,
-                        shortcut,
-                        egui::FontId::proportional(palette.text_size),
-                        palette.primary,
-                    );
-                    // Keep descriptions inside the settings window. Without an explicit
-                    // width, a larger font makes the row's content determine the window
-                    // width and can cause the shortcuts view to grow horizontally.
-                    let description_width = ui.available_width();
-                    ui.add_sized(
-                        [description_width, 22.0],
-                        egui::Label::new(RichText::new(description).color(palette.text_normal))
-                            .truncate(),
-                    );
-                });
-                ui.add_space(4.0);
-            }
-        }
-    });
 }
 
 impl Default for AppSettings {
@@ -1262,7 +1185,12 @@ pub fn draw_settings_window(
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
                     if settings.selected_tab == SettingsTab::Hotkeys {
-                        draw_hotkeys_tab(ui, palette, i18n);
+                        hotkey_editor::draw(
+                            ui,
+                            palette,
+                            i18n,
+                            &mut settings.current_settings.hotkeys,
+                        );
                         return;
                     }
 
@@ -1390,16 +1318,5 @@ mod tests {
         assert!(!escape_closes_settings(true, true));
         assert!(!escape_closes_settings(false, false));
         assert!(!escape_closes_settings(false, true));
-    }
-
-    #[test]
-    fn hotkey_groups_list_every_binding_exactly_once() {
-        let mut seen: Vec<usize> = HOTKEY_GROUPS
-            .iter()
-            .flat_map(|(_, indices)| indices.iter().copied())
-            .collect();
-        seen.sort_unstable();
-
-        assert_eq!(seen, (0..HOTKEYS.len()).collect::<Vec<_>>());
     }
 }

@@ -229,6 +229,18 @@ hotkey_navigate_forward = Navigasi maju (Tombol Mouse 4)
 hotkey_navigate_up = Navigasi ke atas (Tombol Mouse 5)
 hotkey_run_default_program = Jalankan program default untuk file yang dipilih
 hotkey_permanent_delete = Hapus item yang dipilih secara permanen (melewati Recycle Bin)
+hotkey_delete = Hapus item yang dipilih (ke Recycle Bin)
+hotkey_select_all = Pilih semua item
+hotkey_select_first = Pilih item pertama
+hotkey_select_last = Pilih item terakhir
+hotkey_unbound = Belum ditetapkan
+hotkey_press_keys = Tekan kombinasi tombol (Esc membatalkan, Backspace menghapus)
+hotkey_change = Ubah
+hotkey_add = Tambah pintasan lain
+hotkey_reset = Atur ulang
+hotkey_cancel = Batal
+hotkey_swap = Tukar
+hotkey_conflict_used_by = sudah digunakan oleh
 
 # Theme editor: presets, files and every palette token
 theme_presets = Preset
