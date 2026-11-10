@@ -247,6 +247,8 @@ fn draw_confirmation_dialog(
 struct SearchFilter {
     query: String,
     shown: usize,
+    /// Filtered blocks seen so far this frame; keys each block's hidden flag.
+    blocks: usize,
 }
 
 fn search_filter_id() -> egui::Id {
@@ -265,6 +267,7 @@ fn begin_search_frame(ctx: &egui::Context, query: &str) {
             SearchFilter {
                 query: query.trim().to_string(),
                 shown: 0,
+                blocks: 0,
             },
         );
     });
@@ -314,13 +317,31 @@ fn matches_search(query: &str, texts: &[&str]) -> bool {
 fn show_if_matches<R>(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui) -> R) -> R {
     let ctx = ui.ctx().clone();
     let shown_before = search_shown_count(&ctx);
-    let mut child = ui.new_child(
-        egui::UiBuilder::new()
-            .max_rect(ui.available_rect_before_wrap())
-            .layout(*ui.layout()),
-    );
+    // Whether a match only becomes known after drawing, so a block that matched
+    // nothing last frame is drawn invisibly; otherwise its titles stay painted
+    // under the next block.
+    let block = ctx.data_mut(|data| {
+        let filter = data.get_temp_mut_or_default::<SearchFilter>(search_filter_id());
+        filter.blocks += 1;
+        filter.blocks
+    });
+    let hidden_id = egui::Id::new("settings_search_hidden").with(block);
+    let searching = search_active(&ctx);
+    let was_hidden = searching && ctx.data(|d| d.get_temp::<bool>(hidden_id).unwrap_or(false));
+    let mut builder = egui::UiBuilder::new()
+        .max_rect(ui.available_rect_before_wrap())
+        .layout(*ui.layout());
+    if was_hidden {
+        builder = builder.invisible();
+    }
+    let mut child = ui.new_child(builder);
     let result = add_contents(&mut child);
-    if !search_active(&ctx) || search_shown_count(&ctx) > shown_before {
+    let hidden = searching && search_shown_count(&ctx) == shown_before;
+    if hidden != was_hidden {
+        ctx.data_mut(|d| d.insert_temp(hidden_id, hidden));
+        ctx.request_repaint();
+    }
+    if !hidden {
         ui.allocate_rect(child.min_rect(), egui::Sense::hover());
     }
     result

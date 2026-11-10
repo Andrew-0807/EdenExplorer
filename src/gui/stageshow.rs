@@ -8,8 +8,8 @@ use crate::core::i18n::I18n;
 use crate::gui::folder_icons::{IconStyle, paint_folder_icon, resolve_folder_icon};
 use crate::gui::icon_system::{AppIcon, paint_icon};
 use crate::gui::theme::{ThemeMode, ThemePalette, apply_theme, get_palette};
-use crate::gui::windows::settings::draw_settings_window;
-use crate::gui::windows::structs::SettingsWindow;
+use crate::gui::windows::settings::{ThemeContext, draw_settings_window};
+use crate::gui::windows::structs::{SettingsTab, SettingsWindow, ThemeCustomizer};
 use eframe::egui;
 use egui_kittest::Harness;
 
@@ -51,31 +51,78 @@ fn render_scene(
     println!("stageshow: wrote {}", path.display());
 }
 
-#[test]
-fn stageshow_settings() {
-    if !enabled() {
-        return;
-    }
+/// Renders one settings tab at `text_size`, optionally with a search query.
+fn settings_scene(name: &str, tab: SettingsTab, text_size: f32, search: &str, mode: ThemeMode) {
     let mut window = SettingsWindow {
         open: true,
         current_settings: Default::default(),
         show_reset_favorites_confirmation: false,
         show_reset_confirmation: false,
         show_clear_directory_cache_confirmation: false,
-        selected_tab: Default::default(),
-        search: String::new(),
+        selected_tab: tab,
+        search: search.to_string(),
     };
+    let mut customizer = ThemeCustomizer::default();
     let mut i18n = I18n::new("en-US");
-    let mode = ThemeMode::Dark;
+    let mut palette = get_palette(mode);
+    palette.text_size = text_size;
     render_scene(
-        "settings",
+        name,
         [1000.0, 720.0],
         1.0,
         mode,
-        get_palette(mode),
+        palette,
         move |ui, palette| {
-            draw_settings_window(ui.ctx(), &mut window, &mut i18n, palette);
+            draw_settings_window(
+                ui.ctx(),
+                &mut window,
+                &mut ThemeContext {
+                    customizer: &mut customizer,
+                    mode,
+                },
+                &mut i18n,
+                palette,
+            );
         },
+    );
+}
+
+#[test]
+fn stageshow_settings() {
+    if !enabled() {
+        return;
+    }
+    let tabs = [
+        ("general", SettingsTab::General),
+        ("files", SettingsTab::Files),
+        ("interface", SettingsTab::Interface),
+        ("appearance", SettingsTab::Appearance),
+        ("hotkeys", SettingsTab::Hotkeys),
+        ("integrations", SettingsTab::Integrations),
+    ];
+    for (name, tab) in tabs {
+        settings_scene(&format!("settings_{name}"), tab, 12.0, "", ThemeMode::Dark);
+    }
+    settings_scene(
+        "settings_general_18",
+        SettingsTab::General,
+        18.0,
+        "",
+        ThemeMode::Dark,
+    );
+    settings_scene(
+        "settings_search_color",
+        SettingsTab::General,
+        12.0,
+        "color",
+        ThemeMode::Dark,
+    );
+    settings_scene(
+        "settings_appearance_light",
+        SettingsTab::Appearance,
+        12.0,
+        "",
+        ThemeMode::Light,
     );
 }
 

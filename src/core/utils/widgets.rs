@@ -476,24 +476,6 @@ pub fn eden_icon_button(
     response
 }
 
-pub fn eden_toggle_button(
-    ui: &mut egui::Ui,
-    palette: &ThemePalette,
-    selected: bool,
-    text: &str,
-) -> egui::Response {
-    apply_eden_visual_overrides(ui, palette);
-    apply_eden_text_overrides(ui, palette);
-    ui.add(
-        egui::Button::new(egui::RichText::new(text).color(if selected {
-            palette.text_header_section
-        } else {
-            palette.text_normal
-        }))
-        .selected(selected),
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

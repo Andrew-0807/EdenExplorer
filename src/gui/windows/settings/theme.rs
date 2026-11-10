@@ -365,10 +365,11 @@ fn draw_color_groups(
 ) -> bool {
     let mut changed = false;
     let mut group = |ui: &mut egui::Ui, title_key: &str, colors: Vec<(&str, &mut Color32)>| {
-        settings_heading(ui, palette, &i18n.tr(title_key));
-        for (key, color) in colors {
-            changed |= color_row(ui, palette, &i18n.tr(key), None, color);
-        }
+        settings_section(ui, palette, Some(&i18n.tr(title_key)), |ui| {
+            for (key, color) in colors {
+                changed |= color_row(ui, palette, &i18n.tr(key), None, color);
+            }
+        });
     };
 
     group(
