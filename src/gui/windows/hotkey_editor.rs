@@ -55,32 +55,35 @@ pub fn intercept_capture(ctx: &egui::Context) {
     if state.capturing.is_none() {
         return;
     }
-    let taken = ctx.input_mut(|i| {
-        let mut found = None;
-        i.events.retain(|event| {
-            if let egui::Event::Key {
-                key,
-                pressed: true,
-                modifiers,
-                ..
-            } = event
-            {
-                if found.is_none() {
-                    found = Some((
-                        KeyChord::new(modifiers.ctrl, modifiers.shift, modifiers.alt, *key),
-                        *key,
-                    ));
-                }
-                return false;
-            }
-            true
-        });
-        found
-    });
+    let taken = ctx.input_mut(|i| take_chord(&mut i.events));
     if taken.is_some() {
         state.captured = taken;
         store(ctx, state);
     }
+}
+
+/// Removes key presses from `events` (modifier keys stay) and returns the first
+/// one that forms a chord. Modifier-only presses are ignored so the chord
+/// completes on the first non-modifier key with the modifiers held then.
+fn take_chord(events: &mut Vec<egui::Event>) -> Option<(KeyChord, egui::Key)> {
+    let mut found = None;
+    events.retain(|event| {
+        if let egui::Event::Key {
+            key,
+            pressed: true,
+            modifiers,
+            ..
+        } = event
+            && !keymap::is_modifier_key(*key)
+        {
+            if found.is_none() {
+                found = KeyChord::from_key_event(*key, *modifiers).map(|c| (c, *key));
+            }
+            return false;
+        }
+        true
+    });
+    found
 }
 
 fn save(overrides: &mut Overrides, map: &KeyMap) {
@@ -271,6 +274,36 @@ pub fn draw(ui: &mut egui::Ui, palette: &ThemePalette, i18n: &I18n, overrides: &
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn key_event(key: egui::Key, modifiers: egui::Modifiers) -> egui::Event {
+        egui::Event::Key {
+            key,
+            physical_key: Some(key),
+            pressed: true,
+            repeat: false,
+            modifiers,
+        }
+    }
+
+    #[test]
+    fn capture_skips_modifier_presses_and_completes_on_real_key() {
+        let shift = egui::Modifiers {
+            shift: true,
+            ..egui::Modifiers::NONE
+        };
+        let mut events = vec![
+            key_event(egui::Key::ShiftLeft, shift),
+            key_event(egui::Key::ShiftRight, shift),
+        ];
+        assert_eq!(take_chord(&mut events), None);
+        assert_eq!(events.len(), 2);
+
+        events.push(key_event(egui::Key::Delete, shift));
+        let (chord, key) = take_chord(&mut events).unwrap();
+        assert_eq!(chord.to_string(), "Shift+Delete");
+        assert_eq!(key, egui::Key::Delete);
+        assert_eq!(events.len(), 2);
+    }
 
     #[test]
     fn apply_replaces_and_reset_restores_default() {

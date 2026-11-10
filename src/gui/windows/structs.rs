@@ -67,6 +67,8 @@ pub struct AppSettings {
     pub remember_open_tabs: bool,
     /// Records folders in zoxide after the user stays in them for a moment.
     pub zoxide_auto_add: bool,
+    /// Background opacity of the jump popup, 0.5 to 1.0.
+    pub zoxide_popup_opacity: f32,
     /// Rebound shortcuts only (action name to chords); missing actions use defaults.
     pub hotkeys: crate::gui::keymap::Overrides,
     pub unremembered_tabs: Vec<PathBuf>,

@@ -53,6 +53,20 @@ impl KeyChord {
         }
     }
 
+    /// Builds the chord for a key press event. Modifier keys alone (Shift,
+    /// Ctrl, Alt, Super, left or right) never form a chord.
+    pub fn from_key_event(key: egui::Key, modifiers: egui::Modifiers) -> Option<Self> {
+        if is_modifier_key(key) {
+            return None;
+        }
+        Some(Self::new(
+            modifiers.ctrl,
+            modifiers.shift,
+            modifiers.alt,
+            key,
+        ))
+    }
+
     fn matches(&self, input: &egui::InputState) -> bool {
         let m = input.modifiers;
         m.ctrl == self.ctrl
@@ -60,6 +74,23 @@ impl KeyChord {
             && m.alt == self.alt
             && input.key_pressed(self.key)
     }
+}
+
+/// True for the physical Shift/Ctrl/Alt/Super keys, which egui reports as
+/// separate left and right `Key` values next to the collapsed `Modifiers`.
+pub fn is_modifier_key(key: egui::Key) -> bool {
+    use egui::Key::*;
+    matches!(
+        key,
+        ShiftLeft
+            | ShiftRight
+            | ControlLeft
+            | ControlRight
+            | AltLeft
+            | AltRight
+            | SuperLeft
+            | SuperRight
+    )
 }
 
 impl fmt::Display for KeyChord {
@@ -93,7 +124,9 @@ impl FromStr for KeyChord {
                 _ => return Err(()),
             }
         }
-        chord.key = egui::Key::from_name(key_name).ok_or(())?;
+        chord.key = egui::Key::from_name(key_name)
+            .filter(|k| !is_modifier_key(*k))
+            .ok_or(())?;
         Ok(chord)
     }
 }
@@ -372,7 +405,7 @@ mod tests {
 
     #[test]
     fn chord_strings_round_trip_for_every_key() {
-        for key in egui::Key::ALL {
+        for key in egui::Key::ALL.iter().filter(|k| !is_modifier_key(**k)) {
             for (ctrl, shift, alt) in [
                 (false, false, false),
                 (true, true, true),
@@ -382,6 +415,73 @@ mod tests {
                 assert_eq!(chord.to_string().parse::<KeyChord>(), Ok(chord));
             }
         }
+    }
+
+    fn key_event(key: egui::Key, modifiers: egui::Modifiers) -> egui::Event {
+        egui::Event::Key {
+            key,
+            physical_key: Some(key),
+            pressed: true,
+            repeat: false,
+            modifiers,
+        }
+    }
+
+    fn shift() -> egui::Modifiers {
+        egui::Modifiers {
+            shift: true,
+            ..egui::Modifiers::NONE
+        }
+    }
+
+    #[test]
+    fn modifier_keys_never_form_a_chord() {
+        use egui::Key::*;
+        for k in [
+            ShiftLeft,
+            ShiftRight,
+            ControlLeft,
+            ControlRight,
+            AltLeft,
+            AltRight,
+            SuperLeft,
+            SuperRight,
+        ] {
+            assert_eq!(KeyChord::from_key_event(k, shift()), None);
+            assert!("Shift+ShiftLeft".parse::<KeyChord>().is_err());
+        }
+        assert_eq!(
+            KeyChord::from_key_event(Delete, shift()),
+            Some(KeyChord::new(false, true, false, Delete))
+        );
+    }
+
+    #[test]
+    fn shift_delete_displays_and_triggers_permanent_delete() {
+        let chord = KeyChord::new(false, true, false, egui::Key::Delete);
+        assert_eq!(chord.to_string(), "Shift+Delete");
+        let mut map = KeyMap::default();
+        map.set_chords(Action::PermanentDelete, vec![chord]);
+        let run = |mods: egui::Modifiers| {
+            let ctx = egui::Context::default();
+            let raw = egui::RawInput {
+                modifiers: mods,
+                events: vec![key_event(egui::Key::Delete, mods)],
+                ..Default::default()
+            };
+            let mut hit = false;
+            let _ = ctx.run_ui(raw, |ui| {
+                hit = ui.input(|i| {
+                    map.chords(Action::PermanentDelete)
+                        .iter()
+                        .any(|c| c.matches(i))
+                });
+            });
+            hit
+        };
+        assert!(run(shift()));
+        assert!(!run(egui::Modifiers::NONE));
+        assert!(!run(egui::Modifiers::CTRL));
     }
 
     #[test]

@@ -2177,7 +2177,11 @@ impl MainWindow {
     /// current folder once the user has stayed in it (if enabled).
     pub fn handle_zoxide(&mut self, ctx: &egui::Context, palette: &ThemePalette) {
         let current = self.current_nav().current.clone();
-        if let Some(path) = self.zoxide_popup.show(ctx, &self.i18n, palette, &current) {
+        let opacity = self.settings_window.current_settings.zoxide_popup_opacity;
+        if let Some(path) = self
+            .zoxide_popup
+            .show(ctx, &self.i18n, palette, &current, opacity)
+        {
             self.jump_to_folder(path);
         }
 
