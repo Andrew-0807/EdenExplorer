@@ -19,9 +19,24 @@ use std::path::{Path, PathBuf};
 /// Folder under `%LOCALAPPDATA%` that holds every EdenExplorer file.
 pub const APP_DIR_NAME: &str = "ExplorerEden";
 
-/// `%LOCALAPPDATA%\ExplorerEden`, or `None` when the known folder is unavailable.
+/// Environment variable that points EdenExplorer at another data folder
+/// (portable setups, testing a build without touching the real settings).
+pub const DATA_DIR_ENV: &str = "EDEN_DATA_DIR";
+
+/// `%LOCALAPPDATA%\ExplorerEden` (or `EDEN_DATA_DIR` when set), or `None`
+/// when the known folder is unavailable.
 pub fn data_dir() -> Option<PathBuf> {
-    dirs::data_local_dir().map(|base| base.join(APP_DIR_NAME))
+    data_dir_from(std::env::var_os(DATA_DIR_ENV), dirs::data_local_dir())
+}
+
+fn data_dir_from(
+    override_dir: Option<std::ffi::OsString>,
+    local_app_data: Option<PathBuf>,
+) -> Option<PathBuf> {
+    match override_dir {
+        Some(dir) if !dir.is_empty() => Some(PathBuf::from(dir)),
+        _ => local_app_data.map(|base| base.join(APP_DIR_NAME)),
+    }
 }
 
 /// Writes `bytes` to `path` atomically: the data goes to a temporary file in
@@ -272,6 +287,24 @@ mod tests {
             mode: Mode::Custom { width: 10.0 },
             list: vec![1, 2, 3],
         }
+    }
+
+    #[test]
+    fn data_dir_honours_the_override() {
+        let local = Some(PathBuf::from("C:\\Users\\x\\AppData\\Local"));
+        assert_eq!(
+            data_dir_from(None, local.clone()),
+            Some(PathBuf::from("C:\\Users\\x\\AppData\\Local\\ExplorerEden"))
+        );
+        assert_eq!(
+            data_dir_from(Some("".into()), local.clone()),
+            Some(PathBuf::from("C:\\Users\\x\\AppData\\Local\\ExplorerEden"))
+        );
+        assert_eq!(
+            data_dir_from(Some("D:\\portable\\data".into()), local),
+            Some(PathBuf::from("D:\\portable\\data"))
+        );
+        assert_eq!(data_dir_from(None, None), None);
     }
 
     #[test]
