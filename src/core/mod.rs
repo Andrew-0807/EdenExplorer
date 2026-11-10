@@ -10,3 +10,4 @@ pub mod portable;
 pub mod system_theme;
 pub mod utils;
 pub mod wsl;
+pub mod zoxide;

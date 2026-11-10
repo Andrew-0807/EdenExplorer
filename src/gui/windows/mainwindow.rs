@@ -7,6 +7,7 @@ use crate::core::indexer::{
 use crate::core::launch::take_forwarded_paths;
 use crate::core::system_theme::consume_system_theme_dirty;
 use crate::core::utils::tabs::update_tab_infos_cache;
+use crate::core::zoxide::DwellTracker;
 use crate::gui::backdrop::{
     backdrop_effective, gradient_colors, gradient_mesh, transparent_surface,
 };
@@ -42,6 +43,7 @@ use crate::gui::windows::windowsoverrides::{
     apply_window_theme, consume_clipboard_dirty, handle_draw_windows_buttons, install_wndproc,
     set_window_position,
 };
+use crate::gui::windows::zoxide_popup::ZoxidePopup;
 use eframe::egui;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -68,6 +70,8 @@ pub struct MainWindow {
     pub(crate) theme_customizer: ThemeCustomizer,
     pub(crate) settings_window: SettingsWindow,
     pub(crate) about_window: AboutWindow,
+    pub(crate) zoxide_popup: ZoxidePopup,
+    pub(crate) zoxide_dwell: DwellTracker,
     pub(crate) dropped_files: Vec<PathBuf>,
     pub(crate) external_drag_to_internal_hover: bool,
     pub(crate) dropped_files_pending_ui_refresh: bool,
@@ -233,6 +237,8 @@ impl Default for MainWindow {
             theme_customizer: Default::default(),
             settings_window: Default::default(),
             about_window: Default::default(),
+            zoxide_popup: Default::default(),
+            zoxide_dwell: Default::default(),
             dropped_files: Vec::new(), // Files dropped from external drag and drop
             external_drag_to_internal_hover: false, // Whether external drag is hovering over the item viewer
             dropped_files_pending_ui_refresh: false,
@@ -342,6 +348,7 @@ impl eframe::App for MainWindow {
         if consume_system_theme_dirty() {
             self.sync_system_theme();
         }
+        self.zoxide_popup.handle_keys(ui.ctx());
         let zoom = effective_zoom(self.settings_window.current_settings.ui.zoom);
         if zoom != self.applied_zoom {
             ui.ctx().set_zoom_factor(zoom);
@@ -1305,6 +1312,7 @@ impl eframe::App for MainWindow {
         );
         self.handle_draw_settings_window(ui.ctx(), &palette);
         self.handle_draw_about_window(ui.ctx(), &palette);
+        self.handle_zoxide(ui.ctx(), &palette);
         self.handle_global_shortcuts(ui.ctx());
 
         if tags_changed {

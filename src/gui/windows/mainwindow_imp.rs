@@ -9,6 +9,7 @@ use crate::core::indexer::{
 use crate::core::persist::write_atomic;
 use crate::core::utils::files::resolve_shortcut_target;
 use crate::core::utils::widgets::{loading_spinner, request_animation_frame};
+use crate::core::zoxide;
 use crate::gui::MainWindow;
 use crate::gui::customization::move_item;
 use crate::gui::theme::{ThemeMode, ThemePalette, get_default_palette, set_palette};
@@ -1991,6 +1992,45 @@ impl MainWindow {
         }
     }
 
+    /// Draws the zoxide jump popup, navigates to its pick, and records the
+    /// current folder once the user has stayed in it (if enabled).
+    pub fn handle_zoxide(&mut self, ctx: &egui::Context, palette: &ThemePalette) {
+        let current = self.current_nav().current.clone();
+        if let Some(path) = self.zoxide_popup.show(ctx, &self.i18n, palette, &current) {
+            self.jump_to_folder(path);
+        }
+
+        if !self.settings_window.current_settings.zoxide_auto_add || zoxide::is_missing() {
+            self.zoxide_dwell.reset();
+            return;
+        }
+        if let Some(path) = self.zoxide_dwell.tick(&current, Instant::now())
+            && zoxide::is_addable_path(&path)
+        {
+            zoxide::add_in_background(path);
+        }
+        if self.zoxide_dwell.pending() {
+            ctx.request_repaint_after(zoxide::AUTO_ADD_DELAY);
+        }
+    }
+
+    /// Navigates the focused view to `path`, like picking it in the address bar.
+    fn jump_to_folder(&mut self, path: PathBuf) {
+        if let Some(parent) = self.current_nav().get_parent() {
+            let current = self.current_nav().current.clone();
+            let side = self.focused_split;
+            self.active_tab_mut()
+                .view_mut(side)
+                .explorer_state
+                .navigation_history
+                .insert(parent, current);
+        }
+        self.current_nav_mut().go_to(path);
+        self.mark_tab_infos_dirty();
+        self.load_path();
+        self.save_remembered_tabs_if_enabled();
+    }
+
     fn global_shortcuts_disabled(&self, ctx: &egui::Context) -> bool {
         let topbar_menu_open = ctx.memory(|mem| {
             mem.data
@@ -2002,6 +2042,7 @@ impl MainWindow {
         self.theme_customizer.open
             || self.settings_window.open
             || self.about_window.open
+            || self.zoxide_popup.open
             || self.tags_state.picker.is_some()
             || self.tags_state.delete_confirmation.is_some()
             || self
@@ -2072,6 +2113,17 @@ impl MainWindow {
 
     pub fn handle_global_shortcuts(&mut self, ctx: &egui::Context) {
         if self.global_shortcuts_disabled(ctx) {
+            return;
+        }
+
+        let open_zoxide = ctx.input(|input| {
+            input.modifiers.command
+                && !input.modifiers.shift
+                && !input.modifiers.alt
+                && input.key_pressed(egui::Key::K)
+        });
+        if open_zoxide {
+            self.zoxide_popup.open(ctx);
             return;
         }
 

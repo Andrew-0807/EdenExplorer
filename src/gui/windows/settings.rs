@@ -46,13 +46,14 @@ const HOTKEYS: &[(&str, &str)] = &[
     ("Alt+Up Arrow", "hotkey_navigate_up"),
     ("Enter", "hotkey_run_default_program"),
     ("Ctrl+Delete", "hotkey_permanent_delete"),
+    ("Ctrl+K", "hotkey_zoxide_jump"),
 ];
 
 const HOTKEY_GROUPS: &[(&str, &[usize])] = &[
     ("hotkey_group_application", &[0]),
     ("hotkey_group_tabs", &[2, 3, 4, 5]),
     ("hotkey_group_files_folders", &[1, 6, 9, 10, 15, 16]),
-    ("hotkey_group_navigation", &[7, 8, 11, 12, 13, 14]),
+    ("hotkey_group_navigation", &[7, 8, 11, 12, 13, 14, 17]),
 ];
 
 /// Returns the last `max_chars` characters of `s` prefixed with "...", or `s`
@@ -130,6 +131,7 @@ impl Default for AppSettings {
             window_size_mode: WindowSizeMode::default(),
             pinned_tabs: Vec::new(),
             remember_open_tabs: false,
+            zoxide_auto_add: false,
             unremembered_tabs: Vec::new(),
             remembered_active_tab: None,
             time_format_24h: false,
@@ -610,6 +612,20 @@ fn draw_general_tab(
                 action = Some(SettingsAction::ApplySettings);
             }
             info_icon(ui, &i18n.tr("tooltip_settings_remember_open_tabs"), palette);
+        });
+        ui.add_space(8.0);
+        // Add visited folders to zoxide
+        ui.horizontal(|ui| {
+            if setting_checkbox(
+                ui,
+                palette,
+                &mut settings.current_settings.zoxide_auto_add,
+                RichText::new(i18n.tr("settings_zoxide_auto_add")).color(palette.text_normal),
+                "settings_zoxide_auto_add",
+            ) {
+                action = Some(SettingsAction::ApplySettings);
+            }
+            info_icon(ui, &i18n.tr("tooltip_settings_zoxide_auto_add"), palette);
         });
         ui.add_space(8.0);
         // Show/Hide Item Viewer File Icons
@@ -1353,6 +1369,18 @@ mod tests {
         let tail: String = chars[chars.len() - 40..].iter().collect();
         assert_eq!(out, format!("...{tail}"));
         assert_eq!(out.chars().count(), 43);
+    }
+
+    #[test]
+    fn zoxide_auto_add_defaults_off_and_round_trips() {
+        let old: AppSettings = serde_json::from_str(r#"{"language":"en-US"}"#).unwrap();
+        assert!(!old.zoxide_auto_add);
+        let on = AppSettings {
+            zoxide_auto_add: true,
+            ..AppSettings::default()
+        };
+        let back: AppSettings = serde_json::from_str(&serde_json::to_string(&on).unwrap()).unwrap();
+        assert!(back.zoxide_auto_add);
     }
 
     #[test]

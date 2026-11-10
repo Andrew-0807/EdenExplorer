@@ -11,3 +11,4 @@ pub mod settings;
 pub mod shell_context_menu;
 pub mod structs;
 pub mod windowsoverrides;
+pub mod zoxide_popup;

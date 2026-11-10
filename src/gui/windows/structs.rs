@@ -65,6 +65,8 @@ pub struct AppSettings {
     pub window_size_mode: WindowSizeMode,
     pub pinned_tabs: Vec<PathBuf>,
     pub remember_open_tabs: bool,
+    /// Records folders in zoxide after the user stays in them for a moment.
+    pub zoxide_auto_add: bool,
     pub unremembered_tabs: Vec<PathBuf>,
     #[serde(default)]
     pub remembered_active_tab: Option<PathBuf>,
