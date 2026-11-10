@@ -2198,22 +2198,24 @@ impl MainWindow {
     }
 
     pub fn handle_directory_size_updates(&mut self, ctx: &egui::Context) {
-        let mut any_updated = self.handle_directory_size_updates_for(SplitSide::Primary);
+        let mut any_updated = self.handle_directory_size_updates_for(SplitSide::Primary, ctx);
         if self.active_tab().split_view.is_some() {
-            any_updated |= self.handle_directory_size_updates_for(SplitSide::Secondary);
+            any_updated |= self.handle_directory_size_updates_for(SplitSide::Secondary, ctx);
         }
         if any_updated {
             ctx.request_repaint();
         }
     }
 
-    fn handle_directory_size_updates_for(&mut self, side: SplitSide) -> bool {
+    fn handle_directory_size_updates_for(&mut self, side: SplitSide, ctx: &egui::Context) -> bool {
+        const MAX_MESSAGES_PER_FRAME: usize = 128;
         if self.active_tab().view(side).size_rx.is_none() {
             return false;
         }
 
-        let mut updated = false;
-        for _ in 0..128 {
+        // Latest size per path for this frame; one pass over the rows applies them.
+        let mut latest: std::collections::HashMap<PathBuf, u64> = Default::default();
+        for _ in 0..MAX_MESSAGES_PER_FRAME {
             let received = self
                 .active_tab()
                 .view(side)
@@ -2233,24 +2235,45 @@ impl MainWindow {
                         path.clone(),
                         ItemViewerFolderSizeState { bytes: size, done },
                     );
-                    let view = self.active_tab_mut().view_mut(side);
-                    if let Some(item) = view.files.iter_mut().find(|f| f.path == path) {
-                        item.file_size = Some(size);
-                        updated = true;
-                    }
+                    latest.insert(path, size);
                 }
                 Err(_) => break,
             }
         }
 
-        if updated {
-            let sort_keys = self.active_tab().view(side).sort_keys.clone();
-            let tag_counts = self.tag_counts_for_sort_keys(&sort_keys);
-            sort_files_by_keys(
-                &mut self.active_tab_mut().view_mut(side).files,
-                &sort_keys,
-                &tag_counts,
-            );
+        let view = self.active_tab_mut().view_mut(side);
+        if !latest.is_empty() {
+            for item in view.files.iter_mut().filter(|f| f.is_dir) {
+                if let Some(size) = latest.get(&item.path) {
+                    item.file_size = Some(*size);
+                    view.size_sort_pending = true;
+                }
+            }
+        }
+
+        // Rows only move when sorting by Size; re-sort at most every 100 ms.
+        let mut updated = !latest.is_empty();
+        if view.size_sort_pending {
+            if !view.sort_keys.iter().any(|k| k.column == SortColumn::Size) {
+                view.size_sort_pending = false;
+            } else {
+                let interval = Duration::from_millis(100);
+                let due = view.last_size_sort.is_none_or(|t| t.elapsed() >= interval);
+                if due {
+                    view.size_sort_pending = false;
+                    view.last_size_sort = Some(Instant::now());
+                    let sort_keys = view.sort_keys.clone();
+                    let tag_counts = self.tag_counts_for_sort_keys(&sort_keys);
+                    sort_files_by_keys(
+                        &mut self.active_tab_mut().view_mut(side).files,
+                        &sort_keys,
+                        &tag_counts,
+                    );
+                    updated = true;
+                } else {
+                    ctx.request_repaint_after(interval);
+                }
+            }
         }
         updated
     }

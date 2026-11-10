@@ -97,6 +97,9 @@ pub struct TabView {
     pub directory_change_debounce: crate::core::fs::ChangeDebouncer,
     pub size_req_tx: Option<Sender<PathBuf>>,
     pub size_rx: Option<Receiver<(PathBuf, u64, bool)>>,
+    /// New folder sizes arrived that may change the Size ordering.
+    pub size_sort_pending: bool,
+    pub last_size_sort: Option<std::time::Instant>,
     pub pending_size_queue: VecDeque<PathBuf>,
     pub pending_size_set: HashSet<PathBuf>,
     pub size_threads: Vec<std::thread::JoinHandle<()>>,
@@ -137,6 +140,8 @@ impl TabView {
             directory_change_debounce: Default::default(),
             size_req_tx: None,
             size_rx: None,
+            size_sort_pending: false,
+            last_size_sort: None,
             pending_size_queue: VecDeque::new(),
             pending_size_set: HashSet::new(),
             size_threads: Vec::new(),
