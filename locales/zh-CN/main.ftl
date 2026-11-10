@@ -347,3 +347,14 @@ toolbar_view_details = 详细信息
 toolbar_view_gallery = 图库
 toolbar_favorite = 收藏
 toolbar_terminal = 终端
+
+# Status bar
+status_item = 个项目
+status_items = 个项目
+status_selected = 已选择
+settings_status_bar = 状态栏
+settings_status_bar_visible = 显示状态栏
+settings_status_bar_item_count = 左侧显示项目数和所选数
+settings_status_bar_selection_size = 所选文件的大小
+settings_status_bar_view_toggles = 详细信息/图库按钮
+settings_status_bar_counters = 总大小、文件夹和文件计数

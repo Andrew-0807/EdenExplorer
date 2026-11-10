@@ -347,3 +347,14 @@ toolbar_view_details = 詳細
 toolbar_view_gallery = ギャラリー
 toolbar_favorite = お気に入り
 toolbar_terminal = ターミナル
+
+# Status bar
+status_item = 個の項目
+status_items = 個の項目
+status_selected = を選択
+settings_status_bar = ステータスバー
+settings_status_bar_visible = ステータスバーを表示
+settings_status_bar_item_count = 左側に項目数と選択数
+settings_status_bar_selection_size = 選択したファイルのサイズ
+settings_status_bar_view_toggles = 詳細 / ギャラリー ボタン
+settings_status_bar_counters = 合計サイズ、フォルダー数、ファイル数

@@ -347,3 +347,14 @@ toolbar_view_details = Details
 toolbar_view_gallery = Gallery
 toolbar_favorite = Favorite
 toolbar_terminal = Terminal
+
+# Status bar
+status_item = item
+status_items = items
+status_selected = selected
+settings_status_bar = Status bar
+settings_status_bar_visible = Show the status bar
+settings_status_bar_item_count = Item count and selection on the left
+settings_status_bar_selection_size = Size of the selected files
+settings_status_bar_view_toggles = Details / gallery buttons
+settings_status_bar_counters = Total size, folder and file counters

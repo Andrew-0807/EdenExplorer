@@ -1,7 +1,7 @@
 use crate::core::i18n::I18n;
 use crate::core::icons::IconCache;
 use crate::core::utils::files::format_size;
-use crate::gui::customization::{ToolbarLayout, UiPreferences};
+use crate::gui::customization::{StatusStats, ToolbarLayout, UiPreferences, status_left_text};
 use crate::gui::dragdrop::DropTargets;
 use crate::gui::icon_system::{AppIcon, StyledIcon, paint_icon};
 use crate::gui::theme::ThemePalette;
@@ -76,7 +76,12 @@ pub fn draw_tab_content(
     let mut tabbar_action = None;
 
     let font_id = egui::FontId::proportional(palette.text_size);
-    let status_height = ui.fonts_mut(|f| f.row_height(&font_id)) + 2.0;
+    let status_prefs = ui_prefs.status_bar;
+    let status_height = if status_prefs.visible {
+        ui.fonts_mut(|f| f.row_height(&font_id)) + 2.0
+    } else {
+        0.0
+    };
     // approximate height of your breadcrumb/tabbar
     let navbar_height = 30.0;
     let command_bar = ui_prefs.toolbar.layout == ToolbarLayout::CommandBar;
@@ -249,15 +254,24 @@ pub fn draw_tab_content(
             strip.cell(|ui| {
                 let rect = ui.max_rect();
 
-                if !is_drive_view {
+                if status_prefs.visible && !is_drive_view {
                     let mut dir_count = 0usize;
                     let mut file_count = 0usize;
                     // Sum visible files and completed recursive folder sizes in the
                     // same pass that counts them.
                     let mut total_size = 0u64;
+                    let mut stats = StatusStats::default();
+                    let selection = &view.explorer_state.selected_paths;
+                    let count_selection = status_prefs.selection_size && !selection.is_empty();
 
                     for &idx in &view.item_viewer_filter_state.cached_indices {
                         let item = &view.files[idx];
+                        if count_selection && !item.is_dir && selection.contains(&item.path) {
+                            stats.selected_files += 1;
+                            stats.selected_bytes = stats
+                                .selected_bytes
+                                .saturating_add(item.file_size.unwrap_or(0));
+                        }
                         if item.is_dir {
                             dir_count += 1;
                             let bytes = folder_sizes
@@ -284,7 +298,74 @@ pub fn draw_tab_content(
 
                     let center_y = rect.center().y;
 
+                    stats.items = dir_count + file_count;
+                    stats.selected = selected_count;
+                    let left_text = status_left_text(
+                        &status_prefs,
+                        stats,
+                        &i18n.tr("status_item"),
+                        &i18n.tr("status_items"),
+                        &i18n.tr("status_selected"),
+                        format_size,
+                    );
+                    if !left_text.is_empty() {
+                        ui.painter().text(
+                            egui::pos2(rect.left() + 8.0, center_y),
+                            egui::Align2::LEFT_CENTER,
+                            left_text,
+                            font_id.clone(),
+                            text_color,
+                        );
+                    }
+
                     let mut right = rect.right() - RIGHT_MARGIN;
+
+                    if status_prefs.view_toggles && !is_recycle_bin_view {
+                        let size = palette.text_size + 2.0;
+                        for (mode, icon, key) in [
+                            (
+                                ItemViewerDisplayMode::Gallery,
+                                AppIcon::ImagesSquare,
+                                "toolbar_view_gallery",
+                            ),
+                            (
+                                ItemViewerDisplayMode::Details,
+                                AppIcon::List,
+                                "toolbar_view_details",
+                            ),
+                        ] {
+                            let button = egui::Rect::from_center_size(
+                                egui::pos2(right - size * 0.5, center_y),
+                                egui::vec2(size + 4.0, size + 2.0),
+                            );
+                            let resp = ui
+                                .interact(
+                                    button,
+                                    ui.id().with(("status_view", key)),
+                                    egui::Sense::click(),
+                                )
+                                .on_hover_text(i18n.tr(key));
+                            let active = view.display_mode == mode;
+                            if active || resp.hovered() {
+                                ui.painter().rect_filled(
+                                    button,
+                                    egui::CornerRadius::same(palette.small_radius),
+                                    ui.visuals().widgets.hovered.weak_bg_fill,
+                                );
+                            }
+                            let color = if active { palette.primary } else { text_color };
+                            paint_icon(ui, button, icon.regular(), size, color);
+                            if resp.clicked() {
+                                view.display_mode = mode;
+                            }
+                            right -= size + 8.0;
+                        }
+                        right -= COLUMN_SPACING;
+                    }
+
+                    if !status_prefs.counters {
+                        return;
+                    }
 
                     // Files
                     draw_status_counter(

@@ -347,3 +347,14 @@ toolbar_view_details = Detail
 toolbar_view_gallery = Galeri
 toolbar_favorite = Favorit
 toolbar_terminal = Terminal
+
+# Status bar
+status_item = item
+status_items = item
+status_selected = dipilih
+settings_status_bar = Bilah status
+settings_status_bar_visible = Tampilkan bilah status
+settings_status_bar_item_count = Jumlah item dan pilihan di kiri
+settings_status_bar_selection_size = Ukuran berkas terpilih
+settings_status_bar_view_toggles = Tombol detail / galeri
+settings_status_bar_counters = Total ukuran, jumlah folder dan berkas

@@ -347,3 +347,14 @@ toolbar_view_details = 詳細資料
 toolbar_view_gallery = 圖庫
 toolbar_favorite = 我的最愛
 toolbar_terminal = 終端機
+
+# Status bar
+status_item = 個項目
+status_items = 個項目
+status_selected = 已選取
+settings_status_bar = 狀態列
+settings_status_bar_visible = 顯示狀態列
+settings_status_bar_item_count = 左側顯示項目數和選取數
+settings_status_bar_selection_size = 已選取檔案的大小
+settings_status_bar_view_toggles = 詳細資料/圖庫按鈕
+settings_status_bar_counters = 總大小、資料夾和檔案計數
