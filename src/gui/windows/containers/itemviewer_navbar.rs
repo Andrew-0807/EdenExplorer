@@ -201,6 +201,7 @@ pub fn draw_itemviewer_navigation_bar(
                     AppIcon::Trash.regular(),
                     16.0,
                     palette.text_header_section,
+                    &i18n.tr("recycle_bin"),
                 );
             } else if let Some(icon) = icon_cache.get(&pc_icon_path, true) {
                 ui.add(egui::Image::new(&icon).fit_to_exact_size(egui::vec2(16.0, 16.0)));
@@ -404,14 +405,19 @@ fn draw_navigation_bar_buttons(
         action.nav = Some(ItemViewerNavAction::Up);
     }
 
-    if clickable_icon(ui, AppIcon::ArrowsClockwise.regular(), palette)
-        .on_hover_text(
-            egui::RichText::new(i18n.tr("tooltip_refresh"))
-                .size(palette.tooltip_text_size)
-                .color(palette.tooltip_text_color),
-        )
-        .on_hover_cursor(egui::CursorIcon::PointingHand)
-        .clicked()
+    if clickable_icon(
+        ui,
+        AppIcon::ArrowsClockwise.regular(),
+        palette,
+        &i18n.tr("tooltip_refresh"),
+    )
+    .on_hover_text(
+        egui::RichText::new(i18n.tr("tooltip_refresh"))
+            .size(palette.tooltip_text_size)
+            .color(palette.tooltip_text_color),
+    )
+    .on_hover_cursor(egui::CursorIcon::PointingHand)
+    .clicked()
     {
         action.refresh_current_directory = true;
     }
@@ -454,7 +460,20 @@ fn draw_navigation_bar_buttons(
         palette.tooltip_text_color
     };
 
-    let star_resp = draw_icon(ui, star_icon, palette.text_size + 2.0, star_color);
+    let star_label = if is_root || is_recycle_bin {
+        i18n.tr("tooltip_favorites_disabled")
+    } else if is_favorited {
+        i18n.tr("tooltip_favorites_remove")
+    } else {
+        i18n.tr("tooltip_favorites_add")
+    };
+    let star_resp = draw_icon(
+        ui,
+        star_icon,
+        palette.text_size + 2.0,
+        star_color,
+        &star_label,
+    );
 
     let star_resp = if is_root || is_recycle_bin {
         star_resp.on_hover_text(
@@ -494,6 +513,7 @@ fn draw_navigation_bar_buttons(
         AppIcon::ImagesSquare.regular(),
         palette.text_size + 2.0,
         gallery_color,
+        &i18n.tr("tooltip_gallery_view"),
     )
     .on_hover_text(
         egui::RichText::new(i18n.tr("tooltip_gallery_view"))
