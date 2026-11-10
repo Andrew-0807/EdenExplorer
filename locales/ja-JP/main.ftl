@@ -310,3 +310,16 @@ theme_hover_none = なし
 theme_colors_selection_stroke = 枠線の色
 theme_selection_stroke_width = 枠線の太さ
 theme_selection_radius = 選択の角の丸み
+
+# Theme editor: folder icons
+theme_icon_style = フォルダーアイコン
+theme_icons_classic = クラシック（既知のフォルダーはグリフ）
+theme_icons_native = Windows（シェルアイコン、アイコンパック）
+theme_icons_flat = フラットな色付きフォルダー
+theme_colors_folder = フォルダーの色
+theme_colors_folder_desktop = デスクトップ フォルダー
+theme_colors_folder_documents = ドキュメント フォルダー
+theme_colors_folder_downloads = ダウンロード フォルダー
+theme_colors_folder_pictures = ピクチャ フォルダー
+theme_colors_folder_music = ミュージック フォルダー
+theme_colors_folder_videos = ビデオ フォルダー

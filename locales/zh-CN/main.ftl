@@ -310,3 +310,16 @@ theme_hover_none = 无
 theme_colors_selection_stroke = 轮廓颜色
 theme_selection_stroke_width = 轮廓宽度
 theme_selection_radius = 选择圆角半径
+
+# Theme editor: folder icons
+theme_icon_style = 文件夹图标
+theme_icons_classic = 经典（已知文件夹用字形）
+theme_icons_native = Windows（系统图标、图标包）
+theme_icons_flat = 扁平彩色文件夹
+theme_colors_folder = 文件夹颜色
+theme_colors_folder_desktop = 桌面文件夹
+theme_colors_folder_documents = 文档文件夹
+theme_colors_folder_downloads = 下载文件夹
+theme_colors_folder_pictures = 图片文件夹
+theme_colors_folder_music = 音乐文件夹
+theme_colors_folder_videos = 视频文件夹

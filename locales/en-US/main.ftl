@@ -310,3 +310,16 @@ theme_hover_none = None
 theme_colors_selection_stroke = Outline color
 theme_selection_stroke_width = Outline width
 theme_selection_radius = Selection corner radius
+
+# Theme editor: folder icons
+theme_icon_style = Folder icons
+theme_icons_classic = Classic (glyphs for known folders)
+theme_icons_native = Windows (shell icons, icon packs)
+theme_icons_flat = Flat colored folders
+theme_colors_folder = Folder color
+theme_colors_folder_desktop = Desktop folder
+theme_colors_folder_documents = Documents folder
+theme_colors_folder_downloads = Downloads folder
+theme_colors_folder_pictures = Pictures folder
+theme_colors_folder_music = Music folder
+theme_colors_folder_videos = Videos folder

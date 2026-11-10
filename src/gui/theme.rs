@@ -98,6 +98,13 @@ pub struct ThemePalette {
     pub selection_stroke_width: f32,
     pub selection_radius: u8,
 
+    // 📁 Icons
+    pub icon_style: crate::gui::folder_icons::IconStyle,
+    /// Folder color of the Flat icon style.
+    pub folder_color: Color32,
+    /// Flat style colors of Desktop, Documents, Downloads, ...
+    pub known_folder_colors: crate::gui::folder_icons::KnownFolderColors,
+
     // 🎯 Icons & text
     pub icon_color: Color32,
     pub icon_windows: Color32,
@@ -250,6 +257,9 @@ pub static DEFAULT_PALETTE_DARK: LazyLock<ThemePalette> = LazyLock::new(|| {
         selection_stroke: Color32::from_rgb(210, 210, 215),
         selection_stroke_width: 1.0,
         selection_radius: 0,
+        icon_style: crate::gui::folder_icons::IconStyle::Classic,
+        folder_color: Color32::from_rgb(240, 190, 70),
+        known_folder_colors: crate::gui::folder_icons::KnownFolderColors::default(),
 
         // 🎯 Icons & text
         icon_color: Color32::WHITE,
@@ -353,6 +363,9 @@ pub static DEFAULT_PALETTE_LIGHT: LazyLock<ThemePalette> = LazyLock::new(|| {
         selection_stroke: Color32::from_rgb(60, 60, 70),
         selection_stroke_width: 1.0,
         selection_radius: 0,
+        icon_style: crate::gui::folder_icons::IconStyle::Classic,
+        folder_color: Color32::from_rgb(240, 190, 70),
+        known_folder_colors: crate::gui::folder_icons::KnownFolderColors::default(),
 
         // 🎯 Icons & text
         icon_color: Color32::from_rgb(40, 40, 40),

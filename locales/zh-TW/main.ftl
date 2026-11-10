@@ -310,3 +310,16 @@ theme_hover_none = 無
 theme_colors_selection_stroke = 外框色彩
 theme_selection_stroke_width = 外框寬度
 theme_selection_radius = 選取圓角半徑
+
+# Theme editor: folder icons
+theme_icon_style = 資料夾圖示
+theme_icons_classic = 經典（已知資料夾用字形）
+theme_icons_native = Windows（系統圖示、圖示套件）
+theme_icons_flat = 扁平彩色資料夾
+theme_colors_folder = 資料夾色彩
+theme_colors_folder_desktop = 桌面資料夾
+theme_colors_folder_documents = 文件資料夾
+theme_colors_folder_downloads = 下載資料夾
+theme_colors_folder_pictures = 圖片資料夾
+theme_colors_folder_music = 音樂資料夾
+theme_colors_folder_videos = 影片資料夾

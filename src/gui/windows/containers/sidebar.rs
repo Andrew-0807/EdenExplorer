@@ -5,6 +5,7 @@ use crate::core::fs::{MY_PC_PATH, MY_RECYCLE_BIN_PATH};
 use crate::core::i18n::I18n;
 use crate::core::icons::IconCache;
 use crate::core::utils::text::apply_eden_text_overrides;
+use crate::gui::folder_icons::{FolderIcon, paint_folder_icon, resolve_for_path};
 use crate::gui::icon_system::{AppIcon, paint_icon};
 use crate::gui::theme::ThemePalette;
 use crate::gui::utils::{draw_object_drag_ghost, drive_usage_color, truncate_item_text};
@@ -497,16 +498,14 @@ pub fn draw_sidebar_item(
         );
 
         palette.text_size + icon_size.x + icon_padding
-    } else if let Some(glyph) = icon_cache.get_custom_folder_icon(path, is_dir) {
-        // Custom application icon for recognized folders.
-        paint_icon(
-            ui,
-            egui::Rect::from_min_size(icon_pos, icon_size),
-            glyph.regular(),
-            icon_size.y,
-            palette.icon_color,
-        );
-
+    } else if paint_folder_icon(
+        ui,
+        egui::Rect::from_min_size(icon_pos, icon_size),
+        icon_size.y,
+        sidebar_folder_icon(palette, path, is_dir),
+        false,
+    ) {
+        // Theme-styled icon for folders (glyph for known folders, flat folder).
         palette.text_size + icon_size.x + icon_padding
     } else if let Some(icon) = icon_cache.get(path, is_dir) {
         // Windows shell icon fallback.
@@ -554,6 +553,14 @@ pub fn draw_sidebar_item(
                 .size(palette.tooltip_text_size)
                 .color(palette.tooltip_text_color),
         )
+    }
+}
+
+/// The sidebar used `icon_color` for known-folder glyphs; keep that.
+fn sidebar_folder_icon(palette: &ThemePalette, path: &std::path::Path, is_dir: bool) -> FolderIcon {
+    match resolve_for_path(palette, path, is_dir) {
+        FolderIcon::Glyph(glyph, _) => FolderIcon::Glyph(glyph, palette.icon_color),
+        other => other,
     }
 }
 

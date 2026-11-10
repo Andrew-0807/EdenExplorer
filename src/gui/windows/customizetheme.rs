@@ -1,6 +1,7 @@
 use crate::core::i18n::I18n;
 use crate::core::utils::fonts::get_font_list;
 use crate::gui::backdrop::{Backdrop, needs_restart, transparent_surface};
+use crate::gui::folder_icons::IconStyle;
 use crate::gui::selection::{HoverStyle, SelectionStyle};
 use crate::gui::theme::{
     ThemeMode, ThemePalette, apply_font_to_context, error_color, regenerate_base_derived_colors,
@@ -480,6 +481,17 @@ fn draw_sections(
     });
 
     section(ui, rows, "theme_section_icons", false, |ui, rows| {
+        let styles: Vec<(IconStyle, &str)> =
+            IconStyle::ALL.iter().map(|s| (*s, s.label_key())).collect();
+        rows.choice(ui, "theme_icon_style", &mut p.icon_style, &styles);
+        rows.color(ui, "theme_colors_folder", &mut p.folder_color);
+        let k = &mut p.known_folder_colors;
+        rows.color(ui, "theme_colors_folder_desktop", &mut k.desktop);
+        rows.color(ui, "theme_colors_folder_documents", &mut k.documents);
+        rows.color(ui, "theme_colors_folder_downloads", &mut k.downloads);
+        rows.color(ui, "theme_colors_folder_pictures", &mut k.pictures);
+        rows.color(ui, "theme_colors_folder_music", &mut k.music);
+        rows.color(ui, "theme_colors_folder_videos", &mut k.videos);
         rows.color(ui, "theme_colors_icon", &mut p.icon_color);
         rows.color(ui, "theme_colors_icon_hover", &mut p.icon_colored_hover);
         rows.color(ui, "theme_colors_icon_windows", &mut p.icon_windows);

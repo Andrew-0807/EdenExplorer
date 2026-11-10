@@ -5,7 +5,7 @@ use crate::core::icons::IconCache;
 use crate::core::utils::files::filename_has_valid_characters_realtime;
 use crate::core::utils::text::{apply_eden_text_overrides, paint_truncated_text};
 use crate::core::utils::widgets::{apply_eden_visual_overrides, draw_checkbox, loading_spinner};
-use crate::gui::icon_system::paint_icon;
+use crate::gui::folder_icons::{FolderIcon, paint_folder_icon, resolve_for_path};
 use crate::gui::theme::{ThemePalette, apply_checkbox_colors, error_color};
 use crate::gui::utils::{
     SortColumn, SortKey, clear_clipboard_files, drive_usage_bar, format_size, get_file_type_name,
@@ -402,10 +402,15 @@ pub fn handle_draw_col_name(
             palette.icon_colored_hover
         };
 
-        // Use a custom application icon for recognized folder names.
-        if let Some(glyph) = icon_cache.get_custom_folder_icon(&file.path, file.is_dir) {
-            paint_icon(ui, icon_area, glyph.regular(), icon_size.x, icon_color);
-        } else if let Some(icon) = icon_cache.get(&file.path, file.is_dir) {
+        // Theme-styled folder icons (glyph or flat), else the shell icon.
+        let folder_icon = if layout.is_drive_view {
+            FolderIcon::Shell
+        } else {
+            resolve_for_path(palette, &file.path, file.is_dir)
+        };
+        if !paint_folder_icon(ui, icon_area, icon_size.x, folder_icon, is_cut)
+            && let Some(icon) = icon_cache.get(&file.path, file.is_dir)
+        {
             let icon_pos = egui::pos2(
                 icon_area.center().x - icon_size.x * 0.5,
                 icon_area.center().y - icon_size.y * 0.5,

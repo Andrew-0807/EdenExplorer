@@ -310,3 +310,16 @@ theme_hover_none = Tidak ada
 theme_colors_selection_stroke = Warna garis tepi
 theme_selection_stroke_width = Lebar garis tepi
 theme_selection_radius = Radius sudut pilihan
+
+# Theme editor: folder icons
+theme_icon_style = Ikon folder
+theme_icons_classic = Klasik (glif untuk folder umum)
+theme_icons_native = Windows (ikon shell, paket ikon)
+theme_icons_flat = Folder datar berwarna
+theme_colors_folder = Warna folder
+theme_colors_folder_desktop = Folder Desktop
+theme_colors_folder_documents = Folder Dokumen
+theme_colors_folder_downloads = Folder Unduhan
+theme_colors_folder_pictures = Folder Gambar
+theme_colors_folder_music = Folder Musik
+theme_colors_folder_videos = Folder Video

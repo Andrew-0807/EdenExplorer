@@ -1,5 +1,4 @@
 use crate::core::portable;
-use crate::gui::icon_system::AppIcon;
 use crossbeam_channel::{Sender, unbounded};
 use eframe::egui;
 use std::os::windows::ffi::OsStrExt;
@@ -171,17 +170,6 @@ impl IconCache {
         self.textures.lock().unwrap().clear();
         self.icon_indices.lock().unwrap().clear();
     }
-
-    /// Returns a custom application icon for folders with a recognized name.
-    pub fn get_custom_folder_icon(&self, path: &Path, is_dir: bool) -> Option<AppIcon> {
-        if !is_dir {
-            return None;
-        }
-
-        let name = path.file_name()?.to_str()?;
-
-        custom_folder_icon(name)
-    }
 }
 
 // ---------------- helpers ----------------
@@ -328,21 +316,5 @@ fn icon_to_rgba(icon: HICON) -> Option<(Vec<u8>, u32, u32)> {
         }
 
         Some((pixels, width, height))
-    }
-}
-
-fn custom_folder_icon(name: &str) -> Option<AppIcon> {
-    if name.eq_ignore_ascii_case("Music") {
-        Some(AppIcon::MusicNotes)
-    } else if name.eq_ignore_ascii_case("Pictures") {
-        Some(AppIcon::Image)
-    } else if name.eq_ignore_ascii_case("Videos") {
-        Some(AppIcon::VideoCamera)
-    } else if name.eq_ignore_ascii_case("Downloads") {
-        Some(AppIcon::DownloadSimple)
-    } else if name.eq_ignore_ascii_case("Documents") {
-        Some(AppIcon::FileText)
-    } else {
-        None
     }
 }

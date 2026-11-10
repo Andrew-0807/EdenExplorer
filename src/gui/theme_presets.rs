@@ -1,6 +1,7 @@
 //! Built-in theme presets and theme file import/export.
 
 use crate::gui::backdrop::Backdrop;
+use crate::gui::folder_icons::IconStyle;
 use crate::gui::selection::SelectionStyle;
 use crate::gui::theme::{
     THEME_VERSION, ThemeMode, ThemePalette, get_default_palette, palette_from_json,
@@ -217,6 +218,8 @@ fn preset_apply_extras(preset: ThemePreset, mode: ThemeMode, palette: &mut Theme
         // Explorer draws the selected row as a thin light outline.
         palette.selection_style = SelectionStyle::Outline;
         palette.selection_radius = 2;
+        // Shell icons, so icon packs (e.g. Windhawk icon themes) show as in Explorer.
+        palette.icon_style = IconStyle::Native;
         palette.selection_stroke = match mode {
             ThemeMode::Dark => rgb(220, 220, 220),
             ThemeMode::Light => rgb(40, 40, 40),

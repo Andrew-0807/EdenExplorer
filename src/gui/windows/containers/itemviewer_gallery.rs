@@ -7,6 +7,7 @@ use crate::core::utils::thumbnails::{ThumbnailPriority, ThumbnailService};
 use crate::core::utils::widgets::{
     apply_eden_dropdown_visual_color_overrides, apply_eden_visual_overrides, draw_dropdown,
 };
+use crate::gui::folder_icons::{FolderIcon, paint_folder_icon, resolve_for_path};
 use crate::gui::icon_system::{AppIcon, paint_icon};
 use crate::gui::selection::{item_paint, paint_item};
 use crate::gui::theme::ThemePalette;
@@ -557,24 +558,19 @@ fn draw_gallery_tile(
 
     // Keep the app's custom folder glyphs ahead of both Windows thumbnails and
     // shell icons so recognized folders keep their visual identity in Gallery.
-    if let Some(glyph) = icon_cache.get_custom_folder_icon(&file.path, file.is_dir) {
-        let icon_size = (thumb_size * 0.35).clamp(26.0, 80.0);
+    let folder_icon = resolve_for_path(palette, &file.path, file.is_dir);
+    if folder_icon != FolderIcon::Shell {
+        // Flat folders are the whole preview; glyphs stay small like before.
+        let icon_size = if matches!(folder_icon, FolderIcon::Flat { .. }) {
+            (thumb_size * 0.7).clamp(26.0, 200.0)
+        } else {
+            (thumb_size * 0.35).clamp(26.0, 80.0)
+        };
         let icon_rect =
             egui::Rect::from_center_size(preview_rect.center(), egui::vec2(icon_size, icon_size));
-        let icon_color = if is_cut {
-            palette.icon_colored_hover.linear_multiply(0.45)
-        } else {
-            palette.icon_colored_hover
-        };
 
         ui.scope_builder(egui::UiBuilder::new().max_rect(icon_rect), |icon_ui| {
-            paint_icon(
-                icon_ui,
-                icon_ui.max_rect(),
-                glyph.regular(),
-                icon_size,
-                icon_color,
-            );
+            paint_folder_icon(icon_ui, icon_ui.max_rect(), icon_size, folder_icon, is_cut);
         });
     } else if file.is_dir {
         // Directory thumbnails are often just Windows' generic folder preview.
