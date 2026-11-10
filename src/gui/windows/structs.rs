@@ -113,6 +113,11 @@ pub struct SidebarState {
     /// Result of a drive enumeration running on a worker thread, if one is pending.
     pub drive_refresh_rx: Option<std::sync::mpsc::Receiver<Vec<DriveInfo>>>,
     pub non_ntfs_popup_path: Option<PathBuf>,
+    /// WSL distributions, read once on first draw.
+    pub wsl_distros: Option<Vec<String>>,
+    /// Favorite whose rename field is open in its context menu, and the text.
+    pub rename_target: Option<PathBuf>,
+    pub rename_buffer: String,
 }
 
 impl Default for SidebarState {
@@ -127,6 +132,9 @@ impl Default for SidebarState {
             last_drive_refresh: now.checked_sub(Duration::from_secs(60)).unwrap_or(now),
             drive_refresh_rx: None,
             non_ntfs_popup_path: None,
+            wsl_distros: None,
+            rename_target: None,
+            rename_buffer: String::new(),
         }
     }
 }

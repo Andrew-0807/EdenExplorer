@@ -287,12 +287,81 @@ pub fn status_left_text(
     text
 }
 
+/// Sidebar sections and details.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SidebarPrefs {
+    /// This PC, Home, Recycle Bin.
+    pub places: bool,
+    /// Pinned folders (favorites).
+    pub quick_access: bool,
+    pub drives: bool,
+    /// Mapped network drives, in their own section.
+    pub network: bool,
+    /// WSL distributions.
+    pub linux: bool,
+    /// Pin glyph at the end of pinned folders, like Explorer.
+    pub pin_glyphs: bool,
+    pub drive_usage_bars: bool,
+    /// Section titles ("Places", "Favorites", ...).
+    pub section_titles: bool,
+}
+
+impl Default for SidebarPrefs {
+    fn default() -> Self {
+        Self {
+            places: true,
+            quick_access: true,
+            drives: true,
+            network: true,
+            linux: true,
+            pin_glyphs: false,
+            drive_usage_bars: true,
+            section_titles: true,
+        }
+    }
+}
+
+impl SidebarPrefs {
+    pub fn explorer_like() -> Self {
+        Self {
+            pin_glyphs: true,
+            section_titles: false,
+            ..Self::default()
+        }
+    }
+}
+
+/// Moves item `index` by `delta` places (clamped). Returns the new index, or
+/// `None` when nothing moved.
+pub fn move_item<T>(list: &mut Vec<T>, index: usize, delta: isize) -> Option<usize> {
+    if index >= list.len() {
+        return None;
+    }
+    let target = (index as isize + delta).clamp(0, list.len() as isize - 1) as usize;
+    if target == index {
+        return None;
+    }
+    let item = list.remove(index);
+    list.insert(target, item);
+    Some(target)
+}
+
+/// Splits drives into (local, network) keeping their order.
+pub fn split_network_drives<T>(
+    drives: &[T],
+    is_network: impl Fn(&T) -> bool,
+) -> (Vec<&T>, Vec<&T>) {
+    drives.iter().partition(|d| !is_network(d))
+}
+
 /// Everything under `ui` in `settings.json`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct UiPreferences {
     pub toolbar: ToolbarPrefs,
     pub status_bar: StatusBarPrefs,
+    pub sidebar: SidebarPrefs,
 }
 
 #[cfg(test)]
@@ -410,6 +479,38 @@ mod tests {
             status_left_text(&StatusBarPrefs::default(), stats, "a", "b", "c", size),
             ""
         );
+    }
+
+    #[test]
+    fn move_item_clamps_and_reports() {
+        let mut v = vec!['a', 'b', 'c'];
+        assert_eq!(move_item(&mut v, 0, 1), Some(1));
+        assert_eq!(v, vec!['b', 'a', 'c']);
+        assert_eq!(move_item(&mut v, 2, -5), Some(0));
+        assert_eq!(v, vec!['c', 'b', 'a']);
+        assert_eq!(move_item(&mut v, 2, 1), None);
+        assert_eq!(move_item(&mut v, 9, 1), None);
+        let mut empty: Vec<u8> = Vec::new();
+        assert_eq!(move_item(&mut empty, 0, 1), None);
+    }
+
+    #[test]
+    fn network_drives_are_split_out() {
+        let drives = [("C", false), ("Z", true), ("D", false)];
+        let (local, net) = split_network_drives(&drives, |d| d.1);
+        assert_eq!(
+            local.iter().map(|d| d.0).collect::<Vec<_>>(),
+            vec!["C", "D"]
+        );
+        assert_eq!(net.iter().map(|d| d.0).collect::<Vec<_>>(), vec!["Z"]);
+    }
+
+    #[test]
+    fn sidebar_defaults_keep_v1_3_0_sections() {
+        let s = SidebarPrefs::default();
+        assert!(s.places && s.quick_access && s.drives && s.section_titles);
+        assert!(!s.pin_glyphs);
+        assert!(SidebarPrefs::explorer_like().pin_glyphs);
     }
 
     #[test]

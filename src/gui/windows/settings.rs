@@ -11,7 +11,7 @@ use crate::core::{
         eden_text_label, eden_toggle_button,
     },
 };
-use crate::gui::customization::{StatusBarPrefs, ToolbarLayout, ToolbarPrefs};
+use crate::gui::customization::{SidebarPrefs, StatusBarPrefs, ToolbarLayout, ToolbarPrefs};
 use crate::gui::icon_system::{AppIcon, draw_icon, paint_icon};
 use crate::gui::theme::ThemePalette;
 use crate::gui::utils::SortColumn;
@@ -415,10 +415,28 @@ fn draw_appearance_tab(
         }
     });
 
+    ui.group(|ui| {
+        appearance_heading(ui, palette, &i18n.tr("settings_sidebar"));
+        let s = &mut prefs.sidebar;
+        for (key, value) in [
+            ("settings_sidebar_places", &mut s.places),
+            ("settings_sidebar_quick_access", &mut s.quick_access),
+            ("settings_sidebar_drives", &mut s.drives),
+            ("settings_sidebar_network", &mut s.network),
+            ("settings_sidebar_linux", &mut s.linux),
+            ("settings_sidebar_pin_glyphs", &mut s.pin_glyphs),
+            ("settings_sidebar_usage_bars", &mut s.drive_usage_bars),
+            ("settings_sidebar_titles", &mut s.section_titles),
+        ] {
+            changed |= pref_checkbox(ui, palette, i18n, key, value);
+        }
+    });
+
     ui.add_space(6.0);
     if eden_button(ui, palette, &i18n.tr("settings_toolbar_explorer_like")).clicked() {
         prefs.toolbar = ToolbarPrefs::explorer_like();
         prefs.status_bar = StatusBarPrefs::explorer_like();
+        prefs.sidebar = SidebarPrefs::explorer_like();
         changed = true;
     }
 

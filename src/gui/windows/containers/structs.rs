@@ -918,6 +918,10 @@ impl FavoriteItem {
 
 #[derive(Default)]
 pub struct SidebarAction {
+    /// Move the favorite at index by delta (context menu Move up / down).
+    pub move_favorite: Option<(usize, isize)>,
+    /// Rename a favorite (empty label restores the folder name).
+    pub rename_favorite: Option<(PathBuf, String)>,
     pub nav_to: Option<PathBuf>,
     pub open_new_tab: Option<PathBuf>,
     pub open_background_tab: Option<PathBuf>,

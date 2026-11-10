@@ -10,6 +10,7 @@ use crate::core::persist::write_atomic;
 use crate::core::utils::files::resolve_shortcut_target;
 use crate::core::utils::widgets::{loading_spinner, request_animation_frame};
 use crate::gui::MainWindow;
+use crate::gui::customization::move_item;
 use crate::gui::theme::{ThemeMode, ThemePalette, get_default_palette, set_palette};
 use crate::gui::theme_presets::{export_theme_json, import_theme_json};
 use crate::gui::utils::{
@@ -1795,6 +1796,26 @@ impl MainWindow {
         drag_sources: Option<&[PathBuf]>,
     ) {
         if let Some(action) = sidebar_action {
+            if let Some((index, delta)) = action.move_favorite
+                && move_item(&mut self.sidebar_state.favorites, index, delta).is_some()
+            {
+                self.persist_favorites();
+            }
+            if let Some((path, label)) = action.rename_favorite.as_ref() {
+                if let Some(fav) = self
+                    .sidebar_state
+                    .favorites
+                    .iter_mut()
+                    .find(|fav| &fav.path == path)
+                {
+                    fav.label = if label.trim().is_empty() {
+                        FavoriteItem::default_label(path)
+                    } else {
+                        label.trim().to_string()
+                    };
+                }
+                self.persist_favorites();
+            }
             if let Some((from, to)) = action.reorder {
                 let len = self.sidebar_state.favorites.len();
 

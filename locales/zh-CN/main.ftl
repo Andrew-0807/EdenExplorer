@@ -358,3 +358,19 @@ settings_status_bar_item_count = 左侧显示项目数和所选数
 settings_status_bar_selection_size = 所选文件的大小
 settings_status_bar_view_toggles = 详细信息/图库按钮
 settings_status_bar_counters = 总大小、文件夹和文件计数
+
+# Sidebar sections
+settings_sidebar = 侧边栏
+settings_sidebar_places = 此电脑、主文件夹和回收站
+settings_sidebar_quick_access = 已固定的文件夹
+settings_sidebar_drives = 驱动器
+settings_sidebar_network = 网络驱动器单独分组
+settings_sidebar_linux = Linux（WSL）发行版
+settings_sidebar_pin_glyphs = 在已固定的文件夹上显示图钉
+settings_sidebar_usage_bars = 驱动器使用量条
+settings_sidebar_titles = 分组标题
+sidebar_network = 网络
+sidebar_linux = Linux
+sidebar_move_up = 上移
+sidebar_move_down = 下移
+sidebar_rename = 重命名

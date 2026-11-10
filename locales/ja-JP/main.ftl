@@ -358,3 +358,19 @@ settings_status_bar_item_count = 左側に項目数と選択数
 settings_status_bar_selection_size = 選択したファイルのサイズ
 settings_status_bar_view_toggles = 詳細 / ギャラリー ボタン
 settings_status_bar_counters = 合計サイズ、フォルダー数、ファイル数
+
+# Sidebar sections
+settings_sidebar = サイドバー
+settings_sidebar_places = PC、ホーム フォルダー、ごみ箱
+settings_sidebar_quick_access = ピン留めしたフォルダー
+settings_sidebar_drives = ドライブ
+settings_sidebar_network = ネットワーク ドライブを別セクションに
+settings_sidebar_linux = Linux（WSL）ディストリビューション
+settings_sidebar_pin_glyphs = ピン留めしたフォルダーにピン アイコン
+settings_sidebar_usage_bars = ドライブ使用量バー
+settings_sidebar_titles = セクションの見出し
+sidebar_network = ネットワーク
+sidebar_linux = Linux
+sidebar_move_up = 上へ移動
+sidebar_move_down = 下へ移動
+sidebar_rename = 名前の変更

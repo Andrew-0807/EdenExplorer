@@ -555,6 +555,7 @@ impl eframe::App for MainWindow {
                                             &palette,
                                             drag_active,
                                             drag_hover_target.clone(),
+                                            self.settings_window.current_settings.ui.sidebar,
                                         ));
                                     });
                                 }

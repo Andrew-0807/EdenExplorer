@@ -358,3 +358,19 @@ settings_status_bar_item_count = Item count and selection on the left
 settings_status_bar_selection_size = Size of the selected files
 settings_status_bar_view_toggles = Details / gallery buttons
 settings_status_bar_counters = Total size, folder and file counters
+
+# Sidebar sections
+settings_sidebar = Sidebar
+settings_sidebar_places = This PC, home folder and Recycle Bin
+settings_sidebar_quick_access = Pinned folders
+settings_sidebar_drives = Drives
+settings_sidebar_network = Network drives in their own section
+settings_sidebar_linux = Linux (WSL) distributions
+settings_sidebar_pin_glyphs = Pin icons on pinned folders
+settings_sidebar_usage_bars = Drive usage bars
+settings_sidebar_titles = Section titles
+sidebar_network = Network
+sidebar_linux = Linux
+sidebar_move_up = Move up
+sidebar_move_down = Move down
+sidebar_rename = Rename

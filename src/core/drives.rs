@@ -20,7 +20,7 @@ use windows::Win32::System::Ioctl::*;
 use windows::Win32::System::Ioctl::{
     DISK_GEOMETRY, GUID_DEVINTERFACE_DISK, IOCTL_DISK_GET_DRIVE_GEOMETRY,
 };
-use windows::Win32::System::WindowsProgramming::{DRIVE_CDROM, DRIVE_REMOVABLE};
+use windows::Win32::System::WindowsProgramming::{DRIVE_CDROM, DRIVE_REMOTE, DRIVE_REMOVABLE};
 use windows::core::PCWSTR;
 
 // Cache for drive information to avoid expensive enumeration on every call
@@ -91,6 +91,8 @@ pub struct DriveInfo {
     pub free_space: Option<u64>,
     #[allow(dead_code)]
     pub device_path: Option<String>, // Optional physical device or WPD device ID
+    /// Mapped network drive (DRIVE_REMOTE); shown under Network in the sidebar.
+    pub is_network: bool,
 }
 
 /// Represents raw/unmounted physical drives
@@ -504,6 +506,7 @@ fn get_drive_infos_internal() -> Vec<DriveInfo> {
                     total_space,
                     free_space,
                     device_path,
+                    is_network: drive_type == DRIVE_REMOTE,
                 });
             }
         }
@@ -533,6 +536,7 @@ fn get_drive_infos_internal() -> Vec<DriveInfo> {
                 total_space: None,
                 free_space: None,
                 device_path: Some(device_id),
+                is_network: false,
             }),
     );
 
@@ -552,6 +556,7 @@ fn get_drive_infos_internal() -> Vec<DriveInfo> {
             total_space: raw.total_bytes,
             free_space: None,
             device_path: Some(raw.device_path),
+            is_network: false,
         })
     }));
 
@@ -588,6 +593,7 @@ fn get_drive_infos_internal() -> Vec<DriveInfo> {
             total_space: raw.total_bytes,
             free_space: None,
             device_path: Some(raw.device_path),
+            is_network: false,
         });
     }
 
@@ -726,6 +732,7 @@ mod tests {
             total_space: None,
             free_space: None,
             device_path: None,
+            is_network: false,
         }
     }
 

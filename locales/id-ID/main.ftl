@@ -358,3 +358,19 @@ settings_status_bar_item_count = Jumlah item dan pilihan di kiri
 settings_status_bar_selection_size = Ukuran berkas terpilih
 settings_status_bar_view_toggles = Tombol detail / galeri
 settings_status_bar_counters = Total ukuran, jumlah folder dan berkas
+
+# Sidebar sections
+settings_sidebar = Bilah sisi
+settings_sidebar_places = PC ini, folder beranda, dan Tempat Sampah
+settings_sidebar_quick_access = Folder yang disematkan
+settings_sidebar_drives = Drive
+settings_sidebar_network = Drive jaringan di bagian tersendiri
+settings_sidebar_linux = Distribusi Linux (WSL)
+settings_sidebar_pin_glyphs = Ikon pin pada folder yang disematkan
+settings_sidebar_usage_bars = Bilah penggunaan drive
+settings_sidebar_titles = Judul bagian
+sidebar_network = Jaringan
+sidebar_linux = Linux
+sidebar_move_up = Pindah ke atas
+sidebar_move_down = Pindah ke bawah
+sidebar_rename = Ganti nama

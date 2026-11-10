@@ -358,3 +358,19 @@ settings_status_bar_item_count = 左側顯示項目數和選取數
 settings_status_bar_selection_size = 已選取檔案的大小
 settings_status_bar_view_toggles = 詳細資料/圖庫按鈕
 settings_status_bar_counters = 總大小、資料夾和檔案計數
+
+# Sidebar sections
+settings_sidebar = 側邊欄
+settings_sidebar_places = 本機、主資料夾和資源回收筒
+settings_sidebar_quick_access = 已釘選的資料夾
+settings_sidebar_drives = 磁碟機
+settings_sidebar_network = 網路磁碟機獨立分組
+settings_sidebar_linux = Linux（WSL）發行版
+settings_sidebar_pin_glyphs = 在已釘選的資料夾上顯示圖釘
+settings_sidebar_usage_bars = 磁碟使用量列
+settings_sidebar_titles = 分組標題
+sidebar_network = 網路
+sidebar_linux = Linux
+sidebar_move_up = 上移
+sidebar_move_down = 下移
+sidebar_rename = 重新命名
