@@ -112,6 +112,11 @@ pub struct SidebarState {
     pub favorites: Vec<FavoriteItem>,
     pub item_clicked: Option<PathBuf>,
     pub dragging_favorite: Option<usize>,
+    /// Pointer offset from the dragged row's top, its current top y, and the
+    /// per-favorite slide offsets (in rows) used by the reorder animation.
+    pub drag_grab_dy: f32,
+    pub drag_top: f32,
+    pub row_offsets: std::collections::HashMap<PathBuf, f32>,
     pub sidebar_default_width: f32,
     pub cached_drives: Vec<DriveInfo>,
     pub last_drive_refresh: Instant,
@@ -131,6 +136,9 @@ impl Default for SidebarState {
         Self {
             favorites: vec![],
             dragging_favorite: None,
+            drag_grab_dy: 0.0,
+            drag_top: 0.0,
+            row_offsets: std::collections::HashMap::new(),
             item_clicked: None,
             sidebar_default_width: 250.0,
             cached_drives: Vec::new(),
