@@ -74,6 +74,22 @@ pub struct ThemePalette {
     /// Text and icon strokes of hovered / pressed widgets.
     pub widget_text_hover: Color32,
 
+    // 🪟 Window look
+    /// DWM system backdrop behind the window (Mica / Acrylic).
+    pub backdrop: crate::gui::backdrop::Backdrop,
+    /// Opacity of `application_bg_color` painted over the backdrop (0..1).
+    pub backdrop_tint_opacity: f32,
+    /// Extra fill under the sidebar (transparent by default).
+    pub sidebar_bg: Color32,
+    /// Extra fill under the file list panes (transparent by default).
+    pub content_bg: Color32,
+    /// Separator lines between the sidebar, toolbar and content.
+    pub show_separators: bool,
+    /// Paint the window background as a vertical gradient.
+    pub bg_gradient: bool,
+    /// Bottom color of the gradient (top is `application_bg_color`).
+    pub bg_gradient_end: Color32,
+
     // 🎯 Icons & text
     pub icon_color: Color32,
     pub icon_windows: Color32,
@@ -214,6 +230,13 @@ pub static DEFAULT_PALETTE_DARK: LazyLock<ThemePalette> = LazyLock::new(|| {
         faint_bg: Color32::from_rgb(26, 30, 36),
         widget_text: Color32::from_rgb(220, 226, 232),
         widget_text_hover: Color32::from_rgb(245, 240, 255),
+        backdrop: crate::gui::backdrop::Backdrop::None,
+        backdrop_tint_opacity: 0.35,
+        sidebar_bg: Color32::TRANSPARENT,
+        content_bg: Color32::TRANSPARENT,
+        show_separators: true,
+        bg_gradient: false,
+        bg_gradient_end: Color32::from_rgb(28, 24, 40),
 
         // 🎯 Icons & text
         icon_color: Color32::WHITE,
@@ -305,6 +328,13 @@ pub static DEFAULT_PALETTE_LIGHT: LazyLock<ThemePalette> = LazyLock::new(|| {
         faint_bg: Color32::from_rgb(244, 246, 249),
         widget_text: Color32::from_rgb(35, 41, 47),
         widget_text_hover: Color32::from_rgb(25, 29, 33),
+        backdrop: crate::gui::backdrop::Backdrop::None,
+        backdrop_tint_opacity: 0.75,
+        sidebar_bg: Color32::TRANSPARENT,
+        content_bg: Color32::TRANSPARENT,
+        show_separators: true,
+        bg_gradient: false,
+        bg_gradient_end: Color32::from_rgb(232, 228, 245),
 
         // 🎯 Icons & text
         icon_color: Color32::from_rgb(40, 40, 40),
@@ -422,7 +452,10 @@ pub fn set_palette(mode: ThemeMode, palette: ThemePalette) {
     }
 }
 
-pub fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
+/// Applies the palette of `mode` to egui. `backdrop_active` is true when a DWM
+/// backdrop is really showing behind a transparent surface; the window
+/// background is then painted translucent so the backdrop shows through.
+pub fn apply_theme(ctx: &egui::Context, mode: ThemeMode, backdrop_active: bool) {
     let theme = match mode {
         ThemeMode::Dark => egui::Theme::Dark,
         ThemeMode::Light => egui::Theme::Light,
@@ -459,7 +492,7 @@ pub fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
 
     match mode {
         ThemeMode::Dark => {
-            style.visuals.panel_fill = palette.application_bg_color;
+            style.visuals.panel_fill = crate::gui::backdrop::panel_fill(&palette, backdrop_active);
             style.visuals.faint_bg_color = palette.faint_bg;
 
             style.visuals.widgets.inactive.bg_fill = palette.widget_bg;
@@ -483,7 +516,7 @@ pub fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
         }
 
         ThemeMode::Light => {
-            style.visuals.panel_fill = palette.application_bg_color;
+            style.visuals.panel_fill = crate::gui::backdrop::panel_fill(&palette, backdrop_active);
             style.visuals.faint_bg_color = palette.faint_bg;
 
             style.visuals.widgets.inactive.bg_fill = palette.widget_bg;

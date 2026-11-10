@@ -1,5 +1,6 @@
 use crate::core::i18n::I18n;
 use crate::core::utils::fonts::get_font_list;
+use crate::gui::backdrop::{Backdrop, needs_restart, transparent_surface};
 use crate::gui::theme::{
     ThemeMode, ThemePalette, apply_font_to_context, error_color, regenerate_base_derived_colors,
 };
@@ -96,8 +97,6 @@ impl EditorRows<'_> {
         changed
     }
 
-    // Used by the backdrop, selection and icon sections added later in the stack.
-    #[allow(dead_code)]
     pub fn toggle(&mut self, ui: &mut egui::Ui, key: &str, value: &mut bool) -> bool {
         self.label(ui, key);
         let style = self.style;
@@ -110,7 +109,6 @@ impl EditorRows<'_> {
     }
 
     /// A drop-down over `options` (value, i18n key).
-    #[allow(dead_code)]
     pub fn choice<T: Copy + PartialEq>(
         &mut self,
         ui: &mut egui::Ui,
@@ -393,6 +391,31 @@ fn draw_sections(
             &mut p.application_bg_color,
         );
     });
+
+    section(ui, rows, "theme_section_window", true, |ui, rows| {
+        let options: Vec<(Backdrop, &str)> =
+            Backdrop::ALL.iter().map(|b| (*b, b.label_key())).collect();
+        rows.choice(ui, "theme_backdrop", &mut p.backdrop, &options);
+        rows.number(
+            ui,
+            "theme_backdrop_tint_opacity",
+            &mut p.backdrop_tint_opacity,
+            0.0..=1.0,
+            0.01,
+        );
+        rows.color(ui, "theme_colors_sidebar_bg", &mut p.sidebar_bg);
+        rows.color(ui, "theme_colors_content_bg", &mut p.content_bg);
+        rows.toggle(ui, "theme_show_separators", &mut p.show_separators);
+        rows.toggle(ui, "theme_bg_gradient", &mut p.bg_gradient);
+        rows.color(ui, "theme_colors_bg_gradient_end", &mut p.bg_gradient_end);
+    });
+    if needs_restart(p.backdrop, transparent_surface()) {
+        ui.label(
+            egui::RichText::new(rows.i18n.tr("theme_backdrop_restart"))
+                .color(rows.style.text_normal)
+                .italics(),
+        );
+    }
 
     section(ui, rows, "theme_section_text", false, |ui, rows| {
         rows.color(ui, "theme_colors_text_normal", &mut p.text_normal);

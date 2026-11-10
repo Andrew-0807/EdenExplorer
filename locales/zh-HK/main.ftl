@@ -281,3 +281,18 @@ theme_colors_checkbox_check = 勾選標記
 theme_radius_small = 小
 theme_radius_medium = 中
 theme_radius_large = 大
+
+# Theme editor: window backdrop
+theme_section_window = 視窗
+theme_backdrop = 背景效果
+theme_backdrop_none = 無（純色）
+theme_backdrop_mica = 雲母
+theme_backdrop_mica_alt = 雲母（替代）
+theme_backdrop_acrylic = 壓克力
+theme_backdrop_tint_opacity = 背景效果上的色調不透明度
+theme_backdrop_restart = 重新啟動 EdenExplorer 以顯示背景效果。需要 Windows 11 並開啟透明效果。
+theme_colors_sidebar_bg = 側邊欄背景
+theme_colors_content_bg = 檔案清單背景
+theme_show_separators = 分隔線
+theme_bg_gradient = 漸層背景
+theme_colors_bg_gradient_end = 漸層底部顏色

@@ -6,6 +6,9 @@ use crate::core::indexer::{
 };
 use crate::core::launch::take_forwarded_paths;
 use crate::core::utils::tabs::update_tab_infos_cache;
+use crate::gui::backdrop::{
+    backdrop_effective, gradient_colors, gradient_mesh, transparent_surface,
+};
 use crate::gui::dragdrop::{DragDropBackend, DropTargets};
 use crate::gui::theme::{
     ThemeMode, apply_font_to_context, apply_theme, get_default_palette, get_palette, set_palette,
@@ -33,8 +36,9 @@ use crate::gui::windows::structs::{
     AboutWindow, Navigation, SettingsWindow, SidebarState, ThemeCustomizer,
 };
 use crate::gui::windows::windowsoverrides::{
-    CAPTION_CONTROLS_WIDTH, TITLE_BAR_HEIGHT, apply_window_override, apply_window_theme,
-    consume_clipboard_dirty, handle_draw_windows_buttons, install_wndproc, set_window_position,
+    CAPTION_CONTROLS_WIDTH, TITLE_BAR_HEIGHT, apply_backdrop, apply_window_override,
+    apply_window_theme, consume_clipboard_dirty, handle_draw_windows_buttons, install_wndproc,
+    set_window_position,
 };
 use eframe::egui;
 use std::collections::HashMap;
@@ -52,6 +56,8 @@ pub struct MainWindow {
     // MainWindow General Variables
     pub(crate) theme: ThemeMode,
     pub(crate) theme_dirty: bool,
+    /// A DWM backdrop is showing behind a transparent surface right now.
+    pub(crate) backdrop_active: bool,
     applied_font_name: Option<String>,
     theme_save_pending: bool,
     pub(crate) window_override_set: bool,
@@ -206,6 +212,7 @@ impl Default for MainWindow {
             display_file_explorer: true,
             sidebar_collapsed: false,
             theme_dirty: true,
+            backdrop_active: false,
             applied_font_name: None,
             theme_save_pending: false,
             window_override_set: false,
@@ -310,6 +317,10 @@ impl MainWindow {
 }
 
 impl eframe::App for MainWindow {
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        crate::gui::backdrop::clear_color(&get_palette(self.theme), transparent_surface())
+    }
+
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         // The watcher thread wakes the UI on each event; no idle heartbeat.
         self.refresh_changed_directories(ui.ctx());
@@ -397,14 +408,29 @@ impl eframe::App for MainWindow {
         }
 
         if self.theme_dirty {
-            apply_theme(ui.ctx(), self.theme);
+            // DWM first: whether the backdrop really shows decides how
+            // translucent the panels are painted.
+            let dwm_accepted = self.hwnd.is_some_and(|hwnd| {
+                apply_window_theme(hwnd, &palette);
+                apply_backdrop(hwnd, palette.backdrop, self.theme == ThemeMode::Dark)
+            });
+            let dx12 = frame
+                .wgpu_render_state()
+                .is_some_and(|rs| rs.adapter.get_info().backend == eframe::wgpu::Backend::Dx12);
+            self.backdrop_active =
+                backdrop_effective(palette.backdrop, transparent_surface(), dx12, dwm_accepted);
+            apply_theme(ui.ctx(), self.theme, self.backdrop_active);
             if font_needs_reload(&mut self.applied_font_name, &palette.font_name) {
                 apply_font_to_context(ui.ctx(), &palette);
             }
-            if let Some(hwnd) = self.hwnd {
-                apply_window_theme(hwnd, &palette);
-            }
             self.theme_dirty = false;
+        }
+
+        if palette.bg_gradient {
+            let (top, bottom) = gradient_colors(&palette, self.backdrop_active);
+            ui.ctx()
+                .layer_painter(egui::LayerId::background())
+                .add(gradient_mesh(ui.ctx().content_rect(), top, bottom));
         }
 
         if consume_clipboard_dirty() {
@@ -495,7 +521,12 @@ impl eframe::App for MainWindow {
                         };
 
                         let sidebar_frame = egui::Frame::NONE
-                            .stroke(egui::Stroke::new(1.0, palette.borders_default));
+                            .fill(palette.sidebar_bg)
+                            .stroke(if palette.show_separators {
+                                egui::Stroke::new(1.0, palette.borders_default)
+                            } else {
+                                egui::Stroke::NONE
+                            });
 
                         ui.allocate_ui_with_layout(
                             egui::vec2(sidebar_width, ui.available_height() + 15.5),
@@ -654,7 +685,7 @@ impl eframe::App for MainWindow {
                                     });
                                     let container = egui::Frame::NONE
                                         .stroke(egui::Stroke::NONE)
-                                        .fill(egui::Color32::TRANSPARENT)
+                                        .fill(palette.content_bg)
                                         .inner_margin(egui::Margin {
                                             left: 3,
                                             right: 0,

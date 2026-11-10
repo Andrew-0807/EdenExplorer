@@ -281,3 +281,18 @@ theme_colors_checkbox_check = Check mark
 theme_radius_small = Small
 theme_radius_medium = Medium
 theme_radius_large = Large
+
+# Theme editor: window backdrop
+theme_section_window = Window
+theme_backdrop = Backdrop
+theme_backdrop_none = None (solid)
+theme_backdrop_mica = Mica
+theme_backdrop_mica_alt = Mica Alt
+theme_backdrop_acrylic = Acrylic
+theme_backdrop_tint_opacity = Tint opacity over backdrop
+theme_backdrop_restart = Restart EdenExplorer to show the backdrop. It needs Windows 11 and transparency effects.
+theme_colors_sidebar_bg = Sidebar background
+theme_colors_content_bg = File list background
+theme_show_separators = Separator lines
+theme_bg_gradient = Gradient background
+theme_colors_bg_gradient_end = Gradient bottom color

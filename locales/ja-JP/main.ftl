@@ -281,3 +281,18 @@ theme_colors_checkbox_check = チェックマーク
 theme_radius_small = 小
 theme_radius_medium = 中
 theme_radius_large = 大
+
+# Theme editor: window backdrop
+theme_section_window = ウィンドウ
+theme_backdrop = 背景効果
+theme_backdrop_none = なし（単色）
+theme_backdrop_mica = Mica
+theme_backdrop_mica_alt = Mica Alt
+theme_backdrop_acrylic = アクリル
+theme_backdrop_tint_opacity = 背景効果の上の色の不透明度
+theme_backdrop_restart = 背景効果を表示するには EdenExplorer を再起動してください。Windows 11 と透明効果が必要です。
+theme_colors_sidebar_bg = サイドバーの背景
+theme_colors_content_bg = ファイル一覧の背景
+theme_show_separators = 区切り線
+theme_bg_gradient = グラデーション背景
+theme_colors_bg_gradient_end = グラデーションの下端の色

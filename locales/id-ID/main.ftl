@@ -281,3 +281,18 @@ theme_colors_checkbox_check = Tanda centang
 theme_radius_small = Kecil
 theme_radius_medium = Sedang
 theme_radius_large = Besar
+
+# Theme editor: window backdrop
+theme_section_window = Jendela
+theme_backdrop = Latar jendela
+theme_backdrop_none = Tidak ada (solid)
+theme_backdrop_mica = Mica
+theme_backdrop_mica_alt = Mica Alt
+theme_backdrop_acrylic = Akrilik
+theme_backdrop_tint_opacity = Opasitas warna di atas latar
+theme_backdrop_restart = Mulai ulang EdenExplorer untuk menampilkan latar. Memerlukan Windows 11 dan efek transparansi.
+theme_colors_sidebar_bg = Latar bilah sisi
+theme_colors_content_bg = Latar daftar berkas
+theme_show_separators = Garis pemisah
+theme_bg_gradient = Latar gradien
+theme_colors_bg_gradient_end = Warna bawah gradien

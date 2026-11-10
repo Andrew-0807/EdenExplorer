@@ -1,5 +1,6 @@
 //! Built-in theme presets and theme file import/export.
 
+use crate::gui::backdrop::Backdrop;
 use crate::gui::theme::{
     THEME_VERSION, ThemeMode, ThemePalette, get_default_palette, palette_from_json,
     regenerate_base_derived_colors,
@@ -202,7 +203,18 @@ pub fn preset_palette(preset: ThemePreset, mode: ThemeMode, base: &ThemePalette)
 
 /// Non-color settings a preset turns on (backdrop, selection style, ...).
 /// Later features hook in here.
-fn preset_apply_extras(_preset: ThemePreset, _mode: ThemeMode, _palette: &mut ThemePalette) {}
+fn preset_apply_extras(preset: ThemePreset, mode: ThemeMode, palette: &mut ThemePalette) {
+    if preset == ThemePreset::Windows11 {
+        // Mica with a light tint and no separator lines, like Explorer with
+        // ExplorerBlurMica (dark tint black at 70/255, light white at 200/255).
+        palette.backdrop = Backdrop::Mica;
+        palette.backdrop_tint_opacity = match mode {
+            ThemeMode::Dark => 0.45,
+            ThemeMode::Light => 0.75,
+        };
+        palette.show_separators = false;
+    }
+}
 
 fn keep_layout(palette: &mut ThemePalette, base: &ThemePalette) {
     palette.text_size = base.text_size;
@@ -319,6 +331,16 @@ mod tests {
         assert_eq!(p.row_height, 30.0);
         assert_eq!(p.font_name, "Consolas");
         assert_eq!(p.primary, rgb(136, 192, 208));
+    }
+
+    #[test]
+    fn windows11_preset_uses_mica_without_separators() {
+        let base = get_default_palette(ThemeMode::Dark);
+        let p = preset_palette(ThemePreset::Windows11, ThemeMode::Dark, &base);
+        assert_eq!(p.backdrop, Backdrop::Mica);
+        assert!(!p.show_separators);
+        let p = preset_palette(ThemePreset::Nord, ThemeMode::Dark, &base);
+        assert_eq!(p.backdrop, Backdrop::None);
     }
 
     #[test]

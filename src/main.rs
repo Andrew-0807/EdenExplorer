@@ -3,11 +3,12 @@ mod core;
 mod gui;
 
 use crate::core::indexer::{
-    WindowSizeMode, load_window_position_on_start, load_window_was_maximized_on_start,
-    load_windows_size_mode_on_start,
+    WindowSizeMode, load_theme_settings, load_window_position_on_start,
+    load_window_was_maximized_on_start, load_windows_size_mode_on_start,
 };
 use crate::core::launch::{LaunchError, acquire_or_forward, existing_directories, parse_args};
 use crate::core::utils::fonts::apply_custom_font_definitions;
+use crate::gui::backdrop::{set_transparent_surface, wants_transparent_surface};
 use crate::gui::windows::windowsoverrides::set_egui_ctx;
 use eframe::{NativeOptions, egui};
 use std::os::windows::ffi::OsStrExt;
@@ -73,7 +74,15 @@ fn main() -> eframe::Result<()> {
         .map(|(x, y)| egui::pos2(x as f32, y as f32))
         .unwrap_or_else(|| egui::pos2(pos_x, pos_y));
 
+    // A Mica/Acrylic backdrop needs a surface with alpha, decided before the
+    // window exists. Only themes that use a backdrop get one; everyone else
+    // keeps the opaque swapchain.
+    let transparent = load_theme_settings()
+        .is_some_and(|(light, dark)| wants_transparent_surface(&[&light, &dark]));
+    set_transparent_surface(transparent);
+
     let mut viewport = egui::ViewportBuilder::default()
+        .with_transparent(transparent)
         .with_maximized(should_maximize)
         .with_icon(icon)
         .with_title_shown(false)
@@ -90,7 +99,7 @@ fn main() -> eframe::Result<()> {
 
     let options = NativeOptions {
         viewport,
-        wgpu_options: low_latency_wgpu_options(),
+        wgpu_options: low_latency_wgpu_options(transparent),
         ..Default::default()
     };
 
@@ -121,11 +130,20 @@ fn main() -> eframe::Result<()> {
 /// Eden repaints on demand, so this only costs anything while the UI changes;
 /// animations ask for their next frame at ANIMATION_FRAME_INTERVAL instead of
 /// right away, so they don't run uncapped.
-fn low_latency_wgpu_options() -> eframe::egui_wgpu::WgpuConfiguration {
+fn low_latency_wgpu_options(transparent: bool) -> eframe::egui_wgpu::WgpuConfiguration {
     use eframe::egui_wgpu::{SurfaceConfig, WgpuConfiguration, WgpuSetup, WgpuSetupCreateNew};
     use eframe::wgpu;
 
     let mut setup = WgpuSetupCreateNew::without_display_handle();
+    if transparent {
+        // The HWND swapchain only supports opaque alpha; a DirectComposition
+        // visual supports premultiplied alpha, which the backdrop needs.
+        setup
+            .instance_descriptor
+            .backend_options
+            .dx12
+            .presentation_system = wgpu::Dx12SwapchainKind::DxgiFromVisual;
+    }
     setup.native_adapter_selector = Some(std::sync::Arc::new(|adapters, surface| {
         adapters
             .iter()

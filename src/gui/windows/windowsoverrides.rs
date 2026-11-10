@@ -251,6 +251,58 @@ fn apply_window_colors(hwnd: HWND, palette: &ThemePalette) {
     }
 }
 
+const DWMWA_USE_IMMERSIVE_DARK_MODE: DWMWINDOWATTRIBUTE = DWMWINDOWATTRIBUTE(20);
+const DWMWA_SYSTEMBACKDROP_TYPE: DWMWINDOWATTRIBUTE = DWMWINDOWATTRIBUTE(38);
+
+/// Sets the DWM system backdrop. Returns true only when DWM accepted it
+/// (Windows 11 22H2+); on failure the frame extension is undone so the
+/// window looks exactly as without a backdrop. Every HRESULT is checked.
+pub fn apply_backdrop(hwnd: HWND, backdrop: crate::gui::backdrop::Backdrop, dark: bool) -> bool {
+    unsafe {
+        // Dark frame/backdrop variant; harmless where unsupported.
+        let dark_flag: i32 = i32::from(dark); // Win32 BOOL
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_USE_IMMERSIVE_DARK_MODE,
+            &dark_flag as *const _ as _,
+            std::mem::size_of::<i32>() as u32,
+        );
+
+        let value = backdrop.dwm_value();
+        let wants = backdrop != crate::gui::backdrop::Backdrop::None;
+        // Mica/Acrylic only cover the client area when the frame is
+        // extended into all of it ("sheet of glass").
+        let extent = if wants { -1 } else { 0 };
+        let margins = MARGINS {
+            cxLeftWidth: extent,
+            cxRightWidth: extent,
+            cyTopHeight: extent,
+            cyBottomHeight: extent,
+        };
+        if wants && DwmExtendFrameIntoClientArea(hwnd, &margins).is_err() {
+            return false;
+        }
+
+        let set = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_SYSTEMBACKDROP_TYPE,
+            &value as *const _ as _,
+            std::mem::size_of::<u32>() as u32,
+        );
+        if set.is_err() {
+            if wants {
+                let none = MARGINS::default();
+                let _ = DwmExtendFrameIntoClientArea(hwnd, &none);
+            }
+            return false;
+        }
+        if !wants {
+            let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
+        }
+        wants
+    }
+}
+
 /// Update DWM colors without changing the window frame or triggering a new
 /// non-client-area calculation.
 pub fn apply_window_theme(hwnd: HWND, palette: &ThemePalette) {

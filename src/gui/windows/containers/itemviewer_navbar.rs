@@ -70,7 +70,7 @@ pub fn draw_itemviewer_navigation_bar(
             };
         }
 
-        ui.separator();
+        navbar_separator(ui, palette);
 
         let breadcrumb_width = ui.available_width();
 
@@ -547,7 +547,7 @@ fn draw_navigation_bar_buttons(
         let edit_enabled = has_selection && !is_recycle_bin;
         let paste_enabled = edit_enabled && clipboard_has_files;
 
-        ui.separator();
+        navbar_separator(ui, palette);
         let extra_button = |ui: &mut egui::Ui, icon: StyledIcon, enabled: bool, label: String| {
             nav_icon_button(ui, icon, palette, enabled, &label)
         };
@@ -625,6 +625,15 @@ fn draw_navigation_bar_buttons(
     }
 
     action
+}
+
+/// A separator line, or just the same gap when the theme hides separators.
+fn navbar_separator(ui: &mut egui::Ui, palette: &ThemePalette) {
+    if palette.show_separators {
+        ui.separator();
+    } else {
+        ui.add_space(ui.spacing().item_spacing.x + 2.0);
+    }
 }
 
 pub(crate) fn open_default_terminal(current_dir: &Path) {
