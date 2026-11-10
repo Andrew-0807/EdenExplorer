@@ -32,8 +32,8 @@ use crate::gui::windows::structs::{
     AboutWindow, AppSettings, Navigation, SettingsWindow, SidebarState, ThemeCustomizer,
 };
 use crate::gui::windows::windowsoverrides::{
-    apply_window_override, apply_window_theme, consume_clipboard_dirty,
-    handle_draw_windows_buttons, install_wndproc, set_window_position,
+    CAPTION_CONTROLS_WIDTH, TITLE_BAR_HEIGHT, apply_window_override, apply_window_theme,
+    consume_clipboard_dirty, handle_draw_windows_buttons, install_wndproc, set_window_position,
 };
 use eframe::egui;
 use std::collections::HashMap;
@@ -660,7 +660,7 @@ impl eframe::App for MainWindow {
                                         // Window controls
                                         // -------------------------
 
-                                        let controls_width = 45.0 * 3.0;
+                                        let controls_width = CAPTION_CONTROLS_WIDTH;
 
                                         let viewport_rect = ui.ctx().viewport_rect();
 
@@ -669,7 +669,7 @@ impl eframe::App for MainWindow {
                                                 viewport_rect.right() - controls_width,
                                                 topbar_rect.top(),
                                             ),
-                                            egui::vec2(controls_width, 32.0),
+                                            egui::vec2(controls_width, TITLE_BAR_HEIGHT),
                                         );
 
                                         ui.scope_builder(
