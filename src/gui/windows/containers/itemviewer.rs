@@ -12,6 +12,9 @@ use crate::gui::utils::{draw_object_drag_ghost, fuzzy_match, truncate_item_text}
 use crate::gui::windows::containers::enums::{ItemViewerAction, ItemViewerHeaderColumn};
 use crate::gui::windows::containers::itemviewer_gallery::draw_gallery_view;
 use crate::gui::windows::containers::itemviewer_helper::*;
+use crate::gui::windows::containers::marquee::{
+    Marquee, autoscroll_step, is_blank_name_press, merged_selection, rows_in_span,
+};
 use crate::gui::windows::containers::structs::{
     ItemViewerDisplayMode, ItemViewerFolderSizeState, ItemViewerLayout, ItemViewerNavBarAction,
     RenameState, TabView, TagInfo, TagsState,
@@ -260,6 +263,7 @@ pub fn draw_item_viewer(
         let available_height = ui.available_height();
         // IMPORTANT: register background interaction before TableBuilder.
         let bg_response = table_background_response(ui);
+        let marquee_id = ui.id().with("marquee_state");
         let table_rect = ui.available_rect_before_wrap();
         let left_margin = if layout.is_drive_view { 4.0 } else { 0.0 };
         let table_rect = egui::Rect::from_min_max(
@@ -288,6 +292,18 @@ pub fn draw_item_viewer(
             });
             set_item_viewer_column_resize_active(ui, column_resize_active);
 
+            // Marquee selection state and its auto-scroll request.
+            let mut marquee: Marquee = ui.data(|d| d.get_temp(marquee_id)).unwrap_or_default();
+            // Press that starts a marquee from a row's blank area: (screen origin, content y).
+            let mut marquee_row_start: Option<(egui::Pos2, f32)> = None;
+            let row_stride = layout.row_height + ui.spacing().item_spacing.y;
+            let press_origin = ui.ctx().input(|i| {
+                i.pointer
+                    .primary_down()
+                    .then(|| i.pointer.press_origin())
+                    .flatten()
+            });
+
             let mut table = TableBuilder::new(ui)
                 .vscroll(true)
                 .max_scroll_height(available_height)
@@ -303,6 +319,12 @@ pub fn draw_item_viewer(
                 .animate_scrolling(true)
                 .resizable(true)
                 .id_salt(table_id_salt);
+
+            if marquee.active
+                && let Some(offset) = marquee.scroll_to.take()
+            {
+                table = table.vertical_scroll_offset(offset);
+            }
 
             // If we have a pending selection from a refresh, scroll to it and select it
             if let Some(pending_paths) = explorer_state.pending_selection_paths.clone() {
@@ -420,7 +442,7 @@ pub fn draw_item_viewer(
 
             let mut actual_column_widths = Vec::new();
 
-            table
+            let table_out = table
                 .header(layout.header_height, |mut header| {
                     if let Some(a) = draw_item_viewer_header(
                         i18n,
@@ -507,8 +529,34 @@ pub fn draw_item_viewer(
                             });
                         }
 
+                        let mut blank_press = false;
                         for &column in &column_layout.ordered_columns {
                             row.col(|ui| {
+                                if column == ItemViewerHeaderColumn::Name
+                                    && let Some(origin) = press_origin
+                                {
+                                    let cell = ui.max_rect();
+                                    if cell.y_range().contains(origin.y)
+                                        && rename_state.as_ref().is_none_or(|r| r.path != file.path)
+                                    {
+                                        let icon_w = if show_item_viewer_icons {
+                                            layout.icon_size + 4.0
+                                        } else {
+                                            2.0
+                                        };
+                                        let text_w = measure_text_width(
+                                            ui,
+                                            &file.name,
+                                            &font_id,
+                                            palette.text_normal,
+                                        );
+                                        blank_press = is_blank_name_press(
+                                            origin.x,
+                                            cell.left() + icon_w + text_w,
+                                            cell.right(),
+                                        );
+                                    }
+                                }
                                 draw_item_viewer_row_column(
                                     ui,
                                     column,
@@ -604,7 +652,15 @@ pub fn draw_item_viewer(
                             }
                         }
 
-                        if row_resp.drag_started() && !is_non_ntfs_drive {
+                        if row_resp.drag_started() && blank_press && !is_non_ntfs_drive {
+                            // Blank area right of the name: rubber-band instead of a file drag.
+                            if let Some(origin) = press_origin {
+                                marquee_row_start = Some((
+                                    origin,
+                                    idx as f32 * row_stride + (origin.y - row_resp.rect.top()),
+                                ));
+                            }
+                        } else if row_resp.drag_started() && !is_non_ntfs_drive {
                             drag_state.start_pos = row_resp.interact_pointer_pos();
                             drag_state.active = false; // threshold not passed yet
                             drag_state.source_items.clear();
@@ -721,6 +777,97 @@ pub fn draw_item_viewer(
                 });
 
             // ------------------- END OF TABLE VIEW -------------------
+
+            // ------------------- MARQUEE SELECTION -------------------
+            let body_rect = table_out.inner_rect;
+            let scroll_y = table_out.state.offset.y;
+            let max_scroll = (table_out.content_size.y - body_rect.height()).max(0.0);
+            if !layout.is_drive_view && !modal_input_blocked {
+                let mut start = marquee_row_start;
+                if start.is_none() && bg_response.drag_started() {
+                    // Empty space below the last row.
+                    start = press_origin
+                        .or_else(|| ui.ctx().input(|i| i.pointer.press_origin()))
+                        .filter(|o| body_rect.contains(*o))
+                        .map(|o| (o, o.y - body_rect.top() + scroll_y));
+                }
+                if let Some((origin, content_y)) = start {
+                    let additive = modifiers.ctrl;
+                    marquee = Marquee {
+                        active: true,
+                        origin_x: origin.x,
+                        origin_y: content_y,
+                        additive,
+                        base: if additive {
+                            explorer_state.selected_paths.clone()
+                        } else {
+                            Default::default()
+                        },
+                        scroll_to: None,
+                    };
+                }
+            }
+            if marquee.active {
+                let (down, pos, dt) = ui.ctx().input(|i| {
+                    (
+                        i.pointer.primary_down(),
+                        i.pointer.latest_pos(),
+                        i.stable_dt.min(0.05),
+                    )
+                });
+                match pos {
+                    Some(pos) if down && !modal_input_blocked => {
+                        let cur_y = pos.y - body_rect.top() + scroll_y;
+                        let hits = rows_in_span(
+                            marquee.origin_y,
+                            cur_y,
+                            row_stride,
+                            layout.row_height,
+                            filter_state.cached_indices.len(),
+                        );
+                        let hit_paths: Vec<PathBuf> = hits
+                            .map(|(a, b)| {
+                                (a..=b)
+                                    .map(|i| files[filter_state.cached_indices[i]].path.clone())
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        let merged = merged_selection(&marquee.base, hit_paths, marquee.additive);
+                        if merged != explorer_state.selected_paths {
+                            explorer_state.selected_paths = merged;
+                        }
+                        if let Some((a, b)) = hits {
+                            // Anchor on the row where the drag started, focus on the far edge.
+                            let from_top = marquee.origin_y <= cur_y;
+                            let (anchor, focus) = if from_top { (a, b) } else { (b, a) };
+                            explorer_state.selection_anchor = Some(anchor);
+                            explorer_state.selection_focus = Some(focus);
+                        }
+
+                        let step = autoscroll_step(pos.y, body_rect.top(), body_rect.bottom(), dt);
+                        if step != 0.0 {
+                            marquee.scroll_to = Some((scroll_y + step).clamp(0.0, max_scroll));
+                        }
+
+                        let painter = ui.painter_at(body_rect);
+                        let screen_y = marquee.origin_y - scroll_y + body_rect.top();
+                        let rect = egui::Rect::from_two_pos(
+                            egui::pos2(marquee.origin_x, screen_y),
+                            egui::pos2(pos.x, pos.y),
+                        );
+                        painter.rect_filled(rect, 0.0, palette.primary.linear_multiply(0.2));
+                        painter.rect_stroke(
+                            rect,
+                            0.0,
+                            egui::Stroke::new(1.0, palette.primary),
+                            egui::StrokeKind::Inside,
+                        );
+                        ui.ctx().request_repaint();
+                    }
+                    _ => marquee = Marquee::default(),
+                }
+            }
+            ui.data_mut(|d| d.insert_temp(marquee_id, marquee));
             let column_resize_finished = (0..actual_column_widths.len()).any(|index| {
                 let resize_id = table_state_id.with("resize_column").with(index);
                 ui.ctx()

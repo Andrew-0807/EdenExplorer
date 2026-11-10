@@ -2235,7 +2235,7 @@ fn compute_item_viewer_column_widths(
     widths
 }
 
-fn measure_text_width(
+pub fn measure_text_width(
     ui: &mut egui::Ui,
     text: &str,
     font_id: &FontId,
@@ -2314,7 +2314,7 @@ pub fn table_background_response(ui: &mut egui::Ui) -> egui::Response {
     ui.interact(
         rect,
         ui.id().with("item_viewer_background"),
-        egui::Sense::click(),
+        egui::Sense::click_and_drag(),
     )
 }
 

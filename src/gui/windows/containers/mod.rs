@@ -4,6 +4,7 @@ pub mod itemviewer;
 pub mod itemviewer_gallery;
 pub mod itemviewer_helper;
 pub mod itemviewer_navbar;
+pub mod marquee;
 pub mod sidebar;
 pub mod structs;
 pub mod tabs;
