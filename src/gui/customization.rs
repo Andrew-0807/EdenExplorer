@@ -29,8 +29,9 @@ pub enum CheckboxVisibility {
     /// Current behavior: every row has a checkbox.
     #[default]
     Always,
-    /// Windows 11 Explorer: only on the hovered row and on selected rows.
-    OnHover,
+    /// Only on selected rows (and the select-all box while something is selected).
+    #[serde(alias = "OnHover")]
+    OnSelection,
     /// No checkbox column at all.
     Never,
 }
@@ -38,14 +39,14 @@ pub enum CheckboxVisibility {
 impl CheckboxVisibility {
     pub const ALL: [CheckboxVisibility; 3] = [
         CheckboxVisibility::Always,
-        CheckboxVisibility::OnHover,
+        CheckboxVisibility::OnSelection,
         CheckboxVisibility::Never,
     ];
 
     pub fn label_key(self) -> &'static str {
         match self {
             CheckboxVisibility::Always => "settings_checkboxes_always",
-            CheckboxVisibility::OnHover => "settings_checkboxes_hover",
+            CheckboxVisibility::OnSelection => "settings_checkboxes_selection",
             CheckboxVisibility::Never => "settings_checkboxes_never",
         }
     }
@@ -429,12 +430,18 @@ mod tests {
         let old: UiPreferences = serde_json::from_str(r#"{"zoom":1.5}"#).unwrap();
         assert_eq!(old.item_checkboxes, CheckboxVisibility::Always);
         let prefs = UiPreferences {
-            item_checkboxes: CheckboxVisibility::OnHover,
+            item_checkboxes: CheckboxVisibility::OnSelection,
             ..UiPreferences::default()
         };
         let back: UiPreferences =
             serde_json::from_str(&serde_json::to_string(&prefs).unwrap()).unwrap();
-        assert_eq!(back.item_checkboxes, CheckboxVisibility::OnHover);
+        assert_eq!(back.item_checkboxes, CheckboxVisibility::OnSelection);
+    }
+
+    #[test]
+    fn checkbox_visibility_loads_legacy_on_hover_as_on_selection() {
+        let old: UiPreferences = serde_json::from_str(r#"{"item_checkboxes":"OnHover"}"#).unwrap();
+        assert_eq!(old.item_checkboxes, CheckboxVisibility::OnSelection);
     }
 
     #[test]

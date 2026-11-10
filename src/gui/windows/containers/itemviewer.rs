@@ -364,7 +364,11 @@ pub fn draw_item_viewer(
             }
 
             if show_checkbox_column {
-                table = table.column(Column::exact(16.0));
+                // In selection mode the divider after this column only shows while
+                // something is selected (egui_extras draws it for resizable columns).
+                let show_divider = checkbox_visibility != CheckboxVisibility::OnSelection
+                    || !explorer_state.selected_paths.is_empty();
+                table = table.column(Column::exact(16.0).resizable(show_divider));
             }
 
             for &column in &column_layout.ordered_columns {
@@ -423,7 +427,7 @@ pub fn draw_item_viewer(
                         layout.is_drive_view,
                         layout.is_recycle_bin_view,
                         show_checkbox_column,
-                        checkbox_visibility == CheckboxVisibility::OnHover,
+                        checkbox_visibility == CheckboxVisibility::OnSelection,
                         &column_layout.ordered_columns,
                         &filter_state.cached_indices,
                         files,
@@ -439,7 +443,6 @@ pub fn draw_item_viewer(
                     // Capture the actual widths after TableBuilder has applied any
                     // user-driven column resizing.
                     actual_column_widths.extend_from_slice(body.widths());
-                    let body_x_range = body.ui_mut().max_rect().x_range();
                     let hovered_drop_target = &mut hovered_drop_target;
                     let filtered_indices = &filter_state.cached_indices;
 
@@ -467,17 +470,21 @@ pub fn draw_item_viewer(
                         if show_checkbox_column {
                             row.col(|ui| {
                                 let mut checked = is_selected;
-                                // The column stays reserved in hover mode so rows don't shift.
+                                // The column stays reserved in selection mode so rows don't shift.
                                 let visible = match checkbox_visibility {
-                                    CheckboxVisibility::OnHover => {
-                                        is_selected
-                                            || ui.ctx().pointer_hover_pos().is_some_and(|p| {
-                                                ui.max_rect().y_range().contains(p.y)
-                                                    && body_x_range.contains(p.x)
-                                            })
-                                    }
+                                    CheckboxVisibility::OnSelection => is_selected,
                                     _ => true,
                                 };
+                                if !visible {
+                                    // Clicking the empty spot selects the row like the box would.
+                                    let toggle_id = ui.id().with(("checkbox_spot", &file.path));
+                                    if ui
+                                        .interact(ui.max_rect(), toggle_id, egui::Sense::click())
+                                        .clicked()
+                                    {
+                                        action = Some(ItemViewerAction::Select(file.path.clone()));
+                                    }
+                                }
 
                                 if visible
                                     && draw_checkbox(
