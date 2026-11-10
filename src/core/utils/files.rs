@@ -7,8 +7,8 @@ use std::mem::size_of;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::ffi::OsStringExt;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Storage::FileSystem::FILE_ATTRIBUTE_NORMAL;
@@ -18,10 +18,11 @@ use windows::Win32::System::Com::{
 };
 use windows::Win32::UI::Shell::Common::ITEMIDLIST;
 use windows::Win32::UI::Shell::{
-    BHID_SFUIObject, CMINVOKECOMMANDINFO, CMINVOKECOMMANDINFOEX, IContextMenu,
-    IFileOperationProgressSink, IFileOperationProgressSink_Impl, IShellItem, IShellLinkW,
+    BHID_EnumItems, BHID_SFUIObject, CMINVOKECOMMANDINFO, CMINVOKECOMMANDINFOEX,
+    FOLDERID_RecycleBinFolder, IContextMenu, IEnumShellItems, IFileOperationProgressSink,
+    IFileOperationProgressSink_Impl, ILFree, ILGetSize, IShellItem, IShellLinkW,
     SHCreateItemFromIDList, SHFILEINFOW, SHGFI_TYPENAME, SHGFI_USEFILEATTRIBUTES, SHGetFileInfoW,
-    SIGDN_FILESYSPATH, SLGP_RAWPATH,
+    SHGetIDListFromObject, SHGetKnownFolderIDList, SIGDN_FILESYSPATH, SLGP_RAWPATH,
 };
 use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 use windows::core::{Error, HRESULT, Interface, PCSTR, PCWSTR, PWSTR, Ref, implement};
@@ -212,8 +213,196 @@ pub enum FileOpKind {
     Copy { dest: PathBuf },
 }
 
+/// What a shell operation did, as reported by its `Post*Item` callbacks. The
+/// shell may pick a different name than requested (collisions), so these are
+/// the final paths. Includes only items whose callback reported success.
+#[derive(Default)]
+pub struct OpRecord {
+    /// `(old, new)`.
+    pub moved: Vec<(PathBuf, PathBuf)>,
+    /// `(source, new)`.
+    pub copied: Vec<(PathBuf, PathBuf)>,
+    /// Originals the shell sent to the Recycle Bin (it reported a Bin item, a
+    /// permanent delete reports none). The Bin item's own PIDL is not usable
+    /// for restoring, so entries are looked up with `find_recycle_bin_pidls`.
+    pub trashed: Vec<PathBuf>,
+    /// `(old, new)`.
+    pub renamed: Vec<(PathBuf, PathBuf)>,
+    /// First failing HRESULT among the `Post*Item` callbacks.
+    pub failure: Option<HRESULT>,
+}
+
+/// Shell paths compare case-insensitively and may differ in slash style.
+fn path_key(path: &Path) -> String {
+    path.to_string_lossy().replace('/', "\\").to_lowercase()
+}
+
+impl OpRecord {
+    /// Drops entries for items the shell reported below the ones we asked for
+    /// (children of a folder), keeping one entry per requested source.
+    pub fn retain_sources(&mut self, sources: &[PathBuf]) {
+        let keys: HashSet<String> = sources.iter().map(|p| path_key(p)).collect();
+        let wanted = |p: &Path| keys.contains(&path_key(p));
+        self.moved.retain(|(old, _)| wanted(old));
+        self.copied.retain(|(src, _)| wanted(src));
+        self.trashed.retain(|original| wanted(original));
+        self.renamed.retain(|(old, _)| wanted(old));
+    }
+}
+
+/// Collects an [`OpRecord`] from a progress sink. Callbacks run on the thread
+/// that calls `PerformOperations`, the caller reads the result afterwards.
+#[derive(Default)]
+pub struct OpRecorder {
+    state: Mutex<(Vec<PathBuf>, OpRecord)>,
+}
+
+/// Files one finished item into the record: source, new path, and whether the
+/// shell reported a new item at all.
+type RecordStore = fn(&mut OpRecord, PathBuf, Option<PathBuf>, bool);
+
+impl OpRecorder {
+    /// Takes the record, leaving the recorder empty.
+    pub fn take(&self) -> OpRecord {
+        let mut guard = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        guard.0.clear();
+        std::mem::take(&mut guard.1)
+    }
+
+    /// `Pre*Item` runs while the item still exists. Pre and Post nest like a
+    /// stack, so the source path is read here and popped by the matching Post.
+    fn pre(&self, source: Option<String>) {
+        let mut guard = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        guard.0.push(source.map(PathBuf::from).unwrap_or_default());
+    }
+
+    fn post(&self, hr: HRESULT, newly_created: Ref<'_, IShellItem>, store: RecordStore) {
+        let mut guard = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let source = guard.0.pop().unwrap_or_default();
+        let record = &mut guard.1;
+        if hr.is_err() {
+            record.failure.get_or_insert(hr);
+            return;
+        }
+        if source.as_os_str().is_empty() {
+            return;
+        }
+        let item = newly_created.ok().ok();
+        let new_path = item.and_then(item_path).map(PathBuf::from);
+        store(record, source, new_path, item.is_some());
+    }
+}
+
+fn item_path(item: &IShellItem) -> Option<String> {
+    let pwstr = unsafe { item.GetDisplayName(SIGDN_FILESYSPATH) }.ok()?;
+    let text = unsafe { pwstr_to_string(pwstr) };
+    unsafe { CoTaskMemFree(Some(pwstr.0 as _)) };
+    if text.is_empty() { None } else { Some(text) }
+}
+
+/// Absolute PIDL bytes of a shell item.
+fn pidl_bytes_of(item: &IShellItem) -> Option<Vec<u8>> {
+    unsafe {
+        let pidl = SHGetIDListFromObject(item).ok()?;
+        let size = ILGetSize(Some(pidl as _)) as usize;
+        let mut bytes = vec![0u8; size];
+        std::ptr::copy_nonoverlapping(pidl as *const u8, bytes.as_mut_ptr(), size);
+        ILFree(Some(pidl as _));
+        Some(bytes)
+    }
+}
+
+/// Finds the Recycle Bin entries of files deleted from `originals`. With several
+/// matches the newest deletion wins. One Bin enumeration serves all of them.
+/// Blocks on the shell. The result is parallel to `originals`.
+pub fn find_recycle_bin_pidls(originals: &[PathBuf]) -> Vec<Option<Vec<u8>>> {
+    use crate::core::fs::{DateStyle, get_shell_item_metadata};
+
+    // (folder, lowercase name) -> index. The Bin's display name omits the
+    // extension when Explorer hides it, so the stem is a key as well.
+    let mut wanted: HashMap<(String, String), usize> = HashMap::new();
+    for (index, original) in originals.iter().enumerate() {
+        let Some(parent) = original.parent() else {
+            continue;
+        };
+        let dir = path_key(parent);
+        for name in [original.file_name(), original.file_stem()]
+            .into_iter()
+            .flatten()
+        {
+            wanted.insert((dir.clone(), name.to_string_lossy().to_lowercase()), index);
+        }
+    }
+
+    let mut best: Vec<Option<(i64, Vec<u8>)>> = vec![None; originals.len()];
+    unsafe {
+        let Ok(bin_pidl) = SHGetKnownFolderIDList(&FOLDERID_RecycleBinFolder, 0, None) else {
+            return vec![None; originals.len()];
+        };
+        let bin = SHCreateItemFromIDList::<IShellItem>(bin_pidl);
+        CoTaskMemFree(Some(bin_pidl as _));
+        let Some(enum_items) = bin.ok().and_then(|bin| {
+            bin.BindToHandler::<_, IEnumShellItems>(None, &BHID_EnumItems)
+                .ok()
+        }) else {
+            return vec![None; originals.len()];
+        };
+
+        loop {
+            let mut fetched: [Option<IShellItem>; 1] = [None];
+            if enum_items.Next(&mut fetched, None).is_err() {
+                break;
+            }
+            let Some(item) = fetched[0].take() else { break };
+
+            let metadata = get_shell_item_metadata(&item, DateStyle::default(), true);
+            let (deleted_raw, name, directory) = (metadata.6, metadata.7, metadata.8);
+            let (Some(name), Some(directory)) = (name, directory) else {
+                continue;
+            };
+            let key = (path_key(Path::new(&directory)), name.to_lowercase());
+            let Some(&index) = wanted.get(&key) else {
+                continue;
+            };
+            let deleted = deleted_raw.unwrap_or(0);
+            if best[index]
+                .as_ref()
+                .is_some_and(|(newest, _)| *newest >= deleted)
+            {
+                continue;
+            }
+            if let Some(bytes) = pidl_bytes_of(&item) {
+                best[index] = Some((deleted, bytes));
+            }
+        }
+    }
+    best.into_iter()
+        .map(|entry| entry.map(|(_, bytes)| bytes))
+        .collect()
+}
+
+/// A progress sink that only records results, for the blocking shell
+/// operations that have no progress UI.
+pub fn recording_sink() -> (IFileOperationProgressSink, Arc<OpRecorder>) {
+    let recorder = Arc::new(OpRecorder::default());
+    // The receiver is dropped on purpose: progress messages are discarded.
+    let (tx, _rx) = crossbeam_channel::unbounded();
+    let sink: IFileOperationProgressSink = FileOpProgressSink {
+        tx,
+        cancel: Arc::new(AtomicBool::new(false)),
+        notify: Arc::new(|| {}),
+        recorder: recorder.clone(),
+        base_total: 0,
+        pre_count: AtomicU32::new(0),
+        post_count: AtomicU32::new(0),
+    }
+    .into();
+    (sink, recorder)
+}
+
 #[implement(IFileOperationProgressSink)]
 struct FileOpProgressSink {
+    recorder: Arc<OpRecorder>,
     tx: Sender<FileOpProgress>,
     cancel: Arc<AtomicBool>,
     notify: Arc<dyn Fn() + Send + Sync>,
@@ -251,7 +440,9 @@ impl FileOpProgressSink {
             return cancel_abort();
         }
         self.pre_count.fetch_add(1, Ordering::Relaxed);
-        if let Some(name) = shell_item_path(psiitem) {
+        let name = shell_item_path(psiitem);
+        self.recorder.pre(name.clone());
+        if let Some(name) = name {
             self.emit(FileOpProgress::Item { name });
         }
         Ok(())
@@ -314,9 +505,10 @@ impl IFileOperationProgressSink_Impl for FileOpProgressSink_Impl {
     fn PreRenameItem(
         &self,
         _dwflags: u32,
-        _psiitem: Ref<'_, IShellItem>,
+        psiitem: Ref<'_, IShellItem>,
         _psznewname: &PCWSTR,
     ) -> windows::core::Result<()> {
+        self.recorder.pre(shell_item_path(psiitem));
         Ok(())
     }
 
@@ -325,9 +517,15 @@ impl IFileOperationProgressSink_Impl for FileOpProgressSink_Impl {
         _dwflags: u32,
         _psiitem: Ref<'_, IShellItem>,
         _psznewname: &PCWSTR,
-        _hrrename: HRESULT,
-        _psinewlycreated: Ref<'_, IShellItem>,
+        hrrename: HRESULT,
+        psinewlycreated: Ref<'_, IShellItem>,
     ) -> windows::core::Result<()> {
+        self.recorder
+            .post(hrrename, psinewlycreated, |record, old, new, _| {
+                if let Some(new) = new {
+                    record.renamed.push((old, new));
+                }
+            });
         Ok(())
     }
 
@@ -347,9 +545,15 @@ impl IFileOperationProgressSink_Impl for FileOpProgressSink_Impl {
         _psiitem: Ref<'_, IShellItem>,
         _psidestinationfolder: Ref<'_, IShellItem>,
         _psznewname: &PCWSTR,
-        _hrmove: HRESULT,
-        _psinewlycreated: Ref<'_, IShellItem>,
+        hrmove: HRESULT,
+        psinewlycreated: Ref<'_, IShellItem>,
     ) -> windows::core::Result<()> {
+        self.recorder
+            .post(hrmove, psinewlycreated, |record, old, new, _| {
+                if let Some(new) = new {
+                    record.moved.push((old, new));
+                }
+            });
         self.report_post()
     }
 
@@ -369,9 +573,15 @@ impl IFileOperationProgressSink_Impl for FileOpProgressSink_Impl {
         _psiitem: Ref<'_, IShellItem>,
         _psidestinationfolder: Ref<'_, IShellItem>,
         _psznewname: &PCWSTR,
-        _hrcopy: HRESULT,
-        _psinewlycreated: Ref<'_, IShellItem>,
+        hrcopy: HRESULT,
+        psinewlycreated: Ref<'_, IShellItem>,
     ) -> windows::core::Result<()> {
+        self.recorder
+            .post(hrcopy, psinewlycreated, |record, src, new, _| {
+                if let Some(new) = new {
+                    record.copied.push((src, new));
+                }
+            });
         self.report_post()
     }
 
@@ -387,9 +597,17 @@ impl IFileOperationProgressSink_Impl for FileOpProgressSink_Impl {
         &self,
         _dwflags: u32,
         _psiitem: Ref<'_, IShellItem>,
-        _hrdelete: HRESULT,
-        _psinewlycreated: Ref<'_, IShellItem>,
+        hrdelete: HRESULT,
+        psinewlycreated: Ref<'_, IShellItem>,
     ) -> windows::core::Result<()> {
+        // For a Recycle Bin delete the new item is the Bin entry (null when the
+        // delete is permanent).
+        self.recorder
+            .post(hrdelete, psinewlycreated, |record, original, _, in_bin| {
+                if in_bin {
+                    record.trashed.push(original);
+                }
+            });
         self.report_post()
     }
 
@@ -454,16 +672,18 @@ pub fn file_op_async(
     tx: Sender<FileOpProgress>,
     cancel: Arc<AtomicBool>,
     notify: Arc<dyn Fn() + Send + Sync>,
-) {
+) -> Arc<OpRecorder> {
+    let recorder = Arc::new(OpRecorder::default());
     if sources.is_empty() {
         let _ = tx.send(FileOpProgress::Finished {
             cancelled: false,
             error: None,
         });
         notify();
-        return;
+        return recorder;
     }
 
+    let worker_recorder = recorder.clone();
     thread::spawn(move || {
         use windows::Win32::System::Com::{
             CLSCTX_ALL, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx, CoUninitialize,
@@ -504,6 +724,7 @@ pub fn file_op_async(
                     tx: tx.clone(),
                     cancel: cancel.clone(),
                     notify: notify.clone(),
+                    recorder: worker_recorder.clone(),
                     base_total,
                     pre_count: AtomicU32::new(0),
                     post_count: AtomicU32::new(0),
@@ -550,6 +771,7 @@ pub fn file_op_async(
             CoUninitialize();
         }
     });
+    recorder
 }
 
 pub fn restore_paths_native(pidls: Vec<Vec<u8>>) -> windows::core::Result<()> {

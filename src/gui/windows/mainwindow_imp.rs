@@ -7,6 +7,7 @@ use crate::core::indexer::{
     save_settings, save_tags, save_theme_settings,
 };
 use crate::core::persist::write_atomic;
+use crate::core::undo::{Blocked, TrashedItem, UndoAction, UndoKind, UndoOp, UndoStep, plan_undo};
 use crate::core::utils::files::resolve_shortcut_target;
 use crate::core::utils::widgets::{loading_spinner, request_animation_frame};
 use crate::core::zoxide;
@@ -15,9 +16,10 @@ use crate::gui::customization::move_item;
 use crate::gui::theme::{ThemeMode, ThemePalette, get_default_palette, set_palette};
 use crate::gui::theme_presets::{export_theme_json, import_theme_json};
 use crate::gui::utils::{
-    ClipboardFileRead, FileOpKind, FileOpProgress, SortColumn, SortKey, directory_child_paths,
-    file_op_async, is_clipboard_cut, read_clipboard_files, restore_paths_native,
-    selection_paths_after_paste, set_clipboard_files, show_copy_move_dialog, sort_files_by_keys,
+    ClipboardFileRead, FileOpKind, FileOpProgress, OpRecord, SortColumn, SortKey,
+    directory_child_paths, file_op_async, find_recycle_bin_pidls, is_clipboard_cut,
+    read_clipboard_files, recording_sink, restore_paths_native, selection_paths_after_paste,
+    set_clipboard_files, show_copy_move_dialog, sort_files_by_keys,
 };
 use crate::gui::windows::about::draw_about_window;
 use crate::gui::windows::containers::enums::{
@@ -538,6 +540,8 @@ impl MainWindow {
         match outcome {
             Outcome::Done { cancelled, error } => {
                 let state = self.file_op.take().expect("file_op present");
+                // Undo records only an operation that ran to the end.
+                let record = (error.is_none() && !cancelled).then(|| state.recorder.take());
                 if let Some(e) = error {
                     if cancelled {
                         eprintln!("File operation cancelled: {}", e);
@@ -545,7 +549,7 @@ impl MainWindow {
                         eprintln!("File operation failed: {}", e);
                     }
                 }
-                self.run_file_op_completion(state.completion);
+                self.run_file_op_completion(state.completion, record);
                 ctx.request_repaint();
             }
             Outcome::Running { started } => {
@@ -559,9 +563,9 @@ impl MainWindow {
 
     /// Post-processing after a background file operation completes (UI thread).
     /// Tag bookkeeping differs per operation; the view is always reloaded.
-    fn run_file_op_completion(&mut self, completion: FileOpCompletion) {
+    fn run_file_op_completion(&mut self, completion: FileOpCompletion, record: Option<OpRecord>) {
         match completion {
-            FileOpCompletion::Delete { paths } => {
+            FileOpCompletion::Delete { paths, to_bin } => {
                 // Prune tags only for paths that are actually gone, so a partial
                 // delete or cancellation doesn't drop tags for surviving files.
                 let mut tags_changed = false;
@@ -573,6 +577,10 @@ impl MainWindow {
                 if tags_changed {
                     self.persist_tags();
                 }
+                if to_bin && let Some(mut record) = record {
+                    record.retain_sources(&paths);
+                    self.record_trashed(record.trashed);
+                }
             }
             FileOpCompletion::Paste {
                 sources,
@@ -582,6 +590,15 @@ impl MainWindow {
             } => {
                 if is_cut && self.move_tagged_paths_to_dir(&sources, &target_dir) {
                     self.persist_tags();
+                }
+                if let Some(mut record) = record {
+                    record.retain_sources(&sources);
+                    if is_cut {
+                        self.record_moves(record.moved);
+                    } else {
+                        let paths = record.copied.into_iter().map(|(_, new)| new).collect();
+                        self.record_creations(UndoKind::Copy, paths);
+                    }
                 }
                 let pasted = selection_paths_after_paste(&target_dir, &before_entries, &sources);
                 if !pasted.is_empty() {
@@ -933,6 +950,7 @@ impl MainWindow {
         // Validate the final name before creating
         if Self::is_submitted_filename_valid(&name) {
             if std::fs::create_dir(&path).is_ok() {
+                self.record_creations(UndoKind::NewFolder, vec![path.clone()]);
                 let path_for_selection = path.clone();
                 self.load_path();
                 // Immediately start renaming the new folder
@@ -980,6 +998,7 @@ impl MainWindow {
         if Self::is_submitted_filename_valid(&name) {
             // Create an empty file
             if std::fs::write(&path, "").is_ok() {
+                self.record_creations(UndoKind::NewFile, vec![path.clone()]);
                 let path_for_selection = path.clone();
                 self.load_path();
                 // Immediately start renaming the new file
@@ -1146,17 +1165,18 @@ impl MainWindow {
                     // Avoid no-op rename
                     if path != target {
                         match rename_item_via_shell(&path, trimmed) {
-                            Ok(()) => {
+                            Ok(renamed) => {
                                 // Queue the renamed file for auto-selection after refresh
                                 let side = self.focused_split;
                                 self.active_tab_mut()
                                     .view_mut(side)
                                     .explorer_state
-                                    .pending_selection_paths = Some(vec![target.clone()]);
+                                    .pending_selection_paths = Some(vec![renamed.clone()]);
 
-                                if self.tags_state.remap_path_prefix(path.as_path(), &target) {
+                                if self.tags_state.remap_path_prefix(path.as_path(), &renamed) {
                                     self.persist_tags();
                                 }
+                                self.undo.push_rename(path.clone(), renamed);
                             }
                             // Source vanished or shell refused: skip, the refresh below
                             // drops the stale entry.
@@ -1173,42 +1193,200 @@ impl MainWindow {
                 self.rename_state = None;
             }
             ItemViewerContextAction::Delete { paths, permanent } => {
-                // Ignore a second operation while one is already in flight.
-                if self.file_op.is_some() {
-                    return;
-                }
-
                 let allow_undo = !permanent && !self.current_nav().is_recycle_bin();
-                let (tx, rx) = unbounded();
-                let cancel = Arc::new(AtomicBool::new(false));
-                let owner_hwnd = self.hwnd.map(|h| h.0 as isize).unwrap_or(0);
-                let notify: Arc<dyn Fn() + Send + Sync> =
-                    Arc::new(crate::gui::windows::windowsoverrides::request_animation_frame);
-
-                file_op_async(
-                    FileOpKind::Delete { allow_undo },
-                    paths.clone(),
-                    owner_hwnd,
-                    tx,
-                    cancel.clone(),
-                    notify,
-                );
-
-                self.file_op = Some(FileOpState {
-                    rx,
-                    cancel,
-                    title_key: "delete_progress_title",
-                    completion: FileOpCompletion::Delete { paths },
-                    started: false,
-                    total: 0,
-                    done: 0,
-                    current_item: String::new(),
-                });
+                self.start_delete(paths, allow_undo, true);
             }
             ItemViewerContextAction::Properties(paths) => {
                 self.open_properties_multi(&paths);
             }
         }
+    }
+
+    fn record_moves(&mut self, pairs: Vec<(PathBuf, PathBuf)>) {
+        if let Some(step) = UndoStep::new(UndoKind::Move, vec![UndoOp::Move { pairs }]) {
+            self.undo.push(step);
+        }
+    }
+
+    fn record_creations(&mut self, kind: UndoKind, paths: Vec<PathBuf>) {
+        if let Some(step) = UndoStep::new(kind, vec![UndoOp::Create { paths }]) {
+            self.undo.push(step);
+        }
+    }
+
+    /// Records a Recycle Bin delete. The shell's own Bin item from the delete
+    /// callback cannot be restored (the undelete verb rejects it), so the Bin is
+    /// enumerated once for the entries. An item not found there is skipped.
+    fn record_trashed(&mut self, trashed: Vec<PathBuf>) {
+        let items = find_recycle_bin_pidls(&trashed)
+            .into_iter()
+            .zip(trashed)
+            .filter_map(|(pidl, original)| {
+                Some(TrashedItem {
+                    original,
+                    bin_pidl: pidl?,
+                })
+            })
+            .collect();
+        if let Some(step) = UndoStep::new(UndoKind::Delete, vec![UndoOp::Trash { items }]) {
+            self.undo.push(step);
+        }
+    }
+
+    /// Reverses the newest recorded file operation (Ctrl+Z).
+    pub fn undo_last(&mut self) {
+        // Same gate as paste: one file operation at a time.
+        if self.file_op.is_some() {
+            return;
+        }
+        let Some(step) = self.undo.last().cloned() else {
+            self.toast.show(self.i18n.tr("undo_nothing"));
+            return;
+        };
+
+        let actions = match plan_undo(&step, |path| path.exists()) {
+            Ok(actions) => actions,
+            Err(blocked) => {
+                let (key, path) = match blocked {
+                    Blocked::Missing(path) => {
+                        // It cannot come back by itself, so do not let it block older steps.
+                        self.undo.pop();
+                        ("undo_cannot_missing", path)
+                    }
+                    Blocked::Taken(path) => ("undo_cannot_taken", path),
+                };
+                let name = path.file_name().unwrap_or(path.as_os_str());
+                self.toast
+                    .show(format!("{} {}", self.i18n.tr(key), name.to_string_lossy()));
+                return;
+            }
+        };
+        self.undo.pop();
+
+        let mut to_trash: Vec<PathBuf> = Vec::new();
+        let mut selection: Vec<PathBuf> = Vec::new();
+        let mut failed: Option<String> = None;
+        for action in actions {
+            match action {
+                UndoAction::Rename { from, to } => {
+                    let name = to.file_name().unwrap_or(to.as_os_str());
+                    match rename_item_via_shell(&from, &name.to_string_lossy()) {
+                        Ok(restored) => {
+                            if self.tags_state.remap_path_prefix(&from, &restored) {
+                                self.persist_tags();
+                            }
+                            selection.push(restored);
+                        }
+                        Err(err) => failed = Some(err.to_string()),
+                    }
+                }
+                UndoAction::MoveBack { from, to } => match move_item_to_path(&from, &to) {
+                    Ok(()) => {
+                        if self.tags_state.remap_path_prefix(&from, &to) {
+                            self.persist_tags();
+                        }
+                        selection.push(to);
+                    }
+                    Err(err) => failed = Some(err.to_string()),
+                },
+                UndoAction::Trash { paths } => to_trash.extend(paths),
+                UndoAction::Restore { items } => {
+                    let pidls = items.iter().map(|item| item.bin_pidl.clone()).collect();
+                    match restore_paths_native(pidls) {
+                        Ok(()) => selection.extend(items.into_iter().map(|item| item.original)),
+                        Err(err) => failed = Some(err.to_string()),
+                    }
+                }
+            }
+            if failed.is_some() {
+                break;
+            }
+        }
+
+        if let Some(err) = failed {
+            eprintln!("Undo failed: {err}");
+            self.toast.show(format!(
+                "{} {}",
+                self.i18n.tr("undo_cannot_failed"),
+                step.subject()
+            ));
+        } else {
+            self.toast.show(self.undo_done_text(&step));
+        }
+
+        if !to_trash.is_empty() {
+            // The Recycle Bin keeps the undone item recoverable; the delete is
+            // not recorded as a new step.
+            self.start_delete(to_trash, true, false);
+        }
+        if !selection.is_empty() {
+            let side = self.focused_split;
+            self.active_tab_mut()
+                .view_mut(side)
+                .explorer_state
+                .pending_selection_paths = Some(selection);
+        }
+        self.load_path();
+    }
+
+    fn undo_done_text(&self, step: &UndoStep) -> String {
+        let key = match step.kind {
+            UndoKind::Rename => "undo_done_rename",
+            UndoKind::Move => "undo_done_move",
+            UndoKind::NewFolder => "undo_done_new_folder",
+            UndoKind::NewFile => "undo_done_new_file",
+            UndoKind::Copy => "undo_done_copy",
+            UndoKind::Delete => "undo_done_delete",
+        };
+        let count = step.item_count();
+        if count > 1 {
+            format!(
+                "{} {} {}",
+                self.i18n.tr(key),
+                count,
+                self.i18n.tr("undo_items")
+            )
+        } else {
+            format!("{} {}", self.i18n.tr(key), step.subject())
+        }
+    }
+
+    /// Starts a background delete. Ignored while another file operation is in
+    /// flight. `record_undo` is false when the delete is itself an undo.
+    fn start_delete(&mut self, paths: Vec<PathBuf>, allow_undo: bool, record_undo: bool) {
+        if self.file_op.is_some() {
+            return;
+        }
+
+        let (tx, rx) = unbounded();
+        let cancel = Arc::new(AtomicBool::new(false));
+        let owner_hwnd = self.hwnd.map(|h| h.0 as isize).unwrap_or(0);
+        let notify: Arc<dyn Fn() + Send + Sync> =
+            Arc::new(crate::gui::windows::windowsoverrides::request_animation_frame);
+
+        let recorder = file_op_async(
+            FileOpKind::Delete { allow_undo },
+            paths.clone(),
+            owner_hwnd,
+            tx,
+            cancel.clone(),
+            notify,
+        );
+
+        self.file_op = Some(FileOpState {
+            rx,
+            cancel,
+            title_key: "delete_progress_title",
+            completion: FileOpCompletion::Delete {
+                paths,
+                to_bin: allow_undo && record_undo,
+            },
+            recorder,
+            started: false,
+            total: 0,
+            done: 0,
+            current_item: String::new(),
+        });
     }
 
     pub fn paste_clipboard_native(&mut self) {
@@ -1253,7 +1431,7 @@ impl MainWindow {
             "copy_progress_title"
         };
 
-        file_op_async(kind, paths.clone(), owner_hwnd, tx, cancel.clone(), notify);
+        let recorder = file_op_async(kind, paths.clone(), owner_hwnd, tx, cancel.clone(), notify);
 
         self.file_op = Some(FileOpState {
             rx,
@@ -1265,6 +1443,7 @@ impl MainWindow {
                 before_entries,
                 is_cut,
             },
+            recorder,
             started: false,
             total: 0,
             done: 0,
@@ -1800,8 +1979,9 @@ impl MainWindow {
             return;
         }
 
-        if let Err(err) = move_items_via_shell(sources, &target_dir) {
-            eprintln!("Move failed: {err}");
+        match move_items_via_shell(sources, &target_dir) {
+            Ok(pairs) => self.record_moves(pairs),
+            Err(err) => eprintln!("Move failed: {err}"),
         }
 
         {
@@ -2127,6 +2307,17 @@ impl MainWindow {
             return;
         }
 
+        let undo = ctx.input(|input| {
+            input.modifiers.command
+                && !input.modifiers.shift
+                && !input.modifiers.alt
+                && input.key_pressed(egui::Key::Z)
+        });
+        if undo {
+            self.undo_last();
+            return;
+        }
+
         let shortcuts = ctx.input(|input| {
             let ctrl = input.modifiers.ctrl;
             let alt = input.modifiers.alt;
@@ -2440,13 +2631,16 @@ fn tab_index_for_id(mut tab_ids: impl Iterator<Item = u64>, id: u64) -> Option<u
     tab_ids.position(|t| t == id)
 }
 
-/// Renames `source` to `new_name` within its parent. Shell failures (for example
-/// the file was removed by another process) are returned instead of panicking.
-fn rename_item_via_shell(source: &Path, new_name: &str) -> windows::core::Result<()> {
-    unsafe {
+/// Renames `source` to `new_name` within its parent and returns the path the
+/// shell reports for the result. Shell failures (for example the file was
+/// removed by another process) are returned instead of panicking.
+fn rename_item_via_shell(source: &Path, new_name: &str) -> windows::core::Result<PathBuf> {
+    let recorder = unsafe {
         let file_op: IFileOperation = CoCreateInstance(&FileOperation, None, CLSCTX_ALL)?;
 
         file_op.SetOperationFlags(FOF_ALLOWUNDO).ok();
+        let (sink, recorder) = recording_sink();
+        let cookie = file_op.Advise(&sink)?;
 
         let source_item: IShellItem = SHCreateItemFromParsingName(
             &HSTRING::from(source.to_string_lossy().to_string()),
@@ -2457,30 +2651,79 @@ fn rename_item_via_shell(source: &Path, new_name: &str) -> windows::core::Result
         file_op.RenameItem(&source_item, &HSTRING::from(new_name), None)?;
 
         file_op.PerformOperations()?;
+        let _ = file_op.Unadvise(cookie);
         // A refused rename (name taken, dialog dismissed) can still return S_OK.
         if file_op.GetAnyOperationsAborted()?.as_bool() {
             // HRESULT_FROM_WIN32(ERROR_CANCELLED)
             return Err(Error::from(HRESULT(0x8007_04C7u32 as i32)));
         }
+        recorder
+    };
+    let mut record = recorder.take();
+    if let Some(failure) = record.failure {
+        return Err(Error::from(failure));
     }
-    if let Some(parent) = source.parent()
-        && !parent.join(new_name).exists()
-    {
+    if let Some((_, renamed)) = record.renamed.pop() {
+        return Ok(renamed);
+    }
+    let target = source.parent().map(|parent| parent.join(new_name));
+    match target {
+        Some(target) if target.exists() => Ok(target),
         // HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)
-        return Err(Error::from(HRESULT(0x8007_0002u32 as i32)));
+        _ => Err(Error::from(HRESULT(0x8007_0002u32 as i32))),
     }
-    Ok(())
 }
 
-/// Moves `sources` into `target_dir`. A source that vanished after the drag started
-/// is skipped; a target that cannot be resolved fails the whole call.
-fn move_items_via_shell(sources: &[PathBuf], target_dir: &Path) -> windows::core::Result<()> {
-    unsafe {
+/// Moves `source` back to the exact path `to` (its old folder and name).
+fn move_item_to_path(source: &Path, to: &Path) -> windows::core::Result<()> {
+    // HRESULT_FROM_WIN32(ERROR_BAD_PATHNAME)
+    let bad_path = || Error::from(HRESULT(0x8007_00A1u32 as i32));
+    let (parent, name) = to.parent().zip(to.file_name()).ok_or_else(bad_path)?;
+    let recorder = unsafe {
+        let file_op: IFileOperation = CoCreateInstance(&FileOperation, None, CLSCTX_ALL)?;
+        file_op.SetOperationFlags(FOF_ALLOWUNDO | FOFX_SHOWELEVATIONPROMPT)?;
+        let (sink, recorder) = recording_sink();
+        let cookie = file_op.Advise(&sink)?;
+
+        let source_item: IShellItem = SHCreateItemFromParsingName(
+            &HSTRING::from(source.to_string_lossy().to_string()),
+            None,
+        )?;
+        let parent_item: IShellItem = SHCreateItemFromParsingName(
+            &HSTRING::from(parent.to_string_lossy().to_string()),
+            None,
+        )?;
+        file_op.MoveItem(
+            &source_item,
+            &parent_item,
+            &HSTRING::from(name.to_string_lossy().to_string()),
+            None,
+        )?;
+        file_op.PerformOperations()?;
+        let _ = file_op.Unadvise(cookie);
+        recorder
+    };
+    if let Some(failure) = recorder.take().failure {
+        return Err(Error::from(failure));
+    }
+    if to.exists() { Ok(()) } else { Err(bad_path()) }
+}
+
+/// Moves `sources` into `target_dir` and returns the `(old, new)` paths the shell
+/// reports. A source that vanished after the drag started is skipped; a target
+/// that cannot be resolved fails the whole call.
+fn move_items_via_shell(
+    sources: &[PathBuf],
+    target_dir: &Path,
+) -> windows::core::Result<Vec<(PathBuf, PathBuf)>> {
+    let recorder = unsafe {
         let file_op: IFileOperation = CoCreateInstance(&FileOperation, None, CLSCTX_ALL)?;
 
         file_op
             .SetOperationFlags(FOF_SIMPLEPROGRESS | FOF_ALLOWUNDO | FOFX_SHOWELEVATIONPROMPT)
             .ok();
+        let (sink, recorder) = recording_sink();
+        let cookie = file_op.Advise(&sink)?;
 
         let target_item: IShellItem = SHCreateItemFromParsingName(
             &HSTRING::from(target_dir.to_string_lossy().to_string()),
@@ -2502,8 +2745,12 @@ fn move_items_via_shell(sources: &[PathBuf], target_dir: &Path) -> windows::core
         }
 
         file_op.PerformOperations().ok();
-    }
-    Ok(())
+        let _ = file_op.Unadvise(cookie);
+        recorder
+    };
+    let mut record = recorder.take();
+    record.retain_sources(sources);
+    Ok(record.moved)
 }
 
 fn split_parent(paths: &[PathBuf]) -> Option<(PathBuf, Vec<PathBuf>)> {
@@ -3043,8 +3290,25 @@ pub fn handle_pending_actions(pending_action: Option<ItemViewerAction>, explorer
 
                 let current_path = explorer.current_nav().current.clone();
 
-                if let Err(e) = show_copy_move_dialog(valid_files, &current_path) {
-                    eprintln!("Failed to show copy/move dialog: {}", e);
+                match show_copy_move_dialog(valid_files, &current_path) {
+                    Ok(mut record) => {
+                        let moved = std::mem::take(&mut record.moved);
+                        let kind = if moved.is_empty() {
+                            UndoKind::Copy
+                        } else {
+                            UndoKind::Move
+                        };
+                        let copied = record.copied.into_iter().map(|(_, new)| new).collect();
+                        // One drop is one step, even when it mixed moves and copies.
+                        let ops = vec![
+                            UndoOp::Move { pairs: moved },
+                            UndoOp::Create { paths: copied },
+                        ];
+                        if let Some(step) = UndoStep::new(kind, ops) {
+                            explorer.undo.push(step);
+                        }
+                    }
+                    Err(e) => eprintln!("Failed to show copy/move dialog: {}", e),
                 }
 
                 // ✅ Defer refresh (important)
@@ -3073,6 +3337,7 @@ pub fn handle_pending_actions(pending_action: Option<ItemViewerAction>, explorer
                     .into_iter()
                     .filter(|source| source.exists())
                     .collect();
+                let (sink, recorder) = recording_sink();
                 let move_result = unsafe {
                     (|| -> windows::core::Result<()> {
                         let file_op: IFileOperation =
@@ -3081,6 +3346,7 @@ pub fn handle_pending_actions(pending_action: Option<ItemViewerAction>, explorer
                         file_op.SetOperationFlags(
                             FOF_SIMPLEPROGRESS | FOF_ALLOWUNDO | FOFX_SHOWELEVATIONPROMPT,
                         )?;
+                        let cookie = file_op.Advise(&sink)?;
 
                         let target_item: IShellItem = SHCreateItemFromParsingName(
                             &HSTRING::from(target_dir.to_string_lossy().to_string()),
@@ -3097,6 +3363,7 @@ pub fn handle_pending_actions(pending_action: Option<ItemViewerAction>, explorer
                         }
 
                         file_op.PerformOperations()?;
+                        let _ = file_op.Unadvise(cookie);
                         Ok(())
                     })()
                 };
@@ -3105,8 +3372,13 @@ pub fn handle_pending_actions(pending_action: Option<ItemViewerAction>, explorer
                     eprintln!("Skipping move: all dragged sources have already disappeared");
                 } else if let Err(error) = move_result {
                     eprintln!("Failed to move dragged items: {error}");
-                } else if explorer.move_tagged_paths_to_dir(&existing_sources, &target_dir) {
-                    explorer.persist_tags();
+                } else {
+                    if explorer.move_tagged_paths_to_dir(&existing_sources, &target_dir) {
+                        explorer.persist_tags();
+                    }
+                    let mut record = recorder.take();
+                    record.retain_sources(&existing_sources);
+                    explorer.record_moves(record.moved);
                 }
 
                 {
@@ -3448,5 +3720,31 @@ mod tests {
         init_com();
         let sources = [missing_path("source.txt")];
         assert!(move_items_via_shell(&sources, &missing_path("target")).is_err());
+    }
+
+    #[test]
+    fn rename_and_move_report_final_paths_and_can_be_moved_back() {
+        init_com();
+        let root = std::env::temp_dir().join(format!("eden-test-undo-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let (a, b) = (root.join("a"), root.join("b"));
+        std::fs::create_dir_all(&a).unwrap();
+        std::fs::create_dir_all(&b).unwrap();
+        let file = a.join("one.txt");
+        std::fs::write(&file, "x").unwrap();
+
+        let renamed = rename_item_via_shell(&file, "two.txt").unwrap();
+        assert_eq!(renamed.file_name().unwrap(), "two.txt");
+        assert!(renamed.exists() && !file.exists());
+
+        let pairs = move_items_via_shell(std::slice::from_ref(&renamed), &b).unwrap();
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].0.file_name().unwrap(), "two.txt");
+        assert!(pairs[0].1.exists() && !renamed.exists());
+
+        move_item_to_path(&pairs[0].1, &file).unwrap();
+        assert!(file.exists() && !pairs[0].1.exists());
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
