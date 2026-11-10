@@ -81,6 +81,7 @@ impl Default for AppSettings {
             pinned_tabs: Vec::new(),
             remember_open_tabs: false,
             zoxide_auto_add: false,
+            zoxide_popup_opacity: 0.92,
             hotkeys: Default::default(),
             unremembered_tabs: Vec::new(),
             remembered_active_tab: None,
@@ -548,6 +549,27 @@ fn draw_general_tab(
             "settings_zoxide_auto_add",
         ) {
             action = Some(SettingsAction::ApplySettings);
+        }
+        // Jump popup opacity
+        {
+            let mut percent = (settings.current_settings.zoxide_popup_opacity * 100.0).round();
+            let mut changed = false;
+            setting_row(
+                ui,
+                palette,
+                &i18n.tr("settings_zoxide_popup_opacity"),
+                Some(&i18n.tr("tooltip_settings_zoxide_popup_opacity")),
+                160.0,
+                |ui| {
+                    changed = ui
+                        .add(egui::Slider::new(&mut percent, 50.0..=100.0).suffix("%"))
+                        .changed();
+                },
+            );
+            if changed {
+                settings.current_settings.zoxide_popup_opacity = percent / 100.0;
+                action = Some(SettingsAction::ApplySettings);
+            }
         }
         // Show/Hide Item Viewer File Icons
         if setting_checkbox(
@@ -1678,6 +1700,14 @@ mod tests {
         };
         let back: AppSettings = serde_json::from_str(&serde_json::to_string(&on).unwrap()).unwrap();
         assert!(back.zoxide_auto_add);
+    }
+
+    #[test]
+    fn zoxide_popup_opacity_defaults_to_92_percent_for_old_files() {
+        let old: AppSettings = serde_json::from_str(r#"{"language":"en-US"}"#).unwrap();
+        assert_eq!(old.zoxide_popup_opacity, 0.92);
+        let set: AppSettings = serde_json::from_str(r#"{"zoxide_popup_opacity":0.6}"#).unwrap();
+        assert_eq!(set.zoxide_popup_opacity, 0.6);
     }
 
     #[test]

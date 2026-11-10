@@ -10,6 +10,23 @@ use std::time::{Duration, Instant};
 
 /// Rows shown at once; the rest are reachable by typing a filter.
 const MAX_ROWS: usize = 50;
+/// Result rows the list area is sized for.
+const VISIBLE_ROWS: f32 = 12.0;
+const ROW_HEIGHT: f32 = 26.0;
+/// Input, hint and padding around the list.
+const CHROME_HEIGHT: f32 = 110.0;
+
+/// Height of the result list: room for `VISIBLE_ROWS`, but the whole popup
+/// stays within 60% of the window height.
+fn list_height(window_height: f32, item_spacing_y: f32) -> f32 {
+    let wanted = VISIBLE_ROWS * (ROW_HEIGHT + item_spacing_y);
+    wanted.min((window_height * 0.6 - CHROME_HEIGHT).max(ROW_HEIGHT * 3.0))
+}
+
+/// Popup background with `opacity` (0..1) applied to the fill only.
+fn with_opacity(fill: egui::Color32, opacity: f32) -> egui::Color32 {
+    fill.gamma_multiply(opacity.clamp(0.0, 1.0))
+}
 const NOTICE_DURATION: Duration = Duration::from_secs(3);
 
 /// What a worker thread reports back.
@@ -183,6 +200,7 @@ impl ZoxidePopup {
         i18n: &I18n,
         palette: &ThemePalette,
         current_dir: &Path,
+        opacity: f32,
     ) -> Option<PathBuf> {
         if !self.open {
             return None;
@@ -242,16 +260,20 @@ impl ZoxidePopup {
             .inner;
         close |= modal_bg_clicked;
 
+        let screen = ctx.content_rect();
+        let list_h = list_height(screen.height(), ctx.global_style().spacing.item_spacing.y);
         let width = 560.0_f32.min(ctx.content_rect().width() - 32.0).max(200.0);
         egui::Window::new(i18n.tr("zoxide_title"))
             .collapsible(false)
             .resizable(false)
             .fixed_size([width, 0.0])
-            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .frame(
-                egui::Frame::popup(&ctx.style_of(ctx.theme()))
-                    .corner_radius(egui::CornerRadius::same(palette.large_radius)),
-            )
+            .anchor(egui::Align2::CENTER_TOP, [0.0, screen.height() * 0.12])
+            .frame({
+                let frame = egui::Frame::popup(&ctx.style_of(ctx.theme()))
+                    .corner_radius(egui::CornerRadius::same(palette.large_radius));
+                let fill = with_opacity(frame.fill, opacity);
+                frame.fill(fill)
+            })
             .show(ctx, |ui| {
                 let muted = ui.visuals().weak_text_color();
                 if missing {
@@ -275,8 +297,9 @@ impl ZoxidePopup {
                 ui.add_space(6.0);
 
                 egui::ScrollArea::vertical()
-                    .max_height(320.0)
-                    .auto_shrink([false, true])
+                    .min_scrolled_height(list_h)
+                    .max_height(list_h)
+                    .auto_shrink([false, false])
                     .show(ui, |ui| {
                         if visible.is_empty() {
                             let key = if self.loaded {
@@ -295,7 +318,7 @@ impl ZoxidePopup {
                             };
                             let text = format!("{:>7.1}   {}", entry.score, entry.path.display());
                             let response = ui.add_sized(
-                                [ui.available_width(), 22.0],
+                                [ui.available_width(), ROW_HEIGHT],
                                 egui::Button::selectable(
                                     row == self.selected,
                                     egui::RichText::new(text).color(color),
@@ -344,6 +367,24 @@ mod tests {
                 exists: true,
             })
             .collect()
+    }
+
+    #[test]
+    fn list_fits_twelve_rows_in_a_tall_window_and_shrinks_in_a_short_one() {
+        assert_eq!(list_height(1200.0, 4.0), 12.0 * 30.0);
+        let short = list_height(500.0, 4.0);
+        assert!(short < 12.0 * 30.0);
+        assert!(short + CHROME_HEIGHT <= 500.0 * 0.6 + 1.0);
+        assert!(list_height(100.0, 4.0) >= 3.0 * ROW_HEIGHT);
+    }
+
+    #[test]
+    fn opacity_scales_fill_alpha_only() {
+        let fill = egui::Color32::from_rgb(40, 40, 40);
+        assert_eq!(with_opacity(fill, 1.0), fill);
+        let half = with_opacity(fill, 0.5);
+        assert!((half.a() as i32 - 128).abs() <= 1);
+        assert_eq!(with_opacity(fill, 2.0), fill);
     }
 
     #[test]
