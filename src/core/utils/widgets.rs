@@ -289,7 +289,20 @@ pub fn draw_checkbox(
     id: impl std::hash::Hash + std::fmt::Debug,
     label: &str,
 ) -> egui::Response {
-    let size = ui.available_rect_before_wrap().height().min(12.0);
+    draw_checkbox_sized(ui, palette, checked, id, label, 12.0)
+}
+
+/// `draw_checkbox` with a custom maximum box size (the box still shrinks to the cell height).
+pub fn draw_checkbox_sized(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    checked: &mut bool,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    label: &str,
+    max_size: f32,
+) -> egui::Response {
+    let size = ui.available_rect_before_wrap().height().min(max_size);
+    let scale = size / 12.0;
 
     // The entire table cell
     let cell = ui.available_rect_before_wrap();
@@ -329,11 +342,11 @@ pub fn draw_checkbox(
     );
 
     if *checked {
-        let p1 = egui::pos2(rect.left() + 3.0, rect.center().y);
-        let p2 = egui::pos2(rect.left() + 6.0, rect.bottom() - 3.0);
-        let p3 = egui::pos2(rect.right() - 3.0, rect.top() + 3.0);
+        let p1 = egui::pos2(rect.left() + 3.0 * scale, rect.center().y);
+        let p2 = egui::pos2(rect.left() + 6.0 * scale, rect.bottom() - 3.0 * scale);
+        let p3 = egui::pos2(rect.right() - 3.0 * scale, rect.top() + 3.0 * scale);
 
-        let stroke = egui::Stroke::new(2.0, palette.checkbox_checkmark_color);
+        let stroke = egui::Stroke::new(2.0 * scale.max(1.0), palette.checkbox_checkmark_color);
 
         ui.painter().line_segment([p1, p2], stroke);
         ui.painter().line_segment([p2, p3], stroke);
@@ -352,6 +365,19 @@ pub fn draw_dropdown(
     selected_text: impl Into<egui::WidgetText>,
     add_contents: impl FnOnce(&mut egui::Ui),
 ) {
+    draw_dropdown_sized(ui, palette, id, width, None, selected_text, add_contents);
+}
+
+/// `draw_dropdown` with an optional closed-button height (bigger click target).
+pub fn draw_dropdown_sized(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    width: f32,
+    button_height: Option<f32>,
+    selected_text: impl Into<egui::WidgetText>,
+    add_contents: impl FnOnce(&mut egui::Ui),
+) {
     ui.scope(|ui| {
         // Closed combo styling...
         let visuals = ui.visuals_mut();
@@ -360,6 +386,10 @@ pub fn draw_dropdown(
         visuals.widgets.active.bg_fill = palette.primary_active;
         apply_eden_visual_overrides(ui, palette);
         apply_eden_dropdown_visual_color_overrides(ui, palette);
+        if let Some(height) = button_height {
+            ui.spacing_mut().interact_size.y = height;
+            ui.spacing_mut().button_padding = egui::vec2(8.0, 4.0);
+        }
         egui::ComboBox::from_id_salt(id)
             .width(width)
             .selected_text(selected_text)
@@ -419,14 +449,15 @@ pub fn eden_button(ui: &mut egui::Ui, palette: &ThemePalette, text: &str) -> egu
     ui.button(egui::RichText::new(text).color(palette.text_normal))
 }
 
+/// Square icon button with an explicit button size and icon size.
 pub fn eden_icon_button(
     ui: &mut egui::Ui,
     palette: &ThemePalette,
     icon: StyledIcon,
     label: &str,
+    size: f32,
+    icon_size: f32,
 ) -> egui::Response {
-    apply_eden_visual_overrides(ui, palette);
-    let size = ui.spacing().interact_size.y;
     let (rect, response) = ui.allocate_exact_size(egui::vec2(size, size), egui::Sense::click());
     response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), label));
 
@@ -442,7 +473,7 @@ pub fn eden_icon_button(
         ui,
         rect,
         icon,
-        palette.text_size + 2.0,
+        icon_size,
         if response.hovered() {
             palette.primary
         } else {
@@ -675,6 +706,8 @@ mod tests {
                 &palette,
                 AppIcon::FolderOpen.regular(),
                 "Choose a folder",
+                24.0,
+                13.0,
             );
         });
         let nodes = announced(&output);

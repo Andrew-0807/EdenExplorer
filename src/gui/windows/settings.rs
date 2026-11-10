@@ -7,8 +7,8 @@ use crate::core::{
     },
     utils::text::apply_eden_text_overrides,
     utils::widgets::{
-        apply_eden_visual_overrides, draw_checkbox, draw_dropdown, eden_button, eden_icon_button,
-        eden_text_label, eden_toggle_button,
+        apply_eden_visual_overrides, draw_checkbox_sized, draw_dropdown_sized, eden_button,
+        eden_icon_button, eden_text_label, eden_toggle_button,
     },
 };
 use crate::gui::customization::{
@@ -25,8 +25,30 @@ use eframe::egui;
 use egui::RichText;
 use std::path::PathBuf;
 
-const SETTINGS_COMBO_WIDTH: f32 = 180.0;
-const SETTINGS_VALUE_WIDTH: f32 = 92.0;
+/// Minimum height of one settings row, so rows with a 1-line and a 2-line label line up.
+const SETTINGS_ROW_HEIGHT: f32 = 40.0;
+/// Vertical gap between rows.
+const SETTINGS_ROW_GAP: f32 = 2.0;
+/// Space between the label column and the control column.
+const SETTINGS_CONTROL_GAP: f32 = 12.0;
+const SETTINGS_COMBO_WIDTH: f32 = 200.0;
+const SETTINGS_VALUE_WIDTH: f32 = 110.0;
+/// Height of combo buttons, drag values and push buttons.
+const SETTINGS_CONTROL_HEIGHT: f32 = 32.0;
+/// Click target of a checkbox and its drawn box size.
+const SETTINGS_CHECKBOX_HIT: f32 = 30.0;
+const SETTINGS_CHECKBOX_SIZE: f32 = 20.0;
+/// Square size of icon buttons.
+const SETTINGS_ICON_BUTTON: f32 = 32.0;
+/// Chip column of the shortcuts list; fits the longest binding.
+const SETTINGS_SHORTCUT_WIDTH: f32 = 220.0;
+const SETTINGS_WINDOW_DEFAULT_SIZE: [f32; 2] = [820.0, 640.0];
+const SETTINGS_WINDOW_MIN_SIZE: [f32; 2] = [640.0, 480.0];
+
+/// Text size of settings labels and controls. The rest of the app keeps `palette.text_size`.
+fn body_size(palette: &ThemePalette) -> f32 {
+    palette.text_size + 4.0
+}
 
 const HOTKEYS: &[(&str, &str)] = &[
     ("F1", "hotkey_toggle_fullscreen"),
@@ -71,51 +93,42 @@ fn truncate_path_tail(s: &str, max_chars: usize) -> String {
 // Read-only list of the bindings hard-coded in the app (`handle_global_shortcuts`, item viewer
 // keyboard handling). Keep in sync when a binding changes.
 fn draw_hotkeys_tab(ui: &mut egui::Ui, palette: &ThemePalette, i18n: &I18n) {
-    ui.spacing_mut().item_spacing.y = 0.0;
-    ui.vertical(|ui| {
-        for (group_name, indices) in HOTKEY_GROUPS {
-            ui.add_space(8.0);
-            ui.label(
-                RichText::new(i18n.tr(group_name))
-                    .strong()
-                    .color(palette.text_header_section),
-            );
-            ui.add_space(3.0);
-
+    for (group_name, indices) in HOTKEY_GROUPS {
+        settings_heading(ui, palette, &i18n.tr(group_name));
+        settings_group(ui, |ui| {
             for index in *indices {
                 let (shortcut, description_key) = HOTKEYS[*index];
                 let description = i18n.tr(description_key);
 
-                ui.horizontal(|ui| {
-                    let (rect, _) =
-                        ui.allocate_exact_size(egui::vec2(205.0, 22.0), egui::Sense::hover());
-                    ui.painter().rect_stroke(
-                        rect,
-                        4.0,
-                        egui::Stroke::new(1.0, palette.borders_default),
-                        egui::StrokeKind::Inside,
-                    );
-                    ui.painter().text(
-                        rect.center(),
-                        egui::Align2::CENTER_CENTER,
-                        shortcut,
-                        egui::FontId::proportional(palette.text_size),
-                        palette.primary,
-                    );
-                    // Keep descriptions inside the settings window. Without an explicit
-                    // width, a larger font makes the row's content determine the window
-                    // width and can cause the shortcuts view to grow horizontally.
-                    let description_width = ui.available_width();
-                    ui.add_sized(
-                        [description_width, 22.0],
-                        egui::Label::new(RichText::new(description).color(palette.text_normal))
-                            .truncate(),
-                    );
-                });
-                ui.add_space(4.0);
+                setting_row(
+                    ui,
+                    palette,
+                    &description,
+                    None,
+                    SETTINGS_SHORTCUT_WIDTH,
+                    |ui| {
+                        let (rect, _) = ui.allocate_exact_size(
+                            egui::vec2(SETTINGS_SHORTCUT_WIDTH, 28.0),
+                            egui::Sense::hover(),
+                        );
+                        ui.painter().rect_stroke(
+                            rect,
+                            4.0,
+                            egui::Stroke::new(1.0, palette.borders_default),
+                            egui::StrokeKind::Inside,
+                        );
+                        ui.painter().text(
+                            rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            shortcut,
+                            egui::FontId::proportional(body_size(palette) - 1.0),
+                            palette.primary,
+                        );
+                    },
+                );
             }
-        }
-    });
+        });
+    }
 }
 
 impl Default for AppSettings {
@@ -223,51 +236,33 @@ fn draw_view_defaults_tab(
         .item_viewer_file_column_order
         .clone();
 
-    if eden_button(ui, palette, &i18n.tr("settings_clear_directory_cache")).clicked() {
+    if settings_button(ui, palette, &i18n.tr("settings_clear_directory_cache")).clicked() {
         settings.show_clear_directory_cache_confirmation = true;
     }
 
-    ui.add_space(8.0);
-
-    ui.group(|ui| {
-        ui.set_width(ui.available_width());
-        ui.label(
-            RichText::new(i18n.tr("settings_view_defaults_columns"))
-                .strong()
-                .color(palette.text_header_section),
-        );
+    settings_heading(ui, palette, &i18n.tr("settings_view_defaults_columns"));
+    settings_group(ui, |ui| {
         for column in DEFAULT_FILE_COLUMNS {
             let mut visible = current_order.contains(&column);
-            ui.horizontal(|ui| {
-                if setting_checkbox(
-                    ui,
-                    palette,
-                    &mut visible,
-                    RichText::new(file_column_label(i18n, column)).color(palette.text_normal),
-                    format!("view_default_column_{column:?}"),
-                ) {
-                    set_default_file_column_visible(
-                        &mut settings.current_settings.item_viewer_file_column_order,
-                        column,
-                        visible,
-                    );
-                    changed = true;
-                }
-                ui.add_space(8.0);
-            });
+            if setting_checkbox(
+                ui,
+                palette,
+                &mut visible,
+                RichText::new(file_column_label(i18n, column)),
+                format!("view_default_column_{column:?}"),
+            ) {
+                set_default_file_column_visible(
+                    &mut settings.current_settings.item_viewer_file_column_order,
+                    column,
+                    visible,
+                );
+                changed = true;
+            }
         }
     });
 
-    ui.add_space(8.0);
-
-    ui.group(|ui| {
-        ui.set_width(ui.available_width());
-        ui.label(
-            RichText::new(i18n.tr("settings_default_column_width"))
-                .strong()
-                .color(palette.text_header_section),
-        );
-
+    settings_heading(ui, palette, &i18n.tr("settings_default_column_width"));
+    settings_group(ui, |ui| {
         let defaults = default_item_viewer_file_column_size();
         if settings
             .current_settings
@@ -292,12 +287,14 @@ fn draw_view_defaults_tab(
             let mut width = settings.current_settings.item_viewer_file_column_sizes[index];
             setting_row(
                 ui,
-                |ui| setting_label(ui, &file_column_label(i18n, column), None, palette),
+                palette,
+                &file_column_label(i18n, column),
+                None,
+                SETTINGS_VALUE_WIDTH,
                 |ui| {
-                    apply_eden_visual_overrides(ui, palette);
                     if ui
                         .add_sized(
-                            [SETTINGS_VALUE_WIDTH, ui.spacing().interact_size.y],
+                            [SETTINGS_VALUE_WIDTH, SETTINGS_CONTROL_HEIGHT],
                             egui::DragValue::new(&mut width)
                                 .range(20.0..=1000.0)
                                 .speed(1.0),
@@ -315,17 +312,6 @@ fn draw_view_defaults_tab(
     changed.then_some(SettingsAction::ApplySettings)
 }
 
-/// Heading of a group in the Appearance tab.
-fn appearance_heading(ui: &mut egui::Ui, palette: &ThemePalette, text: &str) {
-    ui.add_space(6.0);
-    ui.label(
-        RichText::new(text)
-            .color(palette.text_header_section)
-            .strong(),
-    );
-    ui.add_space(2.0);
-}
-
 /// A checkbox row bound to one preference; true when it changed.
 fn pref_checkbox(
     ui: &mut egui::Ui,
@@ -334,19 +320,13 @@ fn pref_checkbox(
     key: &str,
     value: &mut bool,
 ) -> bool {
-    let changed = ui
-        .horizontal(|ui| {
-            setting_checkbox(
-                ui,
-                palette,
-                value,
-                RichText::new(i18n.tr(key)).color(palette.text_normal),
-                ("appearance", key),
-            )
-        })
-        .inner;
-    ui.add_space(4.0);
-    changed
+    setting_checkbox(
+        ui,
+        palette,
+        value,
+        RichText::new(i18n.tr(key)),
+        ("appearance", key),
+    )
 }
 
 fn draw_appearance_tab(
@@ -358,8 +338,8 @@ fn draw_appearance_tab(
     let mut changed = false;
     let prefs = &mut settings.current_settings.ui;
 
-    ui.group(|ui| {
-        appearance_heading(ui, palette, &i18n.tr("settings_theme_group"));
+    settings_heading(ui, palette, &i18n.tr("settings_theme_group"));
+    settings_group(ui, |ui| {
         if pref_checkbox(
             ui,
             palette,
@@ -372,11 +352,15 @@ fn draw_appearance_tab(
         }
         setting_row(
             ui,
-            |ui| setting_label(ui, &i18n.tr("settings_zoom"), None, palette),
+            palette,
+            &i18n.tr("settings_zoom"),
+            None,
+            SETTINGS_VALUE_WIDTH,
             |ui| {
                 let mut percent = (prefs.zoom * 100.0).round();
                 if ui
-                    .add(
+                    .add_sized(
+                        [SETTINGS_VALUE_WIDTH, SETTINGS_CONTROL_HEIGHT],
                         egui::DragValue::new(&mut percent)
                             .range(50.0..=300.0)
                             .speed(1.0)
@@ -391,43 +375,56 @@ fn draw_appearance_tab(
         );
     });
 
-    ui.group(|ui| {
-        appearance_heading(ui, palette, &i18n.tr("settings_item_list"));
+    settings_heading(ui, palette, &i18n.tr("settings_item_list"));
+    settings_group(ui, |ui| {
         setting_row(
             ui,
-            |ui| setting_label(ui, &i18n.tr("settings_checkboxes"), None, palette),
+            palette,
+            &i18n.tr("settings_checkboxes"),
+            None,
+            SETTINGS_COMBO_WIDTH,
             |ui| {
                 let current = i18n.tr(prefs.item_checkboxes.label_key());
-                draw_dropdown(ui, palette, "settings_checkboxes", 240.0, current, |ui| {
-                    for mode in CheckboxVisibility::ALL {
-                        if ui
-                            .selectable_label(
-                                prefs.item_checkboxes == mode,
-                                i18n.tr(mode.label_key()),
-                            )
-                            .clicked()
-                        {
-                            prefs.item_checkboxes = mode;
-                            changed = true;
+                settings_dropdown(
+                    ui,
+                    palette,
+                    "settings_checkboxes",
+                    SETTINGS_COMBO_WIDTH,
+                    current,
+                    |ui| {
+                        for mode in CheckboxVisibility::ALL {
+                            if ui
+                                .selectable_label(
+                                    prefs.item_checkboxes == mode,
+                                    i18n.tr(mode.label_key()),
+                                )
+                                .clicked()
+                            {
+                                prefs.item_checkboxes = mode;
+                                changed = true;
+                            }
                         }
-                    }
-                });
+                    },
+                );
             },
         );
     });
 
-    ui.group(|ui| {
-        appearance_heading(ui, palette, &i18n.tr("settings_toolbar"));
+    settings_heading(ui, palette, &i18n.tr("settings_toolbar"));
+    settings_group(ui, |ui| {
         setting_row(
             ui,
-            |ui| setting_label(ui, &i18n.tr("settings_toolbar_layout"), None, palette),
+            palette,
+            &i18n.tr("settings_toolbar_layout"),
+            None,
+            SETTINGS_COMBO_WIDTH,
             |ui| {
                 let current = i18n.tr(prefs.toolbar.layout.label_key());
-                draw_dropdown(
+                settings_dropdown(
                     ui,
                     palette,
                     "settings_toolbar_layout",
-                    200.0,
+                    SETTINGS_COMBO_WIDTH,
                     current,
                     |ui| {
                         for layout in ToolbarLayout::ALL {
@@ -446,7 +443,6 @@ fn draw_appearance_tab(
                 );
             },
         );
-        ui.add_space(4.0);
         let t = &mut prefs.toolbar;
         for (key, value) in [
             ("settings_toolbar_labels", &mut t.labels),
@@ -462,8 +458,8 @@ fn draw_appearance_tab(
         }
     });
 
-    ui.group(|ui| {
-        appearance_heading(ui, palette, &i18n.tr("settings_status_bar"));
+    settings_heading(ui, palette, &i18n.tr("settings_status_bar"));
+    settings_group(ui, |ui| {
         let s = &mut prefs.status_bar;
         for (key, value) in [
             ("settings_status_bar_visible", &mut s.visible),
@@ -476,8 +472,8 @@ fn draw_appearance_tab(
         }
     });
 
-    ui.group(|ui| {
-        appearance_heading(ui, palette, &i18n.tr("settings_sidebar"));
+    settings_heading(ui, palette, &i18n.tr("settings_sidebar"));
+    settings_group(ui, |ui| {
         let s = &mut prefs.sidebar;
         for (key, value) in [
             ("settings_sidebar_places", &mut s.places),
@@ -493,8 +489,8 @@ fn draw_appearance_tab(
         }
     });
 
-    ui.add_space(6.0);
-    if eden_button(ui, palette, &i18n.tr("settings_toolbar_explorer_like")).clicked() {
+    ui.add_space(8.0);
+    if settings_button(ui, palette, &i18n.tr("settings_toolbar_explorer_like")).clicked() {
         prefs.toolbar = ToolbarPrefs::explorer_like();
         prefs.status_bar = StatusBarPrefs::explorer_like();
         prefs.sidebar = SidebarPrefs::explorer_like();
@@ -512,12 +508,11 @@ fn draw_general_tab(
 ) -> Option<SettingsAction> {
     let mut action = None;
 
-    ui.horizontal(|ui| {
-        if eden_button(ui, palette, &i18n.tr("settings_reset")).clicked() {
-            settings.show_reset_confirmation = true;
-        }
-    });
-    ui.group(|ui| {
+    if settings_button(ui, palette, &i18n.tr("settings_reset")).clicked() {
+        settings.show_reset_confirmation = true;
+    }
+
+    settings_group(ui, |ui| {
         let language_label = i18n.tr("language");
         let english = i18n.tr("english");
         let japanese = i18n.tr("japanese");
@@ -528,9 +523,10 @@ fn draw_general_tab(
 
         setting_row(
             ui,
-            |ui| {
-                setting_label(ui, &language_label, None, palette);
-            },
+            palette,
+            &language_label,
+            None,
+            SETTINGS_COMBO_WIDTH,
             |ui| {
                 let mut selected_locale = settings.current_settings.language.clone();
 
@@ -556,118 +552,87 @@ fn draw_general_tab(
             },
         );
 
-        ui.add_space(8.0);
-
         // Folder Scanning
-        ui.horizontal(|ui| {
-            if setting_checkbox(
-                ui,
-                palette,
-                &mut settings.current_settings.folder_scanning_enabled,
-                RichText::new(&i18n.tr("settings_directoryscanning")).color(palette.text_normal),
-                "settings_directoryscanning",
-            ) {
-                // Auto-save when setting changes
-                action = Some(SettingsAction::ApplySettings);
-            }
-            info_icon(ui, &i18n.tr("tooltip_settings_directoryscanning"), palette);
-        });
-        ui.add_space(8.0);
+        if setting_toggle(
+            ui,
+            palette,
+            &mut settings.current_settings.folder_scanning_enabled,
+            &i18n.tr("settings_directoryscanning"),
+            Some(&i18n.tr("tooltip_settings_directoryscanning")),
+            "settings_directoryscanning",
+        ) {
+            // Auto-save when setting changes
+            action = Some(SettingsAction::ApplySettings);
+        }
         // Hidden Files/Folders
-        ui.horizontal(|ui| {
-            if setting_checkbox(
-                ui,
-                palette,
-                &mut settings.current_settings.show_hidden_files_folders,
-                RichText::new(&i18n.tr("settings_show_hidden_files_folders"))
-                    .color(palette.text_normal),
-                "settings_show_hidden_files_folders",
-            ) {
-                // Auto-save when setting changes
-                action = Some(SettingsAction::ApplySettings);
-            }
-            info_icon(
-                ui,
-                &i18n.tr("tooltip_settings_show_hidden_files_folders"),
-                palette,
-            );
-        });
-        ui.add_space(8.0);
+        if setting_toggle(
+            ui,
+            palette,
+            &mut settings.current_settings.show_hidden_files_folders,
+            &i18n.tr("settings_show_hidden_files_folders"),
+            Some(&i18n.tr("tooltip_settings_show_hidden_files_folders")),
+            "settings_show_hidden_files_folders",
+        ) {
+            // Auto-save when setting changes
+            action = Some(SettingsAction::ApplySettings);
+        }
         // Remember Open Tabs
-        ui.horizontal(|ui| {
-            if setting_checkbox(
-                ui,
-                palette,
-                &mut settings.current_settings.remember_open_tabs,
-                RichText::new(&i18n.tr("settings_remember_open_tabs")).color(palette.text_normal),
-                "settings_remember_open_tabs",
-            ) {
-                if settings.current_settings.remember_open_tabs {
-                    // Enabling the global setting takes precedence over any
-                    // per-tab opt-outs that were saved previously.
-                    settings.current_settings.unremembered_tabs.clear();
-                }
-                action = Some(SettingsAction::ApplySettings);
+        if setting_toggle(
+            ui,
+            palette,
+            &mut settings.current_settings.remember_open_tabs,
+            &i18n.tr("settings_remember_open_tabs"),
+            Some(&i18n.tr("tooltip_settings_remember_open_tabs")),
+            "settings_remember_open_tabs",
+        ) {
+            if settings.current_settings.remember_open_tabs {
+                // Enabling the global setting takes precedence over any
+                // per-tab opt-outs that were saved previously.
+                settings.current_settings.unremembered_tabs.clear();
             }
-            info_icon(ui, &i18n.tr("tooltip_settings_remember_open_tabs"), palette);
-        });
-        ui.add_space(8.0);
+            action = Some(SettingsAction::ApplySettings);
+        }
         // Show/Hide Item Viewer File Icons
-        ui.horizontal(|ui| {
-            if setting_checkbox(
-                ui,
-                palette,
-                &mut settings.current_settings.show_item_viewer_icons,
-                RichText::new(&i18n.tr("settings_show_item_viewer_file_icons"))
-                    .color(palette.text_normal),
-                "settings_show_item_viewer_file_icons",
-            ) {
-                // Auto-save when setting changes
-                action = Some(SettingsAction::ApplySettings);
-            }
-        });
-        ui.add_space(8.0);
-        ui.horizontal(|ui| {
-            if setting_checkbox(
-                ui,
-                palette,
-                &mut settings.current_settings.windows_context_menu_enabled,
-                RichText::new(&i18n.tr("settings_contextmenu_enable")).color(palette.text_normal),
-                "settings_contextmenu_enable",
-            ) {
-                action = Some(SettingsAction::ApplySettings);
-            }
-            info_icon(ui, &i18n.tr("tooltip_settings_contextmenu"), palette);
-        });
-        ui.add_space(8.0);
-        ui.horizontal(|ui| {
-            if setting_checkbox(
-                ui,
-                palette,
-                &mut settings.current_settings.extra_actions_bar,
-                RichText::new(i18n.tr("settings_enable_extra_action_buttons_in_item_viewer"))
-                    .color(palette.text_normal),
-                "settings_enable_extra_action_buttons_in_item_viewer",
-            ) {
-                action = Some(SettingsAction::ApplySettings);
-            }
-        });
-        ui.add_space(8.0);
+        if setting_checkbox(
+            ui,
+            palette,
+            &mut settings.current_settings.show_item_viewer_icons,
+            RichText::new(i18n.tr("settings_show_item_viewer_file_icons")),
+            "settings_show_item_viewer_file_icons",
+        ) {
+            // Auto-save when setting changes
+            action = Some(SettingsAction::ApplySettings);
+        }
+        if setting_toggle(
+            ui,
+            palette,
+            &mut settings.current_settings.windows_context_menu_enabled,
+            &i18n.tr("settings_contextmenu_enable"),
+            Some(&i18n.tr("tooltip_settings_contextmenu")),
+            "settings_contextmenu_enable",
+        ) {
+            action = Some(SettingsAction::ApplySettings);
+        }
+        if setting_checkbox(
+            ui,
+            palette,
+            &mut settings.current_settings.extra_actions_bar,
+            RichText::new(i18n.tr("settings_enable_extra_action_buttons_in_item_viewer")),
+            "settings_enable_extra_action_buttons_in_item_viewer",
+        ) {
+            action = Some(SettingsAction::ApplySettings);
+        }
         // Date Style Section
         setting_row(
             ui,
-            |ui| {
-                setting_label(
-                    ui,
-                    &i18n.tr("settings_datestyle"),
-                    Some((&i18n.tr("tooltip_settings_datestyle"), palette)),
-                    palette,
-                );
-            },
+            palette,
+            &i18n.tr("settings_datestyle"),
+            Some(&i18n.tr("tooltip_settings_datestyle")),
+            SETTINGS_COMBO_WIDTH,
             |ui| {
                 let mut selected_style = settings.current_settings.date_style;
 
-                draw_dropdown(
+                settings_dropdown(
                     ui,
                     palette,
                     "date_style_selector",
@@ -703,55 +668,49 @@ fn draw_general_tab(
             },
         );
 
-        ui.add_space(8.0);
         // Time Format Section
-        ui.horizontal(|ui| {
-            if setting_checkbox(
-                ui,
-                palette,
-                &mut settings.current_settings.time_format_24h,
-                RichText::new(i18n.tr("settings_timeformat_24h")).color(palette.text_normal),
-                "settings_timeformat_24h",
-            ) {
-                action = Some(SettingsAction::ApplySettings);
-            }
-            info_icon(ui, &i18n.tr("tooltip_settings_timeformat"), palette);
-        });
+        if setting_toggle(
+            ui,
+            palette,
+            &mut settings.current_settings.time_format_24h,
+            &i18n.tr("settings_timeformat_24h"),
+            Some(&i18n.tr("tooltip_settings_timeformat")),
+            "settings_timeformat_24h",
+        ) {
+            action = Some(SettingsAction::ApplySettings);
+        }
     });
-    ui.group(|ui| {
+    settings_group(ui, |ui| {
         // Starting Path
         setting_row(
             ui,
+            palette,
+            &i18n.tr("settings_startpath"),
+            None,
+            2.0 * SETTINGS_ICON_BUTTON + 8.0,
             |ui| {
-                setting_label(ui, &i18n.tr("settings_startpath"), None, palette);
-            },
-            |ui| {
-                if eden_icon_button(
+                if settings_icon_button(
                     ui,
                     palette,
                     AppIcon::ArrowCounterClockwise.regular(),
                     &i18n.tr("settings_startpath_reset_hover"),
                 )
-                .on_hover_text(i18n.tr("settings_startpath_reset_hover"))
                 .clicked()
                 {
                     settings.current_settings.start_path = Some(PathBuf::from(MY_PC_PATH));
                     action = Some(SettingsAction::ApplySettings);
                 }
 
-                if eden_icon_button(
+                let choose_clicked = settings_icon_button(
                     ui,
                     palette,
                     AppIcon::FolderOpen.regular(),
                     &i18n.tr("settings_startpath_choose_hover"),
                 )
-                .on_hover_text(i18n.tr("settings_startpath_choose_hover"))
-                .clicked()
-                {
-                    if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                        settings.current_settings.start_path = Some(path);
-                        action = Some(SettingsAction::ApplySettings);
-                    }
+                .clicked();
+                if choose_clicked && let Some(path) = rfd::FileDialog::new().pick_folder() {
+                    settings.current_settings.start_path = Some(path);
+                    action = Some(SettingsAction::ApplySettings);
                 }
             },
         );
@@ -769,42 +728,40 @@ fn draw_general_tab(
             })
             .unwrap_or_else(|| i18n.tr("settings_startpath_default"));
 
-        ui.allocate_ui_with_layout(
-            egui::vec2(ui.available_width(), ui.spacing().interact_size.y),
-            egui::Layout::left_to_right(egui::Align::Center),
-            |ui| {
-                apply_eden_visual_overrides(ui, palette);
-                ui.add_sized(
-                    [ui.available_width(), ui.spacing().interact_size.y],
-                    egui::Label::new(path_text),
-                )
-                .on_hover_text(
-                    settings
-                        .current_settings
-                        .start_path
-                        .as_ref()
-                        .map(|p| p.to_string_lossy().to_string())
-                        .unwrap_or_default(),
-                );
-            },
+        ui.add(
+            egui::Label::new(
+                RichText::new(path_text)
+                    .size(body_size(palette) - 1.0)
+                    .color(palette.text_normal),
+            )
+            .truncate(),
+        )
+        .on_hover_text(
+            settings
+                .current_settings
+                .start_path
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default(),
         );
+        ui.add_space(SETTINGS_ROW_GAP * 3.0);
 
-        ui.add_space(8.0);
         // Window Size Section
         let mut window_size_changed = false;
 
         setting_row(
             ui,
-            |ui| {
-                setting_label(ui, &i18n.tr("settings_windowsize"), None, palette);
-            },
+            palette,
+            &i18n.tr("settings_windowsize"),
+            None,
+            SETTINGS_COMBO_WIDTH + SETTINGS_ICON_BUTTON + 8.0,
             |ui| {
                 let is_fullscreen = matches!(
                     settings.current_settings.window_size_mode,
                     WindowSizeMode::FullScreen
                 );
 
-                draw_dropdown(
+                settings_dropdown(
                     ui,
                     palette,
                     "window_size_mode_selector",
@@ -841,13 +798,12 @@ fn draw_general_tab(
                     },
                 );
 
-                if eden_icon_button(
+                if settings_icon_button(
                     ui,
                     palette,
                     AppIcon::ArrowCounterClockwise.regular(),
                     &i18n.tr("settings_windowsize_reset_hover"),
                 )
-                .on_hover_text(i18n.tr("settings_windowsize_reset_hover"))
                 .clicked()
                 {
                     settings.current_settings.window_size_mode = WindowSizeMode::default();
@@ -861,14 +817,14 @@ fn draw_general_tab(
         {
             setting_row(
                 ui,
+                palette,
+                &i18n.tr("settings_windowsize_width"),
+                None,
+                SETTINGS_VALUE_WIDTH,
                 |ui| {
-                    setting_label(ui, &i18n.tr("settings_windowsize_width"), None, palette);
-                },
-                |ui| {
-                    apply_eden_visual_overrides(ui, palette);
                     window_size_changed |= ui
                         .add_sized(
-                            [SETTINGS_VALUE_WIDTH, ui.spacing().interact_size.y],
+                            [SETTINGS_VALUE_WIDTH, SETTINGS_CONTROL_HEIGHT],
                             egui::DragValue::new(width).range(800.0..=4000.0).speed(1.0),
                         )
                         .changed();
@@ -877,14 +833,14 @@ fn draw_general_tab(
 
             setting_row(
                 ui,
+                palette,
+                &i18n.tr("settings_windowsize_height"),
+                None,
+                SETTINGS_VALUE_WIDTH,
                 |ui| {
-                    setting_label(ui, &i18n.tr("settings_windowsize_height"), None, palette);
-                },
-                |ui| {
-                    apply_eden_visual_overrides(ui, palette);
                     window_size_changed |= ui
                         .add_sized(
-                            [SETTINGS_VALUE_WIDTH, ui.spacing().interact_size.y],
+                            [SETTINGS_VALUE_WIDTH, SETTINGS_CONTROL_HEIGHT],
                             egui::DragValue::new(height)
                                 .range(600.0..=3000.0)
                                 .speed(1.0),
@@ -898,20 +854,17 @@ fn draw_general_tab(
             action = Some(SettingsAction::ApplySettings);
         }
 
-        ui.add_space(8.0);
         // Favorites Reset
-        ui.horizontal(|ui| {
-            if eden_button(ui, palette, &i18n.tr("settings_favorites_reset"))
-                .on_hover_text(
-                    egui::RichText::new(&i18n.tr("tooltip_settings_favorites_reset"))
-                        .size(palette.tooltip_text_size)
-                        .color(palette.tooltip_text_color),
-                )
-                .clicked()
-            {
-                settings.show_reset_favorites_confirmation = true;
-            }
-        });
+        if settings_button(ui, palette, &i18n.tr("settings_favorites_reset"))
+            .on_hover_text(
+                egui::RichText::new(i18n.tr("tooltip_settings_favorites_reset"))
+                    .size(palette.tooltip_text_size)
+                    .color(palette.tooltip_text_color),
+            )
+            .clicked()
+        {
+            settings.show_reset_favorites_confirmation = true;
+        }
     });
 
     action
@@ -966,11 +919,16 @@ fn draw_confirmation_dialog(
     }
 }
 
+fn info_icon_size(palette: &ThemePalette) -> f32 {
+    palette.text_size + 5.0
+}
+
 fn info_icon(ui: &mut egui::Ui, hover_text: &str, palette: &ThemePalette) -> egui::Response {
+    let size = info_icon_size(palette);
     let resp = draw_icon(
         ui,
         AppIcon::Question.regular(),
-        palette.text_size + 2.0,
+        size,
         palette.text_normal,
         hover_text,
     );
@@ -980,7 +938,7 @@ fn info_icon(ui: &mut egui::Ui, hover_text: &str, palette: &ThemePalette) -> egu
             ui,
             resp.rect,
             AppIcon::Question.regular(),
-            palette.text_size + 2.0,
+            size,
             palette.primary,
         );
     }
@@ -1006,27 +964,109 @@ fn info_icon(ui: &mut egui::Ui, hover_text: &str, palette: &ThemePalette) -> egu
     resp
 }
 
-fn setting_label(
-    ui: &mut egui::Ui,
-    text: &str,
-    info: Option<(&str, &ThemePalette)>,
-    palette: &ThemePalette,
-) {
-    let h = ui.spacing().interact_size.y;
+/// Heading above a group of rows.
+fn settings_heading(ui: &mut egui::Ui, palette: &ThemePalette, text: &str) {
+    ui.add_space(12.0);
+    ui.label(
+        RichText::new(text)
+            .size(body_size(palette) + 2.0)
+            .strong()
+            .color(palette.text_header_section),
+    );
+    ui.add_space(4.0);
+}
 
-    ui.allocate_ui_with_layout(
-        egui::vec2(ui.available_width(), h),
-        egui::Layout::left_to_right(egui::Align::Center),
-        |ui| {
-            eden_text_label(ui, palette, text);
-            if let Some((hover_text, palette)) = info {
-                ui.add_space(4.0);
-                info_icon(ui, hover_text, palette);
-            }
-        },
+/// Full-width container of related rows.
+fn settings_group(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui)) {
+    ui.group(|ui| {
+        ui.set_width(ui.available_width());
+        add_contents(ui);
+    });
+}
+
+fn settings_button(ui: &mut egui::Ui, palette: &ThemePalette, text: &str) -> egui::Response {
+    ui.add(
+        egui::Button::new(
+            RichText::new(text)
+                .size(body_size(palette))
+                .color(palette.text_normal),
+        )
+        .min_size(egui::vec2(0.0, SETTINGS_CONTROL_HEIGHT)),
+    )
+}
+
+fn settings_icon_button(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    icon: crate::gui::icon_system::StyledIcon,
+    label: &str,
+) -> egui::Response {
+    eden_icon_button(
+        ui,
+        palette,
+        icon,
+        label,
+        SETTINGS_ICON_BUTTON,
+        body_size(palette) + 2.0,
+    )
+    .on_hover_text(label)
+}
+
+fn settings_dropdown(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    width: f32,
+    selected_text: impl Into<egui::WidgetText>,
+    add_contents: impl FnOnce(&mut egui::Ui),
+) {
+    draw_dropdown_sized(
+        ui,
+        palette,
+        id,
+        width,
+        Some(SETTINGS_CONTROL_HEIGHT),
+        selected_text,
+        add_contents,
     );
 }
 
+/// Label column of a row: wrapping text plus an optional info icon right after it.
+/// Returns the text's response (click-sensitive).
+fn setting_label(
+    ui: &mut egui::Ui,
+    text: &str,
+    info: Option<&str>,
+    palette: &ThemePalette,
+) -> egui::Response {
+    let icon_width = if info.is_some() {
+        info_icon_size(palette) + 6.0
+    } else {
+        0.0
+    };
+    let max_width = (ui.available_width() - icon_width).max(40.0);
+    let resp = ui
+        .scope(|ui| {
+            ui.set_max_width(max_width);
+            ui.add(
+                egui::Label::new(
+                    RichText::new(text)
+                        .size(body_size(palette))
+                        .color(palette.text_normal),
+                )
+                .wrap()
+                .sense(egui::Sense::click()),
+            )
+        })
+        .inner;
+    if let Some(hover_text) = info {
+        ui.add_space(4.0);
+        info_icon(ui, hover_text, palette);
+    }
+    resp
+}
+
+/// A checkbox row (no info icon); true when it changed.
 fn setting_checkbox(
     ui: &mut egui::Ui,
     palette: &ThemePalette,
@@ -1034,54 +1074,67 @@ fn setting_checkbox(
     label: RichText,
     id: impl std::hash::Hash + std::fmt::Debug,
 ) -> bool {
-    let mut changed = false;
+    setting_toggle(ui, palette, checked, label.text(), None, id)
+}
 
-    ui.horizontal(|ui| {
-        let checkbox_resp = ui
+/// A checkbox row: label (with optional info icon) left, checkbox right. Clicking the label
+/// toggles too. True when it changed.
+fn setting_toggle(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    checked: &mut bool,
+    label: &str,
+    info: Option<&str>,
+    id: impl std::hash::Hash + std::fmt::Debug,
+) -> bool {
+    let mut changed = false;
+    let label_resp = setting_row(ui, palette, label, info, SETTINGS_CHECKBOX_HIT, |ui| {
+        let resp = ui
             .allocate_ui_with_layout(
-                egui::vec2(16.0, ui.spacing().interact_size.y),
+                egui::vec2(SETTINGS_CHECKBOX_HIT, SETTINGS_CHECKBOX_HIT),
                 egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
-                |ui| draw_checkbox(ui, palette, checked, id, label.text()),
+                |ui| draw_checkbox_sized(ui, palette, checked, id, label, SETTINGS_CHECKBOX_SIZE),
             )
             .inner;
-
-        if checkbox_resp.clicked() {
-            changed = true;
-        }
-
-        ui.add_space(4.0);
-        let label_resp = ui.add(egui::Label::new(label).sense(egui::Sense::click()));
-        if label_resp.clicked() {
-            *checked = !*checked;
-            changed = true;
-        }
+        changed |= resp.clicked();
     });
-
+    if label_resp.is_some_and(|resp| resp.clicked()) {
+        *checked = !*checked;
+        changed = true;
+    }
     changed
 }
 
-const SETTINGS_LABEL_WIDTH: f32 = 150.0;
-pub fn setting_row<L, R>(ui: &mut egui::Ui, left: L, right: R)
-where
-    L: FnOnce(&mut egui::Ui),
-    R: FnOnce(&mut egui::Ui),
-{
-    let row_height = ui.spacing().interact_size.y;
-
-    ui.horizontal(|ui| {
-        // Fixed-width label column
-        ui.allocate_ui_with_layout(
-            egui::vec2(SETTINGS_LABEL_WIDTH, row_height),
-            egui::Layout::left_to_right(egui::Align::Center),
-            left,
-        );
-
-        // Flexible spacer
-        ui.add_space(ui.available_width());
-
-        // Right-aligned controls
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), right);
-    });
+/// One settings row: label (wrapping, optional info icon) on the left, `control` right-aligned
+/// in a column of `control_width`. The label column is whatever the control leaves, so a
+/// long translated label wraps instead of running under the control. Returns the label's
+/// response.
+pub fn setting_row(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    label: &str,
+    info: Option<&str>,
+    control_width: f32,
+    control: impl FnOnce(&mut egui::Ui),
+) -> Option<egui::Response> {
+    let mut label_resp = None;
+    ui.allocate_ui_with_layout(
+        egui::vec2(ui.available_width(), SETTINGS_ROW_HEIGHT),
+        egui::Layout::right_to_left(egui::Align::Center),
+        |ui| {
+            ui.allocate_ui_with_layout(
+                egui::vec2(control_width, SETTINGS_ROW_HEIGHT),
+                egui::Layout::right_to_left(egui::Align::Center),
+                control,
+            );
+            ui.add_space(SETTINGS_CONTROL_GAP);
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                label_resp = Some(setting_label(ui, label, info, palette));
+            });
+        },
+    );
+    ui.add_space(SETTINGS_ROW_GAP);
+    label_resp
 }
 
 pub fn combo_box_string(
@@ -1100,7 +1153,7 @@ pub fn combo_box_string(
         .map(|(_, label)| label.as_str())
         .unwrap_or("");
 
-    draw_dropdown(ui, palette, id, width, selected_text, |ui| {
+    settings_dropdown(ui, palette, id, width, selected_text, |ui| {
         for (key, label) in options {
             if ui.selectable_label(value == key, label).clicked() {
                 *value = (*key).to_string();
@@ -1116,6 +1169,37 @@ pub fn combo_box_string(
 /// dialog consumes Escape itself as "cancel", so only the dialog closes.
 fn escape_closes_settings(escape_pressed: bool, confirmation_open: bool) -> bool {
     escape_pressed && !confirmation_open
+}
+
+const SETTINGS_TABS: [(SettingsTab, &str); 4] = [
+    (SettingsTab::General, "settings_tab_general"),
+    (SettingsTab::Appearance, "settings_tab_appearance"),
+    (SettingsTab::ViewDefaults, "settings_tab_view_defaults"),
+    (SettingsTab::Hotkeys, "settings_tab_hotkeys"),
+];
+
+/// Bigger text, spacing and hit targets for the settings window only.
+fn apply_settings_style(ui: &mut egui::Ui, palette: &ThemePalette) {
+    let body = body_size(palette);
+    let mut style = (**ui.style()).clone();
+    style.text_styles.insert(
+        egui::TextStyle::Heading,
+        egui::FontId::proportional(body + 3.0),
+    );
+    for text_style in [egui::TextStyle::Body, egui::TextStyle::Button] {
+        style
+            .text_styles
+            .insert(text_style, egui::FontId::proportional(body));
+    }
+    style.text_styles.insert(
+        egui::TextStyle::Small,
+        egui::FontId::proportional(body - 2.0),
+    );
+    style.spacing.item_spacing = egui::vec2(10.0, 6.0);
+    style.spacing.interact_size = egui::vec2(40.0, SETTINGS_CONTROL_HEIGHT);
+    style.spacing.button_padding = egui::vec2(12.0, 6.0);
+    style.override_text_valign = Some(egui::Align::Center);
+    ui.set_style(style);
 }
 
 pub fn draw_settings_window(
@@ -1165,10 +1249,12 @@ pub fn draw_settings_window(
 
     let mut settings_open = settings.open;
 
+    let window_size = ctx.content_rect().size();
     egui::Window::new(i18n.tr("settings"))
         .collapsible(false)
-        .resizable(false)
-        .fixed_size(clamp_dialog_size([600.0, 550.0], ctx.content_rect().size()))
+        .resizable(true)
+        .default_size(clamp_dialog_size(SETTINGS_WINDOW_DEFAULT_SIZE, window_size))
+        .min_size(clamp_dialog_size(SETTINGS_WINDOW_MIN_SIZE, window_size))
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .open(&mut settings_open)
         .frame(
@@ -1176,90 +1262,36 @@ pub fn draw_settings_window(
                 .corner_radius(egui::CornerRadius::same(palette.large_radius)),
         )
         .show(ctx, |ui| {
-            let mut style = (**ui.style()).clone();
-            style.text_styles = [
-                (egui::TextStyle::Heading, egui::FontId::proportional(14.0)),
-                (
-                    egui::TextStyle::Body,
-                    egui::FontId::proportional(palette.text_size),
-                ),
-                (
-                    egui::TextStyle::Button,
-                    egui::FontId::proportional(palette.text_size),
-                ),
-                (
-                    egui::TextStyle::Small,
-                    egui::FontId::proportional(palette.text_size),
-                ),
-            ]
-            .into();
-            style.override_text_valign = Some(egui::Align::Center);
-            ui.set_style(style);
+            apply_settings_style(ui, palette);
 
             ui.horizontal(|ui| {
-                if eden_toggle_button(
-                    ui,
-                    palette,
-                    settings.selected_tab == SettingsTab::General,
-                    &i18n.tr("settings_tab_general"),
-                )
-                .clicked()
-                {
-                    settings.selected_tab = SettingsTab::General;
-                }
-                if eden_toggle_button(
-                    ui,
-                    palette,
-                    settings.selected_tab == SettingsTab::Appearance,
-                    &i18n.tr("settings_tab_appearance"),
-                )
-                .clicked()
-                {
-                    settings.selected_tab = SettingsTab::Appearance;
-                }
-                if eden_toggle_button(
-                    ui,
-                    palette,
-                    settings.selected_tab == SettingsTab::ViewDefaults,
-                    &i18n.tr("settings_tab_view_defaults"),
-                )
-                .clicked()
-                {
-                    settings.selected_tab = SettingsTab::ViewDefaults;
-                }
-                if eden_toggle_button(
-                    ui,
-                    palette,
-                    settings.selected_tab == SettingsTab::Hotkeys,
-                    &i18n.tr("settings_tab_hotkeys"),
-                )
-                .clicked()
-                {
-                    settings.selected_tab = SettingsTab::Hotkeys;
+                for (tab, key) in SETTINGS_TABS {
+                    if eden_toggle_button(ui, palette, settings.selected_tab == tab, &i18n.tr(key))
+                        .clicked()
+                    {
+                        settings.selected_tab = tab;
+                    }
                 }
             });
             ui.separator();
 
             // SCROLLABLE CONTENT
             egui::ScrollArea::vertical()
-                .auto_shrink([false, true])
+                .auto_shrink([false, false])
                 .show(ui, |ui| {
-                    if settings.selected_tab == SettingsTab::Hotkeys {
-                        draw_hotkeys_tab(ui, palette, i18n);
-                        return;
-                    }
-
-                    if settings.selected_tab == SettingsTab::Appearance {
-                        action = draw_appearance_tab(ui, settings, palette, i18n);
-                        return;
-                    }
-
-                    if settings.selected_tab == SettingsTab::ViewDefaults {
-                        action = draw_view_defaults_tab(ui, settings, palette, i18n);
-                        return;
-                    }
-
-                    action = draw_general_tab(ui, settings, palette, i18n);
+                    // Keep content clear of the scroll bar.
+                    ui.set_max_width(ui.available_width() - 14.0);
+                    action = match settings.selected_tab {
+                        SettingsTab::Hotkeys => {
+                            draw_hotkeys_tab(ui, palette, i18n);
+                            None
+                        }
+                        SettingsTab::Appearance => draw_appearance_tab(ui, settings, palette, i18n),
+                        SettingsTab::ViewDefaults => {
+                            draw_view_defaults_tab(ui, settings, palette, i18n)
+                        }
+                        SettingsTab::General => draw_general_tab(ui, settings, palette, i18n),
+                    };
                 });
 
             // These confirmation dialogs live outside the selected-tab content so they
