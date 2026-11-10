@@ -52,7 +52,7 @@ pub fn draw_item_viewer(
     hovered_drop_target_out: &mut Option<PathBuf>,
     hovered_drop_target_rect_out: &mut Option<egui::Rect>,
     tags_state: &mut TagsState,
-    theme_customizer_window: &mut ThemeCustomizer,
+    _theme_customizer_window: &mut ThemeCustomizer,
     settings_window: &mut SettingsWindow,
     hwnd: Option<HWND>,
     is_focused: bool,
@@ -77,8 +77,7 @@ pub fn draw_item_viewer(
     draw_external_to_internal_drag_overlay(ui, i18n, *external_drag_to_internal_hover, palette);
 
     let layout = compute_layout(ui, is_drive_view, is_recycle_bin_view, palette);
-    let modal_input_blocked =
-        tags_state.picker.is_some() || theme_customizer_window.open || settings_window.open;
+    let modal_input_blocked = tags_state.picker.is_some() || settings_window.open;
 
     let mut action: Option<ItemViewerAction> = None;
 
@@ -131,7 +130,7 @@ pub fn draw_item_viewer(
             is_cut_mode,
             is_drive_view,
             is_recycle_bin_view,
-            theme_customizer_window,
+            _theme_customizer_window,
             settings_window,
             hwnd,
         ) {
@@ -179,7 +178,7 @@ pub fn draw_item_viewer(
             drag_hover_target,
             hovered_drop_target_out,
             hovered_drop_target_rect_out,
-            theme_customizer_window,
+            _theme_customizer_window,
             settings_window,
             hwnd,
             modal_input_blocked,

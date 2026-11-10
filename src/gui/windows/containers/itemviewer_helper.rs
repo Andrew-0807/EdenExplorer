@@ -887,7 +887,7 @@ pub fn handle_global_actions(
     is_cut_mode: bool,
     is_drive_view: bool,
     is_recycle_bin_view: bool,
-    theme_customizer_window: &mut ThemeCustomizer,
+    _theme_customizer_window: &mut ThemeCustomizer,
     settings_windows: &mut SettingsWindow,
     hwnd: Option<HWND>,
 ) -> Option<ItemViewerAction> {
@@ -897,7 +897,7 @@ pub fn handle_global_actions(
         .as_ref()
         .is_some_and(|t| t.is_breadcrumb_path_edit_active);
 
-    if theme_customizer_window.open || settings_windows.open {
+    if settings_windows.open {
         return None;
     }
 

@@ -33,10 +33,9 @@ use crate::gui::windows::containers::structs::{
     ItemViewerFolderSizeState, ItemViewerNavBarAction, RenameState, SidebarAction, SplitSide,
     TabState, TabView, TabsAction, TopbarAction,
 };
-use crate::gui::windows::customizetheme::draw_theme_customizer;
 use crate::gui::windows::enums::{SettingsAction, ThemeCustomizerAction};
-use crate::gui::windows::settings::draw_settings_window;
-use crate::gui::windows::structs::{AppSettings, Navigation, ThemeCustomizer};
+use crate::gui::windows::settings::{ThemeContext, draw_settings_window};
+use crate::gui::windows::structs::{AppSettings, Navigation, SettingsTab, ThemeCustomizer};
 use crate::gui::windows::windowsoverrides::mark_clipboard_dirty;
 use crate::gui::windows::windowsoverrides::toggle_window_fullscreen;
 use crossbeam_channel::Receiver;
@@ -1517,9 +1516,20 @@ impl MainWindow {
     }
 
     pub fn handle_draw_settings_window(&mut self, ctx: &egui::Context, palette: &ThemePalette) {
-        if let Some(action) =
-            draw_settings_window(ctx, &mut self.settings_window, &mut self.i18n, palette)
-        {
+        if let Some(action) = draw_settings_window(
+            ctx,
+            &mut self.settings_window,
+            &mut ThemeContext {
+                customizer: &mut self.theme_customizer,
+                mode: self.theme,
+            },
+            &mut self.i18n,
+            palette,
+        ) {
+            if let Some(mode) = self.theme_customizer.requested_mode.take() {
+                self.theme = mode;
+                self.theme_dirty = true;
+            }
             match action {
                 SettingsAction::ApplySettings => {
                     self.save_app_settings_to_disk();
@@ -2131,7 +2141,8 @@ impl MainWindow {
             }
 
             if action.customize_theme {
-                self.theme_customizer.open = true;
+                self.settings_window.selected_tab = SettingsTab::Appearance;
+                self.settings_window.open = true;
             }
 
             if action.open_settings {
@@ -2224,8 +2235,7 @@ impl MainWindow {
         });
 
         let active_tab = self.active_tab();
-        self.theme_customizer.open
-            || self.settings_window.open
+        self.settings_window.open
             || self.about_window.open
             || self.zoxide_popup.open
             || self.tags_state.picker.is_some()
@@ -3545,15 +3555,15 @@ pub(crate) fn font_needs_reload(applied: &mut Option<String>, font_name: &str) -
 }
 
 pub fn handle_draw_customizetheme_window(
-    i18n: &I18n,
+    _i18n: &I18n,
     ctx: &egui::Context,
     theme_customizer: &mut ThemeCustomizer,
-    palette: &ThemePalette,
+    _palette: &ThemePalette,
     current_mode: ThemeMode,
     theme_dirty: &mut bool,
     theme_save_pending: &mut bool,
 ) {
-    if let Some(action) = draw_theme_customizer(&i18n, ctx, theme_customizer, palette) {
+    if let Some(action) = theme_customizer.pending_action.take() {
         match action {
             ThemeCustomizerAction::ThemeUpdated(mode) => {
                 let updated = match mode {
