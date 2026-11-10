@@ -5,6 +5,7 @@ use crate::core::icons::IconCache;
 use crate::core::utils::text::apply_eden_text_overrides;
 use crate::core::utils::widgets::draw_checkbox;
 use crate::gui::customization::CheckboxVisibility;
+use crate::gui::keymap::{self, Action};
 use crate::gui::selection::item_paint;
 use crate::gui::theme::ThemePalette;
 use crate::gui::utils::{draw_object_drag_ghost, fuzzy_match, truncate_item_text};
@@ -227,8 +228,8 @@ pub fn draw_item_viewer(
         let arrow_nav = ui.ctx().input(|i| {
             i.key_pressed(egui::Key::ArrowDown)
                 || i.key_pressed(egui::Key::ArrowUp)
-                || i.key_pressed(egui::Key::Home)
-                || i.key_pressed(egui::Key::End)
+                || keymap::pressed(i, Action::SelectFirst)
+                || keymap::pressed(i, Action::SelectLast)
         });
 
         let column_layout = compute_item_viewer_column_layout(

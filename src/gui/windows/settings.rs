@@ -132,6 +132,7 @@ impl Default for AppSettings {
             pinned_tabs: Vec::new(),
             remember_open_tabs: false,
             zoxide_auto_add: false,
+            hotkeys: Default::default(),
             unremembered_tabs: Vec::new(),
             remembered_active_tab: None,
             time_format_24h: false,

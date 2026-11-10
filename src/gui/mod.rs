@@ -4,6 +4,8 @@ pub mod customization;
 pub mod dragdrop;
 pub mod folder_icons;
 pub mod icon_system;
+#[allow(dead_code)] // editor UI lands in the next commit
+pub mod keymap;
 pub mod selection;
 pub mod theme;
 pub mod theme_presets;

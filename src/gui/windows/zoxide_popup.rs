@@ -1,6 +1,7 @@
 use crate::core::i18n::I18n;
 use crate::core::utils::text::fuzzy_match;
 use crate::core::zoxide::{self, Entry};
+use crate::gui::keymap::{self, Action};
 use crate::gui::theme::ThemePalette;
 use eframe::egui;
 use std::path::{Path, PathBuf};
@@ -135,7 +136,7 @@ impl ZoxidePopup {
         let none = egui::Modifiers::NONE;
         ctx.input_mut(|i| {
             self.intent.close |=
-                i.consume_key(none, egui::Key::Escape) || i.consume_key(cmd, egui::Key::K);
+                i.consume_key(none, egui::Key::Escape) | keymap::consume(i, Action::ZoxideJump);
             self.intent.add |= i.consume_key(cmd, egui::Key::A);
             self.intent.remove |= i.consume_key(cmd, egui::Key::Delete);
             self.intent.enter |= i.consume_key(none, egui::Key::Enter);

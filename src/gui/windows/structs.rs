@@ -67,6 +67,8 @@ pub struct AppSettings {
     pub remember_open_tabs: bool,
     /// Records folders in zoxide after the user stays in them for a moment.
     pub zoxide_auto_add: bool,
+    /// Rebound shortcuts only (action name to chords); missing actions use defaults.
+    pub hotkeys: crate::gui::keymap::Overrides,
     pub unremembered_tabs: Vec<PathBuf>,
     #[serde(default)]
     pub remembered_active_tab: Option<PathBuf>,
