@@ -1,9 +1,9 @@
 use crate::core::i18n::I18n;
 use crate::core::utils::fonts::get_font_list;
 use crate::gui::theme::{
-    ThemeMode, ThemePalette, apply_font_to_context, get_default_palette,
-    regenerate_base_derived_colors,
+    ThemeMode, ThemePalette, apply_font_to_context, error_color, regenerate_base_derived_colors,
 };
+use crate::gui::theme_presets::{ThemePreset, preset_palette};
 use crate::gui::utils::rgba_color_edit_button;
 use crate::gui::utils::widgets::{
     apply_eden_visual_overrides, draw_dropdown, eden_button, eden_text_label, eden_toggle_button,
@@ -12,6 +12,7 @@ use crate::gui::windows::enums::ThemeCustomizerAction;
 use crate::gui::windows::structs::ThemeCustomizer;
 use crate::gui::windows::windowsoverrides::clamp_dialog_size;
 use eframe::egui;
+use egui::Color32;
 
 fn selectable_mode(
     ui: &mut egui::Ui,
@@ -21,6 +22,153 @@ fn selectable_mode(
     label: &str,
 ) -> bool {
     eden_toggle_button(ui, palette, current == target, label).clicked()
+}
+
+/// Draws rows of a two-column grid (label | control) and remembers whether
+/// any control changed.
+pub(crate) struct EditorRows<'a> {
+    pub i18n: &'a I18n,
+    /// Palette of the active theme, used to style the editor itself.
+    pub style: &'a ThemePalette,
+    pub changed: bool,
+}
+
+impl EditorRows<'_> {
+    fn label(&self, ui: &mut egui::Ui, key: &str) {
+        eden_text_label(ui, self.style, &self.i18n.tr(key));
+    }
+
+    fn control<R>(&self, ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
+        let style = self.style;
+        let inner = ui
+            .with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                apply_eden_visual_overrides(ui, style);
+                add(ui)
+            })
+            .inner;
+        ui.end_row();
+        inner
+    }
+
+    pub fn color(&mut self, ui: &mut egui::Ui, key: &str, color: &mut Color32) -> bool {
+        self.label(ui, key);
+        let changed = self.control(ui, |ui| rgba_color_edit_button(ui, color).changed());
+        self.changed |= changed;
+        changed
+    }
+
+    pub fn number(
+        &mut self,
+        ui: &mut egui::Ui,
+        key: &str,
+        value: &mut f32,
+        range: std::ops::RangeInclusive<f32>,
+        speed: f64,
+    ) -> bool {
+        self.label(ui, key);
+        let changed = self.control(ui, |ui| {
+            ui.add_sized(
+                egui::vec2(90.0, 0.0),
+                egui::DragValue::new(value).range(range).speed(speed),
+            )
+            .changed()
+        });
+        self.changed |= changed;
+        changed
+    }
+
+    pub fn byte(
+        &mut self,
+        ui: &mut egui::Ui,
+        key: &str,
+        value: &mut u8,
+        range: std::ops::RangeInclusive<u8>,
+    ) -> bool {
+        self.label(ui, key);
+        let changed = self.control(ui, |ui| {
+            ui.add_sized(
+                egui::vec2(90.0, 0.0),
+                egui::DragValue::new(value).range(range).speed(0.1),
+            )
+            .changed()
+        });
+        self.changed |= changed;
+        changed
+    }
+
+    // Used by the backdrop, selection and icon sections added later in the stack.
+    #[allow(dead_code)]
+    pub fn toggle(&mut self, ui: &mut egui::Ui, key: &str, value: &mut bool) -> bool {
+        self.label(ui, key);
+        let style = self.style;
+        let changed = self.control(ui, |ui| {
+            crate::gui::utils::widgets::draw_checkbox(ui, style, value, ("theme_toggle", key), key)
+                .clicked()
+        });
+        self.changed |= changed;
+        changed
+    }
+
+    /// A drop-down over `options` (value, i18n key).
+    #[allow(dead_code)]
+    pub fn choice<T: Copy + PartialEq>(
+        &mut self,
+        ui: &mut egui::Ui,
+        key: &str,
+        value: &mut T,
+        options: &[(T, &str)],
+    ) -> bool {
+        self.label(ui, key);
+        let i18n = self.i18n;
+        let style = self.style;
+        let current = options
+            .iter()
+            .find(|(v, _)| v == value)
+            .map(|(_, k)| i18n.tr(k))
+            .unwrap_or_default();
+        let changed = self.control(ui, |ui| {
+            let mut changed = false;
+            draw_dropdown(ui, style, ("theme_choice", key), 180.0, current, |ui| {
+                for (option, label_key) in options {
+                    if ui
+                        .selectable_label(option == value, i18n.tr(label_key))
+                        .clicked()
+                    {
+                        *value = *option;
+                        changed = true;
+                        ui.close();
+                    }
+                }
+            });
+            changed
+        });
+        self.changed |= changed;
+        changed
+    }
+}
+
+/// One collapsible group of rows.
+fn section(
+    ui: &mut egui::Ui,
+    rows: &mut EditorRows,
+    title_key: &str,
+    open: bool,
+    add: impl FnOnce(&mut egui::Ui, &mut EditorRows),
+) {
+    let title = egui::RichText::new(rows.i18n.tr(title_key))
+        .size(rows.style.text_size + 1.0)
+        .color(rows.style.text_header_section)
+        .strong();
+    egui::CollapsingHeader::new(title)
+        .id_salt(("theme_section", title_key))
+        .default_open(open)
+        .show(ui, |ui| {
+            egui::Grid::new(("theme_grid", title_key))
+                .num_columns(2)
+                .spacing([12.0, 6.0])
+                .min_col_width(200.0)
+                .show(ui, |ui| add(ui, rows));
+        });
 }
 
 pub fn draw_theme_customizer(
@@ -56,12 +204,13 @@ pub fn draw_theme_customizer(
         customizer.open = false;
     }
 
+    let mut open = customizer.open;
     egui::Window::new(i18n.tr("theme_title"))
         .collapsible(false)
         .resizable(false)
-        .fixed_size(clamp_dialog_size([600.0, 550.0], ctx.content_rect().size()))
+        .fixed_size(clamp_dialog_size([620.0, 600.0], ctx.content_rect().size()))
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-        .open(&mut customizer.open)
+        .open(&mut open)
         .frame(
             egui::Frame::popup(&ctx.style_of(ctx.theme()))
                 .corner_radius(egui::CornerRadius::same(palette.large_radius)),
@@ -89,335 +238,251 @@ pub fn draw_theme_customizer(
                 ) {
                     customizer.selected_mode = ThemeMode::Light;
                 }
+
+                ui.separator();
+                if let Some(preset) = preset_picker(ui, i18n, palette) {
+                    let mode = customizer.selected_mode;
+                    let edited = customizer.palette_mut(mode);
+                    *edited = preset_palette(preset, mode, edited);
+                    action = Some(ThemeCustomizerAction::ThemeUpdated(mode));
+                }
             });
+            ui.add_space(4.0);
 
-            let editing_palette = match customizer.selected_mode {
-                ThemeMode::Dark => &mut customizer.dark_palette,
-                ThemeMode::Light => &mut customizer.light_palette,
+            let mode = customizer.selected_mode;
+            let editing_palette = customizer.palette_mut(mode);
+            let mut rows = EditorRows {
+                i18n,
+                style: palette,
+                changed: false,
             };
-
-            let mut changed = false;
 
             // SCROLLABLE CONTENT
             egui::ScrollArea::vertical()
-                .auto_shrink([false, true])
+                .auto_shrink([false, false])
+                .max_height(ui.available_height() - 40.0)
                 .show(ui, |ui| {
-                    ui.group(|ui| {
-                        apply_eden_visual_overrides(ui, palette);
-                        eden_text_label(ui, palette, &i18n.tr("theme_typography"));
-
-                        ui.add_space(6.0);
-                        egui::Grid::new("typography_settings")
-                            .num_columns(2)
-                            .spacing([12.0, 6.0])
-                            .show(ui, |ui| {
-                                eden_text_label(ui, palette, &i18n.tr("theme_textsize"));
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        apply_eden_visual_overrides(ui, palette);
-                                        changed |= ui
-                                            .add_sized(
-                                                egui::vec2(90.0, 0.0),
-                                                egui::DragValue::new(
-                                                    &mut editing_palette.text_size,
-                                                )
-                                                .range(8.0..=24.0)
-                                                .speed(0.2),
-                                            )
-                                            .changed();
-                                    },
-                                );
-                                ui.end_row();
-
-                                eden_text_label(ui, palette, &i18n.tr("theme_tooltip_textsize"));
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        apply_eden_visual_overrides(ui, palette);
-                                        changed |= ui
-                                            .add_sized(
-                                                egui::vec2(90.0, 0.0),
-                                                egui::DragValue::new(
-                                                    &mut editing_palette.tooltip_text_size,
-                                                )
-                                                .range(8.0..=24.0)
-                                                .speed(0.2),
-                                            )
-                                            .changed();
-                                    },
-                                );
-                                ui.end_row();
-
-                                eden_text_label(ui, palette, &i18n.tr("theme_explorer_rowheight"));
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        apply_eden_visual_overrides(ui, palette);
-                                        changed |= ui
-                                            .add_sized(
-                                                egui::vec2(90.0, 0.0),
-                                                egui::DragValue::new(
-                                                    &mut editing_palette.row_height,
-                                                )
-                                                .range(8.0..=32.0)
-                                                .speed(0.5),
-                                            )
-                                            .changed();
-                                    },
-                                );
-                                ui.end_row();
-
-                                eden_text_label(ui, palette, &i18n.tr("theme_sidebar_iconsize"));
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        apply_eden_visual_overrides(ui, palette);
-                                        changed |= ui
-                                            .add_sized(
-                                                egui::vec2(90.0, 0.0),
-                                                egui::DragValue::new(
-                                                    &mut editing_palette.sidebar_icon_size,
-                                                )
-                                                .range(8.0..=32.0)
-                                                .speed(0.2),
-                                            )
-                                            .changed();
-                                    },
-                                );
-                                ui.end_row();
-
-                                eden_text_label(ui, palette, &i18n.tr("theme_tab_iconsize"));
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        apply_eden_visual_overrides(ui, palette);
-                                        changed |= ui
-                                            .add_sized(
-                                                egui::vec2(90.0, 0.0),
-                                                egui::DragValue::new(
-                                                    &mut editing_palette.tab_icon_size,
-                                                )
-                                                .range(8.0..=32.0)
-                                                .speed(0.2),
-                                            )
-                                            .changed();
-                                    },
-                                );
-                                ui.end_row();
-
-                                eden_text_label(
-                                    ui,
-                                    palette,
-                                    &i18n.tr("theme_sidebar_item_spacing_y"),
-                                );
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        apply_eden_visual_overrides(ui, palette);
-                                        changed |= ui
-                                            .add_sized(
-                                                egui::vec2(90.0, 0.0),
-                                                egui::DragValue::new(
-                                                    &mut editing_palette.sidebar_item_spacing_y,
-                                                )
-                                                .range(-0.3..=2.0)
-                                                .speed(0.1),
-                                            )
-                                            .changed();
-                                    },
-                                );
-                                ui.end_row();
-                            });
-
-                        ui.add_space(8.0);
-
-                        egui::Grid::new("typography_font_settings")
-                            .num_columns(2)
-                            .spacing([12.0, 6.0])
-                            .show(ui, |ui| {
-                                eden_text_label(ui, palette, &i18n.tr("theme_font"));
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        if let Some(new_font) = font_selector(
-                                            ui,
-                                            palette,
-                                            "theme_font_selector",
-                                            &editing_palette.font_name,
-                                        ) {
-                                            editing_palette.font_name = new_font;
-                                            apply_font_to_context(ctx, &editing_palette);
-                                            changed = true;
-                                        }
-                                    },
-                                );
-                                ui.end_row();
-                            });
-
-                        ui.add_space(6.0);
-                        ui.separator();
-
-                        eden_text_label(ui, palette, &i18n.tr("theme_core_colors"));
-
-                        ui.add_space(6.0);
-
-                        egui::Grid::new("theme_corecolors")
-                            .num_columns(2)
-                            .spacing([12.0, 6.0])
-                            .show(ui, |ui| {
-                                eden_text_label(ui, palette, &i18n.tr("theme_colors_primary"));
-
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        apply_eden_visual_overrides(ui, palette);
-
-                                        let primary_changed =
-                                            color_picker_control(ui, &mut editing_palette.primary);
-
-                                        if primary_changed {
-                                            regenerate_base_derived_colors(
-                                                editing_palette,
-                                                customizer.selected_mode == ThemeMode::Dark,
-                                            );
-                                            changed = true;
-                                        }
-                                    },
-                                );
-                                ui.end_row();
-
-                                eden_text_label(
-                                    ui,
-                                    palette,
-                                    &i18n.tr("theme_colors_primary_hover"),
-                                );
-
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        apply_eden_visual_overrides(ui, palette);
-
-                                        changed |= color_picker_control(
-                                            ui,
-                                            &mut editing_palette.primary_hover,
-                                        );
-                                    },
-                                );
-                                ui.end_row();
-
-                                eden_text_label(
-                                    ui,
-                                    palette,
-                                    &i18n.tr("theme_colors_primary_active"),
-                                );
-
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        apply_eden_visual_overrides(ui, palette);
-
-                                        changed |= color_picker_control(
-                                            ui,
-                                            &mut editing_palette.primary_active,
-                                        );
-                                    },
-                                );
-                                ui.end_row();
-
-                                eden_text_label(
-                                    ui,
-                                    palette,
-                                    &i18n.tr("theme_colors_borders_default"),
-                                );
-
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        apply_eden_visual_overrides(ui, palette);
-
-                                        changed |= color_picker_control(
-                                            ui,
-                                            &mut editing_palette.borders_default,
-                                        );
-                                    },
-                                );
-                                ui.end_row();
-
-                                eden_text_label(
-                                    ui,
-                                    palette,
-                                    &i18n.tr("theme_colors_borders_active"),
-                                );
-
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        apply_eden_visual_overrides(ui, palette);
-
-                                        changed |= color_picker_control(
-                                            ui,
-                                            &mut editing_palette.borders_active,
-                                        );
-                                    },
-                                );
-                                ui.end_row();
-
-                                eden_text_label(
-                                    ui,
-                                    palette,
-                                    &i18n.tr("theme_colors_application_background"),
-                                );
-
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        apply_eden_visual_overrides(ui, palette);
-
-                                        changed |= color_picker_control(
-                                            ui,
-                                            &mut editing_palette.application_bg_color,
-                                        );
-                                    },
-                                );
-                                ui.end_row();
-                            });
-                    });
+                    apply_eden_visual_overrides(ui, palette);
+                    draw_sections(ui, ctx, &mut rows, editing_palette, mode);
                 });
+
+            ui.separator();
 
             // FOOTER
             ui.horizontal(|ui| {
                 if eden_button(ui, palette, &i18n.tr("theme_export")).clicked() {
-                    action = Some(ThemeCustomizerAction::ExportTheme(customizer.selected_mode));
+                    action = Some(ThemeCustomizerAction::ExportTheme(mode));
                 }
 
                 if eden_button(ui, palette, &i18n.tr("theme_import")).clicked() {
-                    action = Some(ThemeCustomizerAction::ImportTheme(customizer.selected_mode));
+                    action = Some(ThemeCustomizerAction::ImportTheme(mode));
                 }
                 if eden_button(ui, palette, &i18n.tr("theme_reset")).clicked() {
-                    let default = get_default_palette(customizer.selected_mode);
-                    match customizer.selected_mode {
-                        ThemeMode::Dark => customizer.dark_palette = default,
-                        ThemeMode::Light => customizer.light_palette = default,
-                    }
-                    action = Some(ThemeCustomizerAction::ResetToDefaults(
-                        customizer.selected_mode,
-                    ));
+                    action = Some(ThemeCustomizerAction::ResetToDefaults(mode));
+                }
+                if let Some((key, is_error)) = customizer.status {
+                    let color = if is_error {
+                        error_color(ui.visuals().dark_mode)
+                    } else {
+                        palette.text_normal
+                    };
+                    ui.label(egui::RichText::new(i18n.tr(key)).color(color));
                 }
             });
 
-            if changed && action.is_none() {
-                action = Some(ThemeCustomizerAction::ThemeUpdated(
-                    customizer.selected_mode,
-                ));
+            if rows.changed && action.is_none() {
+                action = Some(ThemeCustomizerAction::ThemeUpdated(mode));
             }
         });
+    customizer.open &= open;
 
     action
 }
 
-fn color_picker_control(ui: &mut egui::Ui, color: &mut egui::Color32) -> bool {
-    rgba_color_edit_button(ui, color).changed()
+fn preset_picker(ui: &mut egui::Ui, i18n: &I18n, palette: &ThemePalette) -> Option<ThemePreset> {
+    let mut picked = None;
+    draw_dropdown(
+        ui,
+        palette,
+        "theme_preset_picker",
+        170.0,
+        i18n.tr("theme_presets"),
+        |ui| {
+            for preset in ThemePreset::ALL {
+                if ui
+                    .selectable_label(false, i18n.tr(preset.label_key()))
+                    .clicked()
+                {
+                    picked = Some(preset);
+                    ui.close();
+                }
+            }
+        },
+    );
+    picked
+}
+
+fn draw_sections(
+    ui: &mut egui::Ui,
+    ctx: &egui::Context,
+    rows: &mut EditorRows,
+    p: &mut ThemePalette,
+    mode: ThemeMode,
+) {
+    section(ui, rows, "theme_typography", true, |ui, rows| {
+        rows.number(ui, "theme_textsize", &mut p.text_size, 8.0..=24.0, 0.2);
+        rows.number(
+            ui,
+            "theme_tooltip_textsize",
+            &mut p.tooltip_text_size,
+            8.0..=24.0,
+            0.2,
+        );
+        rows.number(
+            ui,
+            "theme_explorer_rowheight",
+            &mut p.row_height,
+            8.0..=40.0,
+            0.5,
+        );
+        rows.number(
+            ui,
+            "theme_sidebar_iconsize",
+            &mut p.sidebar_icon_size,
+            8.0..=32.0,
+            0.2,
+        );
+        rows.number(
+            ui,
+            "theme_tab_iconsize",
+            &mut p.tab_icon_size,
+            8.0..=32.0,
+            0.2,
+        );
+        rows.number(
+            ui,
+            "theme_sidebar_item_spacing_y",
+            &mut p.sidebar_item_spacing_y,
+            -0.3..=2.0,
+            0.1,
+        );
+
+        rows.label(ui, "theme_font");
+        let style = rows.style;
+        let new_font = rows.control(ui, |ui| {
+            font_selector(ui, style, "theme_font_selector", &p.font_name)
+        });
+        if let Some(font) = new_font {
+            p.font_name = font;
+            apply_font_to_context(ctx, p);
+            rows.changed = true;
+        }
+    });
+
+    section(ui, rows, "theme_core_colors", true, |ui, rows| {
+        if rows.color(ui, "theme_colors_primary", &mut p.primary) {
+            regenerate_base_derived_colors(p, mode == ThemeMode::Dark);
+        }
+        rows.color(ui, "theme_colors_primary_hover", &mut p.primary_hover);
+        rows.color(ui, "theme_colors_primary_active", &mut p.primary_active);
+        rows.color(ui, "theme_colors_borders_default", &mut p.borders_default);
+        rows.color(ui, "theme_colors_borders_active", &mut p.borders_active);
+        rows.color(
+            ui,
+            "theme_colors_application_background",
+            &mut p.application_bg_color,
+        );
+    });
+
+    section(ui, rows, "theme_section_text", false, |ui, rows| {
+        rows.color(ui, "theme_colors_text_normal", &mut p.text_normal);
+        rows.color(ui, "theme_colors_text_header", &mut p.text_header_section);
+        rows.color(
+            ui,
+            "theme_colors_text_selected",
+            &mut p.item_viewer_row_text_selected,
+        );
+        rows.color(ui, "theme_colors_tooltip_text", &mut p.tooltip_text_color);
+        rows.color(
+            ui,
+            "theme_colors_tab_text_selected",
+            &mut p.tab_text_selected,
+        );
+        rows.color(ui, "theme_colors_widget_text", &mut p.widget_text);
+        rows.color(
+            ui,
+            "theme_colors_widget_text_hover",
+            &mut p.widget_text_hover,
+        );
+    });
+
+    section(ui, rows, "theme_section_surfaces", false, |ui, rows| {
+        rows.color(ui, "theme_colors_widget_bg", &mut p.widget_bg);
+        rows.color(ui, "theme_colors_faint_bg", &mut p.faint_bg);
+        rows.color(ui, "theme_colors_row_bg", &mut p.row_bg);
+        rows.color(ui, "theme_colors_row_selected_bg", &mut p.row_selected_bg);
+        rows.color(
+            ui,
+            "theme_colors_modal_overlay",
+            &mut p.modal_background_effect_color,
+        );
+    });
+
+    section(ui, rows, "theme_section_icons", false, |ui, rows| {
+        rows.color(ui, "theme_colors_icon", &mut p.icon_color);
+        rows.color(ui, "theme_colors_icon_hover", &mut p.icon_colored_hover);
+        rows.color(ui, "theme_colors_icon_windows", &mut p.icon_windows);
+    });
+
+    section(ui, rows, "theme_section_tabs", false, |ui, rows| {
+        rows.color(ui, "theme_colors_tab_close_normal", &mut p.tab_close_normal);
+        rows.color(ui, "theme_colors_tab_close_hover", &mut p.tab_close_hover);
+        rows.color(ui, "theme_colors_tab_add_hover", &mut p.tab_add_hover);
+        rows.color(ui, "theme_colors_pinned_tab", &mut p.pinned_tab_color);
+        rows.color(ui, "theme_colors_favorite", &mut p.button_favorite_fill);
+        rows.color(
+            ui,
+            "theme_colors_separator_handle",
+            &mut p.button_seperator_handle_fill,
+        );
+    });
+
+    section(ui, rows, "theme_section_drives", false, |ui, rows| {
+        rows.color(ui, "theme_colors_drive_normal", &mut p.drive_usage_normal);
+        rows.color(ui, "theme_colors_drive_warning", &mut p.drive_usage_warning);
+        rows.color(
+            ui,
+            "theme_colors_drive_critical",
+            &mut p.drive_usage_critical,
+        );
+        rows.color(
+            ui,
+            "theme_colors_drive_background",
+            &mut p.drive_usage_background,
+        );
+        rows.color(ui, "theme_colors_drive_text", &mut p.drive_usage_text);
+    });
+
+    section(ui, rows, "theme_section_checkbox", false, |ui, rows| {
+        rows.color(ui, "theme_colors_checkbox_bg", &mut p.checkbox_bg_default);
+        rows.color(ui, "theme_colors_checkbox_hover", &mut p.checkbox_bg_hover);
+        rows.color(
+            ui,
+            "theme_colors_checkbox_active",
+            &mut p.checkbox_bg_active,
+        );
+        rows.color(
+            ui,
+            "theme_colors_checkbox_check",
+            &mut p.checkbox_checkmark_color,
+        );
+    });
+
+    section(ui, rows, "theme_section_shape", false, |ui, rows| {
+        rows.byte(ui, "theme_radius_small", &mut p.small_radius, 0..=16);
+        rows.byte(ui, "theme_radius_medium", &mut p.medium_radius, 0..=16);
+        rows.byte(ui, "theme_radius_large", &mut p.large_radius, 0..=24);
+    });
 }
 
 fn font_selector(
@@ -428,37 +493,34 @@ fn font_selector(
 ) -> Option<String> {
     let fonts = get_font_list();
 
-    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-        let mut selected_text = current_font.to_string();
-        let mut changed = false;
+    let mut selected_text = current_font.to_string();
+    let mut changed = false;
 
-        draw_dropdown(
-            ui,
-            palette,
-            egui::Id::new(label),
-            200.0,
-            selected_text.clone(),
-            |ui| {
-                egui::ScrollArea::vertical()
-                    .max_height(200.0)
-                    .show(ui, |ui| {
-                        for font in fonts.iter() {
-                            let rich_text = egui::RichText::new(font.as_str());
+    draw_dropdown(
+        ui,
+        palette,
+        egui::Id::new(label),
+        200.0,
+        selected_text.clone(),
+        |ui| {
+            egui::ScrollArea::vertical()
+                .max_height(200.0)
+                .show(ui, |ui| {
+                    for font in fonts.iter() {
+                        let rich_text = egui::RichText::new(font.as_str());
 
-                            if ui
-                                .selectable_label(font == current_font, rich_text)
-                                .clicked()
-                            {
-                                selected_text = font.clone();
-                                changed = true;
-                                ui.close();
-                            }
+                        if ui
+                            .selectable_label(font == current_font, rich_text)
+                            .clicked()
+                        {
+                            selected_text = font.clone();
+                            changed = true;
+                            ui.close();
                         }
-                    });
-            },
-        );
+                    }
+                });
+        },
+    );
 
-        if changed { Some(selected_text) } else { None }
-    })
-    .inner
+    if changed { Some(selected_text) } else { None }
 }

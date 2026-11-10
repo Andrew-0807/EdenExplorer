@@ -6,10 +6,12 @@ use crate::core::indexer::{
     DirectorySettingsSnapshot, QuickAccessEntry, StoredSettings, WindowSizeMode, save_quick_access,
     save_settings, save_tags, save_theme_settings,
 };
+use crate::core::persist::write_atomic;
 use crate::core::utils::files::resolve_shortcut_target;
 use crate::core::utils::widgets::{loading_spinner, request_animation_frame};
 use crate::gui::MainWindow;
 use crate::gui::theme::{ThemeMode, ThemePalette, get_default_palette, set_palette};
+use crate::gui::theme_presets::{export_theme_json, import_theme_json};
 use crate::gui::utils::{
     ClipboardFileRead, FileOpKind, FileOpProgress, SortColumn, SortKey, directory_child_paths,
     file_op_async, is_clipboard_cut, read_clipboard_files, restore_paths_native,
@@ -3168,9 +3170,13 @@ pub fn handle_draw_customizetheme_window(
                     })
                     .save_file()
                 {
-                    if let Ok(json) = serde_json::to_string_pretty(palette_to_export) {
-                        let _ = std::fs::write(path, json);
-                    }
+                    let written = export_theme_json(mode, palette_to_export)
+                        .is_some_and(|json| write_atomic(&path, json.as_bytes()).is_ok());
+                    theme_customizer.status = Some(if written {
+                        ("theme_export_ok", false)
+                    } else {
+                        ("theme_export_failed", true)
+                    });
                 }
             }
             ThemeCustomizerAction::ImportTheme(mode) => {
@@ -3178,23 +3184,25 @@ pub fn handle_draw_customizetheme_window(
                     .add_filter("Theme JSON", &["json"])
                     .pick_file()
                 {
-                    if let Ok(json) = std::fs::read_to_string(path) {
-                        if let Ok(imported) = serde_json::from_str::<ThemePalette>(&json) {
-                            match mode {
-                                ThemeMode::Dark => theme_customizer.dark_palette = imported.clone(),
-                                ThemeMode::Light => {
-                                    theme_customizer.light_palette = imported.clone()
-                                }
-                            }
+                    let imported = std::fs::read_to_string(path)
+                        .ok()
+                        .and_then(|json| import_theme_json(&json, mode).ok());
+                    match imported {
+                        Some(imported) => {
+                            *theme_customizer.palette_mut(mode) = imported.clone();
                             set_palette(mode, imported);
                             save_theme_settings(
                                 &theme_customizer.light_palette,
                                 &theme_customizer.dark_palette,
                             );
+                            theme_customizer.status = Some(("theme_import_ok", false));
 
                             if mode == current_mode {
                                 *theme_dirty = true;
                             }
+                        }
+                        None => {
+                            theme_customizer.status = Some(("theme_import_failed", true));
                         }
                     }
                 }

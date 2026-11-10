@@ -65,6 +65,14 @@ pub struct ThemePalette {
     // 🧱 Application surfaces
     pub application_bg_color: Color32,
     pub modal_background_effect_color: Color32,
+    /// Fill of idle widgets (text fields, buttons, scroll bar tracks).
+    pub widget_bg: Color32,
+    /// Subtle background egui uses for grouped / striped areas.
+    pub faint_bg: Color32,
+    /// Text and icon strokes of idle interactive widgets.
+    pub widget_text: Color32,
+    /// Text and icon strokes of hovered / pressed widgets.
+    pub widget_text_hover: Color32,
 
     // 🎯 Icons & text
     pub icon_color: Color32,
@@ -136,14 +144,49 @@ pub fn error_color(dark_mode: bool) -> Color32 {
     }
 }
 
+/// WCAG 2.x relative luminance of an opaque sRGB color.
+pub fn relative_luminance(c: Color32) -> f64 {
+    let linear = |v: u8| {
+        let s = v as f64 / 255.0;
+        if s <= 0.03928 {
+            s / 12.92
+        } else {
+            ((s + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * linear(c.r()) + 0.7152 * linear(c.g()) + 0.0722 * linear(c.b())
+}
+
+/// WCAG contrast ratio between two opaque colors, in the range 1.0..=21.0.
+pub fn contrast_ratio(a: Color32, b: Color32) -> f64 {
+    let (la, lb) = (relative_luminance(a), relative_luminance(b));
+    let (hi, lo) = if la > lb { (la, lb) } else { (lb, la) };
+    (hi + 0.05) / (lo + 0.05)
+}
+
+/// `preferred` when it is readable on `bg` (4.5:1), else black or white,
+/// whichever contrasts more. Keeps labels legible on user-chosen accents.
+pub fn readable_text_on(bg: Color32, preferred: Color32) -> Color32 {
+    if contrast_ratio(preferred, bg) >= 4.5 {
+        return preferred;
+    }
+    if contrast_ratio(Color32::WHITE, bg) >= contrast_ratio(Color32::BLACK, bg) {
+        Color32::WHITE
+    } else {
+        Color32::BLACK
+    }
+}
+
 // Label color for the active tab. In light mode white on the light primary_active
-// fill is about 3.7:1, so the header color (black) is used instead.
+// fill is about 3.7:1, so the header color (black) is preferred instead; either
+// way it falls back to black/white when the accent would make it unreadable.
 pub fn active_tab_text_color(palette: &ThemePalette, dark_mode: bool) -> Color32 {
-    if dark_mode {
+    let preferred = if dark_mode {
         palette.tab_text_selected
     } else {
         palette.text_header_section
-    }
+    };
+    readable_text_on(palette.primary_active, preferred)
 }
 
 // 🌙 Dark theme palette (defaults)
@@ -167,6 +210,10 @@ pub static DEFAULT_PALETTE_DARK: LazyLock<ThemePalette> = LazyLock::new(|| {
         // 🧱 Application surfaces
         application_bg_color: Color32::from_rgb(20, 22, 26),
         modal_background_effect_color: Color32::from_black_alpha(180),
+        widget_bg: Color32::from_rgb(30, 34, 40),
+        faint_bg: Color32::from_rgb(26, 30, 36),
+        widget_text: Color32::from_rgb(220, 226, 232),
+        widget_text_hover: Color32::from_rgb(245, 240, 255),
 
         // 🎯 Icons & text
         icon_color: Color32::WHITE,
@@ -254,6 +301,10 @@ pub static DEFAULT_PALETTE_LIGHT: LazyLock<ThemePalette> = LazyLock::new(|| {
         // 🧱 Application surfaces
         application_bg_color: Color32::from_rgb(245, 245, 245),
         modal_background_effect_color: Color32::from_black_alpha(180),
+        widget_bg: Color32::from_rgb(247, 248, 250),
+        faint_bg: Color32::from_rgb(244, 246, 249),
+        widget_text: Color32::from_rgb(35, 41, 47),
+        widget_text_hover: Color32::from_rgb(25, 29, 33),
 
         // 🎯 Icons & text
         icon_color: Color32::from_rgb(40, 40, 40),
@@ -409,9 +460,9 @@ pub fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
     match mode {
         ThemeMode::Dark => {
             style.visuals.panel_fill = palette.application_bg_color;
-            style.visuals.faint_bg_color = Color32::from_rgb(26, 30, 36);
+            style.visuals.faint_bg_color = palette.faint_bg;
 
-            style.visuals.widgets.inactive.bg_fill = Color32::from_rgb(30, 34, 40);
+            style.visuals.widgets.inactive.bg_fill = palette.widget_bg;
 
             // 🎯 PRIMARY SYSTEM
             style.visuals.widgets.hovered.bg_fill = palette.primary_hover;
@@ -424,18 +475,18 @@ pub fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
             style.visuals.selection.stroke.color = palette.primary_active;
 
             // 🔤 Text
-            style.visuals.widgets.inactive.fg_stroke.color = Color32::from_rgb(220, 226, 232);
-            style.visuals.widgets.hovered.fg_stroke.color = Color32::from_rgb(245, 240, 255);
-            style.visuals.widgets.active.fg_stroke.color = Color32::from_rgb(255, 250, 255);
+            style.visuals.widgets.inactive.fg_stroke.color = palette.widget_text;
+            style.visuals.widgets.hovered.fg_stroke.color = palette.widget_text_hover;
+            style.visuals.widgets.active.fg_stroke.color = palette.widget_text_hover;
 
-            style.visuals.widgets.noninteractive.fg_stroke.color = Color32::from_rgb(160, 170, 180);
+            style.visuals.widgets.noninteractive.fg_stroke.color = palette.text_normal;
         }
 
         ThemeMode::Light => {
             style.visuals.panel_fill = palette.application_bg_color;
-            style.visuals.faint_bg_color = Color32::from_rgb(244, 246, 249);
+            style.visuals.faint_bg_color = palette.faint_bg;
 
-            style.visuals.widgets.inactive.bg_fill = Color32::from_rgb(247, 248, 250);
+            style.visuals.widgets.inactive.bg_fill = palette.widget_bg;
 
             // 🎯 SAME SYSTEM (just lighter)
             style.visuals.widgets.hovered.bg_fill = palette.primary_hover;
@@ -448,11 +499,11 @@ pub fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
             style.visuals.selection.stroke.color = palette.primary;
 
             // 🔤 Text
-            style.visuals.widgets.inactive.fg_stroke.color = Color32::from_rgb(35, 41, 47);
-            style.visuals.widgets.hovered.fg_stroke.color = Color32::from_rgb(25, 29, 33);
-            style.visuals.widgets.active.fg_stroke.color = Color32::from_rgb(15, 18, 22);
+            style.visuals.widgets.inactive.fg_stroke.color = palette.widget_text;
+            style.visuals.widgets.hovered.fg_stroke.color = palette.widget_text_hover;
+            style.visuals.widgets.active.fg_stroke.color = palette.widget_text_hover;
 
-            style.visuals.widgets.noninteractive.fg_stroke.color = Color32::from_rgb(70, 78, 86);
+            style.visuals.widgets.noninteractive.fg_stroke.color = palette.text_normal;
         }
     }
 
@@ -548,30 +599,10 @@ pub fn apply_font_to_context(ctx: &egui::Context, palette: &ThemePalette) {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
-    /// WCAG 2.x relative luminance of an opaque sRGB color.
-    fn relative_luminance(c: Color32) -> f64 {
-        let linear = |v: u8| {
-            let s = v as f64 / 255.0;
-            if s <= 0.03928 {
-                s / 12.92
-            } else {
-                ((s + 0.055) / 1.055).powf(2.4)
-            }
-        };
-        0.2126 * linear(c.r()) + 0.7152 * linear(c.g()) + 0.0722 * linear(c.b())
-    }
-
-    /// WCAG contrast ratio between two opaque colors, in the range 1.0..=21.0.
-    fn contrast_ratio(a: Color32, b: Color32) -> f64 {
-        let (la, lb) = (relative_luminance(a), relative_luminance(b));
-        let (hi, lo) = if la > lb { (la, lb) } else { (lb, la) };
-        (hi + 0.05) / (lo + 0.05)
-    }
-
-    fn assert_contrast(label: &str, fg: Color32, bg: Color32) {
+    pub(crate) fn assert_contrast(label: &str, fg: Color32, bg: Color32) {
         let ratio = contrast_ratio(fg, bg);
         assert!(
             ratio >= 4.5,
@@ -659,8 +690,29 @@ mod tests {
     #[test]
     fn test_active_tab_text_color_follows_mode() {
         let p = &*DEFAULT_PALETTE_LIGHT;
-        assert_eq!(active_tab_text_color(p, true), p.tab_text_selected);
         assert_eq!(active_tab_text_color(p, false), p.text_header_section);
+        let p = &*DEFAULT_PALETTE_DARK;
+        assert_eq!(active_tab_text_color(p, true), p.tab_text_selected);
+    }
+
+    #[test]
+    fn active_tab_text_stays_readable_on_a_light_accent() {
+        let mut p = DEFAULT_PALETTE_DARK.clone();
+        p.primary_active = Color32::from_rgb(170, 220, 240);
+        let text = active_tab_text_color(&p, true);
+        assert_contrast("active tab on light accent", text, p.primary_active);
+        assert_eq!(text, Color32::BLACK);
+    }
+
+    #[test]
+    fn readable_text_keeps_a_readable_preference() {
+        let bg = Color32::from_rgb(20, 22, 26);
+        let pref = Color32::from_rgb(200, 200, 200);
+        assert_eq!(readable_text_on(bg, pref), pref);
+        assert_eq!(
+            readable_text_on(bg, Color32::from_rgb(40, 40, 40)),
+            Color32::WHITE
+        );
     }
 
     #[test]

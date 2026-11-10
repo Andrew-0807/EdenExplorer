@@ -18,6 +18,8 @@ pub struct ThemeCustomizer {
     pub selected_mode: ThemeMode,
     pub light_palette: ThemePalette,
     pub dark_palette: ThemePalette,
+    /// Result of the last import/export: (i18n key, is_error).
+    pub status: Option<(&'static str, bool)>,
 }
 
 impl Default for ThemeCustomizer {
@@ -27,6 +29,16 @@ impl Default for ThemeCustomizer {
             selected_mode: ThemeMode::Dark,
             light_palette: crate::gui::theme::get_palette(ThemeMode::Light),
             dark_palette: crate::gui::theme::get_palette(ThemeMode::Dark),
+            status: None,
+        }
+    }
+}
+
+impl ThemeCustomizer {
+    pub fn palette_mut(&mut self, mode: ThemeMode) -> &mut ThemePalette {
+        match mode {
+            ThemeMode::Dark => &mut self.dark_palette,
+            ThemeMode::Light => &mut self.light_palette,
         }
     }
 }
