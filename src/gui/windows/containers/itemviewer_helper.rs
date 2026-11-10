@@ -91,6 +91,17 @@ pub fn compute_layout(
     }
 }
 
+/// Whether a context-menu path is a folder. The menu is redrawn every frame while
+/// open, so the right-clicked item uses its listing value instead of a stat.
+/// Other selected paths still stat.
+fn context_path_is_dir(path: &std::path::Path, clicked: &FileItem) -> bool {
+    if path == clicked.path.as_path() {
+        clicked.is_dir
+    } else {
+        path.is_dir()
+    }
+}
+
 pub fn handle_context_menu_actions(
     ui: &mut egui::Ui,
     i18n: &I18n,
@@ -194,7 +205,10 @@ pub fn handle_context_menu_actions(
 
     if ui
         .add_enabled(
-            enable_open_in_tab && context_paths.first().is_some_and(|p| p.is_dir()),
+            enable_open_in_tab
+                && context_paths
+                    .first()
+                    .is_some_and(|p| context_path_is_dir(p, file)),
             egui::Button::new(i18n.tr("inputs_opensplit")),
         )
         .clicked()
@@ -218,7 +232,9 @@ pub fn handle_context_menu_actions(
         ui.close();
     }
 
-    let all_files = context_paths.iter().all(|path| !path.is_dir());
+    let all_files = context_paths
+        .iter()
+        .all(|path| !context_path_is_dir(path, file));
 
     if ui
         .add_enabled(all_files, egui::Button::new(label))
@@ -2342,4 +2358,46 @@ pub fn draw_empty_item_viewer_area(
     }
 
     action
+}
+
+#[cfg(test)]
+mod tests {
+    use super::context_path_is_dir;
+    use crate::core::fs::FileItem;
+    use std::path::PathBuf;
+
+    fn item(path: &str, is_dir: bool) -> FileItem {
+        FileItem::new(
+            String::new(),
+            PathBuf::from(path),
+            is_dir,
+            false,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    #[test]
+    fn clicked_item_uses_listing_is_dir_without_statting() {
+        // The path does not exist, so only the listing value can answer `true`.
+        let clicked = item("Z:/eden/does/not/exist", true);
+        assert!(context_path_is_dir(&clicked.path, &clicked));
+    }
+
+    #[test]
+    fn other_selected_paths_are_checked_on_disk() {
+        let clicked = item("Z:/eden/does/not/exist", false);
+        assert!(context_path_is_dir(&std::env::temp_dir(), &clicked));
+        assert!(!context_path_is_dir(
+            &PathBuf::from("Z:/eden/does/not/exist/other"),
+            &clicked
+        ));
+    }
 }
