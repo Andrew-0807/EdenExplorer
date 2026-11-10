@@ -1,3 +1,4 @@
+use crate::core::utils::files::{OpRecord, recording_sink};
 use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use windows::Win32::System::Com::{CLSCTX_ALL, CoCreateInstance};
@@ -10,17 +11,21 @@ fn same_drive(a: &Path, b: &Path) -> bool {
     a.components().next() == b.components().next()
 }
 
-pub fn show_copy_move_dialog(sources: Vec<PathBuf>, destination: &PathBuf) -> Result<()> {
+/// Moves (same drive) or copies (other drive) `sources` into `destination`.
+/// Returns what the shell reports as done, for undo.
+pub fn show_copy_move_dialog(sources: Vec<PathBuf>, destination: &Path) -> Result<OpRecord> {
     if sources.is_empty() {
-        return Ok(());
+        return Ok(OpRecord::default());
     }
 
     unsafe {
-        let result = (|| {
+        (|| {
             let file_op: IFileOperation = CoCreateInstance(&FileOperation, None, CLSCTX_ALL)?;
 
             // Minimal flags (safe default)
             file_op.SetOperationFlags(FILEOPERATION_FLAGS(0))?;
+            let (sink, recorder) = recording_sink();
+            let cookie = file_op.Advise(&sink)?;
 
             // Destination
             let dest_w: Vec<u16> = destination
@@ -45,11 +50,13 @@ pub fn show_copy_move_dialog(sources: Vec<PathBuf>, destination: &PathBuf) -> Re
                 }
             }
 
-            file_op.PerformOperations()?;
+            let performed = file_op.PerformOperations();
+            let _ = file_op.Unadvise(cookie);
+            performed?;
 
-            Ok(())
-        })();
-
-        result
+            let mut record = recorder.take();
+            record.retain_sources(&sources);
+            Ok(record)
+        })()
     }
 }

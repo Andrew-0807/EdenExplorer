@@ -8,6 +8,7 @@ pub mod keymap;
 pub mod selection;
 pub mod theme;
 pub mod theme_presets;
+pub mod toast;
 pub mod utils;
 pub mod windows; // for your windows folder
 

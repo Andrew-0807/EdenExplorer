@@ -6,6 +6,7 @@ use crate::core::indexer::{
 };
 use crate::core::launch::take_forwarded_paths;
 use crate::core::system_theme::consume_system_theme_dirty;
+use crate::core::undo::UndoStack;
 use crate::core::utils::tabs::update_tab_infos_cache;
 use crate::core::zoxide::DwellTracker;
 use crate::gui::backdrop::{
@@ -16,6 +17,7 @@ use crate::gui::dragdrop::{DragDropBackend, DropTargets};
 use crate::gui::theme::{
     ThemeMode, apply_font_to_context, apply_theme, get_default_palette, get_palette, set_palette,
 };
+use crate::gui::toast::Toast;
 use crate::gui::utils::{SortColumn, sort_files_by_keys};
 use crate::gui::windows::containers::enums::ItemViewerAction;
 use crate::gui::windows::containers::explorer::draw_tab_content;
@@ -95,6 +97,8 @@ pub struct MainWindow {
     pub(crate) file_type_cache: HashMap<String, String>,
     pub(crate) tags_state: TagsState,
     pub(crate) file_op: Option<FileOpState>,
+    pub(crate) undo: UndoStack,
+    pub(crate) toast: Toast,
     pub(crate) clipboard_paths: Vec<PathBuf>,
     pub(crate) clipboard_set: HashSet<PathBuf>,
     pub(crate) clipboard_is_cut: bool,
@@ -234,6 +238,8 @@ impl Default for MainWindow {
                 .map(TagsState::from_snapshot)
                 .unwrap_or_default(),
             file_op: None,
+            undo: UndoStack::default(),
+            toast: Toast::default(),
             theme_customizer: Default::default(),
             settings_window: Default::default(),
             about_window: Default::default(),
@@ -1316,6 +1322,7 @@ impl eframe::App for MainWindow {
         self.handle_draw_about_window(ui.ctx(), &palette);
         self.handle_zoxide(ui.ctx(), &palette);
         self.handle_global_shortcuts(ui.ctx());
+        self.toast.draw(ui.ctx(), &palette);
 
         if tags_changed {
             self.persist_tags();

@@ -116,6 +116,7 @@ pub enum Action {
     Delete,
     PermanentDelete,
     SelectAll,
+    Undo,
     Refresh,
     AddressBar,
     NavigateBack,
@@ -151,6 +152,7 @@ pub const GROUPS: &[(&str, &[Action])] = &[
             Action::Delete,
             Action::PermanentDelete,
             Action::SelectAll,
+            Action::Undo,
         ],
     ),
     (
@@ -173,6 +175,7 @@ impl Action {
         match self {
             Action::ToggleFullscreen => "ToggleFullscreen",
             Action::ZoxideJump => "ZoxideJump",
+            Action::Undo => "Undo",
             Action::NewTab => "NewTab",
             Action::CloseTab => "CloseTab",
             Action::NextTab => "NextTab",
@@ -211,6 +214,7 @@ impl Action {
         match self {
             Action::ToggleFullscreen => "hotkey_toggle_fullscreen",
             Action::ZoxideJump => "hotkey_zoxide_jump",
+            Action::Undo => "hotkey_undo",
             Action::NewTab => "hotkey_new_tab",
             Action::CloseTab => "hotkey_close_current_tab",
             Action::NextTab => "hotkey_next_tab",
@@ -238,6 +242,7 @@ impl Action {
         match self {
             Action::ToggleFullscreen => vec![KeyChord::key(Key::F1)],
             Action::ZoxideJump => vec![KeyChord::ctrl(Key::K)],
+            Action::Undo => vec![KeyChord::ctrl(Key::Z)],
             Action::NewTab => vec![KeyChord::ctrl(Key::T)],
             Action::CloseTab => vec![KeyChord::ctrl(Key::W)],
             Action::NextTab => vec![KeyChord::ctrl(Key::Tab)],

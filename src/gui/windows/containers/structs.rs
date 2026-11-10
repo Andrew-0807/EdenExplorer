@@ -4,6 +4,7 @@ use crate::core::indexer::{
     default_item_viewer_drive_column_size, default_item_viewer_file_column_size,
     default_recycle_bin_column_size,
 };
+use crate::core::utils::files::OpRecorder;
 use crate::core::utils::thumbnails::ThumbnailService;
 use crate::gui::utils::{FileOpProgress, SortKey, hsl_to_color32};
 use crate::gui::windows::containers::enums::{
@@ -1056,7 +1057,8 @@ pub struct TagInfo {
 /// `handle_file_op_progress`.
 pub enum FileOpCompletion {
     /// Delete: prune tags for paths that are actually gone, then reload.
-    Delete { paths: Vec<PathBuf> },
+    /// `to_bin` is false for a permanent delete, which cannot be undone.
+    Delete { paths: Vec<PathBuf>, to_bin: bool },
     /// Clipboard paste: remap tags if it was a cut, reselect the pasted items.
     Paste {
         sources: Vec<PathBuf>,
@@ -1073,6 +1075,8 @@ pub struct FileOpState {
     /// i18n key for the window title (e.g. `delete_progress_title`).
     pub title_key: &'static str,
     pub completion: FileOpCompletion,
+    /// What the worker did, read once the operation succeeds (for undo).
+    pub recorder: Arc<OpRecorder>,
     pub started: bool,
     pub total: u32,
     pub done: u32,
