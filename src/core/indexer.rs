@@ -622,6 +622,32 @@ mod tests {
     }
 
     #[test]
+    fn global_sort_survives_save_and_old_files_default() {
+        use crate::gui::utils::SortColumn;
+        use crate::gui::utils::SortKey;
+        let dir = TempDir::new("settings-sort");
+        let mut stored = load_settings_from(dir.path());
+        assert!(stored.settings.sort_keys.is_empty());
+        stored.settings.sort_keys = vec![SortKey {
+            column: SortColumn::Size,
+            ascending: false,
+        }];
+        save_settings_to(dir.path(), &stored).unwrap();
+        let loaded = load_settings_from(dir.path());
+        assert_eq!(loaded.settings.sort_keys.len(), 1);
+        assert_eq!(loaded.settings.sort_keys[0].column, SortColumn::Size);
+        assert!(!loaded.settings.sort_keys[0].ascending);
+
+        // A file written before `sort_keys` existed still loads.
+        let merged = from_value_with_defaults(
+            &AppSettings::default(),
+            serde_json::json!({ "sort_column": "Size", "sort_ascending": false }),
+        );
+        assert!(merged.value.sort_keys.is_empty());
+        assert!(!merged.value.sort_ascending);
+    }
+
+    #[test]
     fn settings_round_trip_and_defaults() {
         let dir = TempDir::new("settings-roundtrip");
         let defaults = load_settings_from(dir.path());

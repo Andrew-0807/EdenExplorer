@@ -134,6 +134,7 @@ impl Default for AppSettings {
             date_style: DateStyle::default(),
             sort_column: SortColumn::Name,
             sort_ascending: true,
+            sort_keys: Vec::new(),
             language: "en-US".to_string(),
             item_viewer_file_column_order: vec![
                 ItemViewerHeaderColumn::Type,

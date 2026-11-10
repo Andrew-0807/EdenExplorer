@@ -99,9 +99,13 @@ pub(crate) fn directory_settings_snapshot_for_view(view: &TabView) -> DirectoryS
         filter_query: view.item_viewer_filter_state.query.clone(),
         display_mode: view.display_mode,
         gallery_thumbnail_size: view.gallery_state.thumbnail_size,
-        sort_column: view.sort_column,
-        sort_ascending: view.sort_ascending,
-        sort_keys: view.sort_keys.clone(),
+        // Sorting is a global setting; folders no longer remember their own.
+        sort_column: SortColumn::Name,
+        sort_ascending: true,
+        sort_keys: vec![SortKey {
+            column: SortColumn::Name,
+            ascending: true,
+        }],
     }
 }
 
@@ -128,28 +132,29 @@ pub(crate) fn apply_directory_settings_to_view(view: &mut TabView, settings: &Ap
         view.display_mode = snapshot.display_mode;
         view.gallery_state
             .set_thumbnail_size(snapshot.gallery_thumbnail_size);
-        view.sort_keys = if snapshot.sort_keys.is_empty() {
-            vec![SortKey {
-                column: snapshot.sort_column,
-                ascending: snapshot.sort_ascending,
-            }]
-        } else {
-            snapshot.sort_keys.clone()
-        };
-        let primary = view.sort_keys[0];
-        view.sort_column = primary.column;
-        view.sort_ascending = primary.ascending;
     } else {
         view.column_state = default_column_state(settings);
         view.item_viewer_filter_state = FilterState::default();
         view.display_mode = ItemViewerDisplayMode::Details;
         view.gallery_state = Default::default();
-        view.sort_keys = vec![SortKey {
+    }
+
+    view.sort_keys = global_sort_keys(settings);
+    let primary = view.sort_keys[0];
+    view.sort_column = primary.column;
+    view.sort_ascending = primary.ascending;
+}
+
+/// The sort order every folder uses: the saved key list, or the single
+/// column of older settings files.
+pub(crate) fn global_sort_keys(settings: &AppSettings) -> Vec<SortKey> {
+    if settings.sort_keys.is_empty() {
+        vec![SortKey {
             column: settings.sort_column,
             ascending: settings.sort_ascending,
-        }];
-        view.sort_column = settings.sort_column;
-        view.sort_ascending = settings.sort_ascending;
+        }]
+    } else {
+        settings.sort_keys.clone()
     }
 }
 
@@ -390,6 +395,10 @@ impl MainWindow {
             view.sort_ascending = primary.ascending;
             view.sort_keys.clone()
         };
+        let settings = &mut self.settings_window.current_settings;
+        settings.sort_column = sort_keys[0].column;
+        settings.sort_ascending = sort_keys[0].ascending;
+        settings.sort_keys = sort_keys.clone();
 
         let tag_counts = self.tag_counts_for_sort_keys(&sort_keys);
         sort_files_by_keys(

@@ -1,7 +1,7 @@
 use crate::core::drives::DriveInfo;
 use crate::core::indexer::{DirectorySettingsSnapshot, WindowSizeMode};
 use crate::gui::theme::{ThemeMode, ThemePalette};
-use crate::gui::utils::SortColumn;
+use crate::gui::utils::{SortColumn, SortKey};
 use crate::gui::windows::containers::enums::ItemViewerHeaderColumn;
 use crate::gui::windows::containers::structs::FavoriteItem;
 use serde::{Deserialize, Serialize};
@@ -72,6 +72,9 @@ pub struct AppSettings {
     pub date_style: crate::core::fs::DateStyle,
     pub sort_column: SortColumn,
     pub sort_ascending: bool,
+    /// Full sort order applied to every folder; empty means `sort_column` alone.
+    #[serde(default)]
+    pub sort_keys: Vec<SortKey>,
     pub language: String,
     pub item_viewer_file_column_order: Vec<ItemViewerHeaderColumn>,
     pub item_viewer_drive_column_order: Vec<ItemViewerHeaderColumn>,
