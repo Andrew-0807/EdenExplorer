@@ -193,6 +193,8 @@ impl Drop for MainWindow {
 
 impl MainWindow {
     const COLUMN_SETTINGS_SAVE_DEBOUNCE: Duration = Duration::from_secs(1);
+    /// Upper bound on remembered folder sizes before the cache is dropped.
+    const FOLDER_SIZE_CACHE_CAP: usize = 50_000;
 
     /// Comprehensive validation for submitted filenames
     /// Used when user submits/commits the filename (Enter, create new file/folder)
@@ -632,7 +634,7 @@ impl MainWindow {
             view.item_viewer_filter_state.dirty = true;
             view.item_viewer_filter_state.cached_indices.clear();
         }
-        self.folder_sizes.clear();
+        // folder_sizes is a session cache: kept across loads, revalidated by rescans.
         self.file_size_text_cache.clear();
         self.folder_size_text_cache.clear();
         self.drive_size_text_cache.clear();
@@ -743,6 +745,16 @@ impl MainWindow {
         }
 
         for side in changed_sides {
+            // A change here also changes every ancestor's size; drop only those.
+            let mut dir = Some(self.active_tab().view(side).nav.current.as_path());
+            let mut stale = Vec::new();
+            while let Some(path) = dir {
+                stale.push(path.to_path_buf());
+                dir = path.parent();
+            }
+            for path in stale {
+                self.folder_sizes.remove(&path);
+            }
             self.load_view(side);
         }
     }
@@ -2291,15 +2303,23 @@ impl MainWindow {
                 .settings_window
                 .current_settings
                 .folder_scanning_enabled;
-            for item in batch.iter() {
+            if self.folder_sizes.len() > Self::FOLDER_SIZE_CACHE_CAP {
+                self.folder_sizes.clear();
+            }
+            for item in batch.iter_mut() {
                 if item.is_dir && folder_scanning_enabled {
-                    // Only set up folder size tracking if scanning is enabled
-                    self.folder_sizes.entry(item.path.clone()).or_insert(
+                    // Only set up folder size tracking if scanning is enabled.
+                    // A cached size is shown right away and corrected by the rescan.
+                    let state = self.folder_sizes.entry(item.path.clone()).or_insert(
                         ItemViewerFolderSizeState {
                             bytes: 0,
                             done: false,
                         },
                     );
+                    state.done = false;
+                    if state.bytes > 0 {
+                        item.file_size = Some(state.bytes);
+                    }
                     let view = self.active_tab_mut().view_mut(side);
                     if view.pending_size_set.insert(item.path.clone()) {
                         view.pending_size_queue.push_back(item.path.clone());
