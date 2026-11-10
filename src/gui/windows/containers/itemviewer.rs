@@ -4,6 +4,7 @@ use crate::core::i18n::I18n;
 use crate::core::icons::IconCache;
 use crate::core::utils::text::apply_eden_text_overrides;
 use crate::core::utils::widgets::draw_checkbox;
+use crate::gui::customization::CheckboxVisibility;
 use crate::gui::selection::item_paint;
 use crate::gui::theme::ThemePalette;
 use crate::gui::utils::{draw_object_drag_ghost, fuzzy_match, truncate_item_text};
@@ -57,6 +58,7 @@ pub fn draw_item_viewer(
     active_tab_id: u64,
     viewport_width: f32,
 ) -> Option<ItemViewerAction> {
+    let checkbox_visibility = settings_window.current_settings.ui.item_checkboxes;
     let display_mode = view.display_mode;
     let files = &view.files;
     let sort_column = view.sort_column;
@@ -252,6 +254,8 @@ pub fn draw_item_viewer(
             action = Some(ItemViewerAction::ColumnSizesChanged { finished: true });
         }
 
+        let show_checkbox_column =
+            !layout.is_drive_view && checkbox_visibility != CheckboxVisibility::Never;
         let available_height = ui.available_height();
         // IMPORTANT: register background interaction before TableBuilder.
         let bg_response = table_background_response(ui);
@@ -272,9 +276,10 @@ pub fn draw_item_viewer(
                 is_drive_view,
                 is_recycle_bin_view,
                 column_state.layout_generation,
+                checkbox_visibility,
             ));
             let table_state_id = ui.id().with(table_id_salt);
-            let checkbox_column_count = if layout.is_drive_view { 0 } else { 1 };
+            let checkbox_column_count = usize::from(show_checkbox_column);
             let resize_handle_count = column_layout.ordered_columns.len() + checkbox_column_count;
             let column_resize_active = (0..resize_handle_count).any(|index| {
                 ui.ctx()
@@ -358,7 +363,7 @@ pub fn draw_item_viewer(
                 }
             }
 
-            if !layout.is_drive_view {
+            if show_checkbox_column {
                 table = table.column(Column::exact(16.0));
             }
 
@@ -417,6 +422,8 @@ pub fn draw_item_viewer(
                         &mut header,
                         layout.is_drive_view,
                         layout.is_recycle_bin_view,
+                        show_checkbox_column,
+                        checkbox_visibility == CheckboxVisibility::OnHover,
                         &column_layout.ordered_columns,
                         &filter_state.cached_indices,
                         files,
@@ -432,6 +439,7 @@ pub fn draw_item_viewer(
                     // Capture the actual widths after TableBuilder has applied any
                     // user-driven column resizing.
                     actual_column_widths.extend_from_slice(body.widths());
+                    let body_x_range = body.ui_mut().max_rect().x_range();
                     let hovered_drop_target = &mut hovered_drop_target;
                     let filtered_indices = &filter_state.cached_indices;
 
@@ -456,11 +464,29 @@ pub fn draw_item_viewer(
                         let row_hover_slot = row_hover_painter.add(egui::Shape::Noop);
                         let is_cut = is_cut_mode && clipboard_set.contains(&file.path);
 
-                        if !layout.is_drive_view {
+                        if show_checkbox_column {
                             row.col(|ui| {
                                 let mut checked = is_selected;
+                                // The column stays reserved in hover mode so rows don't shift.
+                                let visible = match checkbox_visibility {
+                                    CheckboxVisibility::OnHover => {
+                                        is_selected
+                                            || ui.ctx().pointer_hover_pos().is_some_and(|p| {
+                                                ui.max_rect().y_range().contains(p.y)
+                                                    && body_x_range.contains(p.x)
+                                            })
+                                    }
+                                    _ => true,
+                                };
 
-                                if draw_checkbox(ui, palette, &mut checked, &file.path, &file.name)
+                                if visible
+                                    && draw_checkbox(
+                                        ui,
+                                        palette,
+                                        &mut checked,
+                                        &file.path,
+                                        &file.name,
+                                    )
                                     .clicked()
                                 {
                                     if checked {

@@ -1170,6 +1170,8 @@ pub fn draw_item_viewer_header(
     header: &mut egui_extras::TableRow<'_, '_>,
     is_drive_view: bool,
     is_recycle_bin_view: bool,
+    show_checkbox_column: bool,
+    checkbox_on_hover: bool,
     ordered_columns: &[ItemViewerHeaderColumn],
     filtered_indices: &[usize],
     files: &[FileItem],
@@ -1181,23 +1183,32 @@ pub fn draw_item_viewer_header(
     let font_id = FontId::new(palette.text_size, FontFamily::Proportional);
     let mut action: Option<ItemViewerAction> = None;
 
-    if !is_drive_view {
+    if show_checkbox_column {
         header.col(|ui| {
             let mut all_selected = !filtered_indices.is_empty()
                 && filtered_indices
                     .iter()
                     .all(|&i| explorer_state.selected_paths.contains(&files[i].path));
 
+            // Hover mode: the select-all box shows while hovering the header or with a selection.
+            let visible = !checkbox_on_hover
+                || !explorer_state.selected_paths.is_empty()
+                || ui
+                    .ctx()
+                    .pointer_hover_pos()
+                    .is_some_and(|p| ui.max_rect().y_range().contains(p.y));
+
             ui.scope(|ui| {
                 apply_checkbox_colors(ui, palette, all_selected);
-                if draw_checkbox(
-                    ui,
-                    palette,
-                    &mut all_selected,
-                    "select_all",
-                    &i18n.tr("select_all"),
-                )
-                .clicked()
+                if visible
+                    && draw_checkbox(
+                        ui,
+                        palette,
+                        &mut all_selected,
+                        "select_all",
+                        &i18n.tr("select_all"),
+                    )
+                    .clicked()
                 {
                     action = Some(if all_selected {
                         ItemViewerAction::SelectAll

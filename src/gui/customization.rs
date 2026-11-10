@@ -23,6 +23,34 @@ impl ToolbarLayout {
     }
 }
 
+/// When the selection checkbox on each item row is visible.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Hash)]
+pub enum CheckboxVisibility {
+    /// Current behavior: every row has a checkbox.
+    #[default]
+    Always,
+    /// Windows 11 Explorer: only on the hovered row and on selected rows.
+    OnHover,
+    /// No checkbox column at all.
+    Never,
+}
+
+impl CheckboxVisibility {
+    pub const ALL: [CheckboxVisibility; 3] = [
+        CheckboxVisibility::Always,
+        CheckboxVisibility::OnHover,
+        CheckboxVisibility::Never,
+    ];
+
+    pub fn label_key(self) -> &'static str {
+        match self {
+            CheckboxVisibility::Always => "settings_checkboxes_always",
+            CheckboxVisibility::OnHover => "settings_checkboxes_hover",
+            CheckboxVisibility::Never => "settings_checkboxes_never",
+        }
+    }
+}
+
 /// Which toolbar buttons are shown.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -366,6 +394,7 @@ pub struct UiPreferences {
     pub theme_follow_system: bool,
     /// Interface zoom (1.0 = 100%).
     pub zoom: f32,
+    pub item_checkboxes: CheckboxVisibility,
 }
 
 impl Default for UiPreferences {
@@ -376,6 +405,7 @@ impl Default for UiPreferences {
             sidebar: SidebarPrefs::default(),
             theme_follow_system: false,
             zoom: 1.0,
+            item_checkboxes: CheckboxVisibility::Always,
         }
     }
 }
@@ -393,6 +423,19 @@ pub fn effective_zoom(zoom: f32) -> f32 {
 mod tests {
     use super::*;
     use ToolbarItem::*;
+
+    #[test]
+    fn checkbox_visibility_defaults_to_always_and_round_trips() {
+        let old: UiPreferences = serde_json::from_str(r#"{"zoom":1.5}"#).unwrap();
+        assert_eq!(old.item_checkboxes, CheckboxVisibility::Always);
+        let prefs = UiPreferences {
+            item_checkboxes: CheckboxVisibility::OnHover,
+            ..UiPreferences::default()
+        };
+        let back: UiPreferences =
+            serde_json::from_str(&serde_json::to_string(&prefs).unwrap()).unwrap();
+        assert_eq!(back.item_checkboxes, CheckboxVisibility::OnHover);
+    }
 
     #[test]
     fn default_toolbar_matches_v1_3_0() {

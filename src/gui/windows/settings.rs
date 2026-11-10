@@ -11,7 +11,9 @@ use crate::core::{
         eden_text_label, eden_toggle_button,
     },
 };
-use crate::gui::customization::{SidebarPrefs, StatusBarPrefs, ToolbarLayout, ToolbarPrefs};
+use crate::gui::customization::{
+    CheckboxVisibility, SidebarPrefs, StatusBarPrefs, ToolbarLayout, ToolbarPrefs,
+};
 use crate::gui::icon_system::{AppIcon, draw_icon, paint_icon};
 use crate::gui::theme::ThemePalette;
 use crate::gui::utils::SortColumn;
@@ -385,6 +387,31 @@ fn draw_appearance_tab(
                     prefs.zoom = percent / 100.0;
                     changed = true;
                 }
+            },
+        );
+    });
+
+    ui.group(|ui| {
+        appearance_heading(ui, palette, &i18n.tr("settings_item_list"));
+        setting_row(
+            ui,
+            |ui| setting_label(ui, &i18n.tr("settings_checkboxes"), None, palette),
+            |ui| {
+                let current = i18n.tr(prefs.item_checkboxes.label_key());
+                draw_dropdown(ui, palette, "settings_checkboxes", 240.0, current, |ui| {
+                    for mode in CheckboxVisibility::ALL {
+                        if ui
+                            .selectable_label(
+                                prefs.item_checkboxes == mode,
+                                i18n.tr(mode.label_key()),
+                            )
+                            .clicked()
+                        {
+                            prefs.item_checkboxes = mode;
+                            changed = true;
+                        }
+                    }
+                });
             },
         );
     });
