@@ -90,6 +90,14 @@ pub struct ThemePalette {
     /// Bottom color of the gradient (top is `application_bg_color`).
     pub bg_gradient_end: Color32,
 
+    // 🔲 Selection
+    pub selection_style: crate::gui::selection::SelectionStyle,
+    pub hover_style: crate::gui::selection::HoverStyle,
+    /// Outline color of selected items (outline styles).
+    pub selection_stroke: Color32,
+    pub selection_stroke_width: f32,
+    pub selection_radius: u8,
+
     // 🎯 Icons & text
     pub icon_color: Color32,
     pub icon_windows: Color32,
@@ -237,6 +245,11 @@ pub static DEFAULT_PALETTE_DARK: LazyLock<ThemePalette> = LazyLock::new(|| {
         show_separators: true,
         bg_gradient: false,
         bg_gradient_end: Color32::from_rgb(28, 24, 40),
+        selection_style: crate::gui::selection::SelectionStyle::Fill,
+        hover_style: crate::gui::selection::HoverStyle::Fill,
+        selection_stroke: Color32::from_rgb(210, 210, 215),
+        selection_stroke_width: 1.0,
+        selection_radius: 0,
 
         // 🎯 Icons & text
         icon_color: Color32::WHITE,
@@ -335,6 +348,11 @@ pub static DEFAULT_PALETTE_LIGHT: LazyLock<ThemePalette> = LazyLock::new(|| {
         show_separators: true,
         bg_gradient: false,
         bg_gradient_end: Color32::from_rgb(232, 228, 245),
+        selection_style: crate::gui::selection::SelectionStyle::Fill,
+        hover_style: crate::gui::selection::HoverStyle::Fill,
+        selection_stroke: Color32::from_rgb(60, 60, 70),
+        selection_stroke_width: 1.0,
+        selection_radius: 0,
 
         // 🎯 Icons & text
         icon_color: Color32::from_rgb(40, 40, 40),

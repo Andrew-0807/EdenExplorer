@@ -4,6 +4,7 @@ use crate::core::i18n::I18n;
 use crate::core::icons::IconCache;
 use crate::core::utils::text::apply_eden_text_overrides;
 use crate::core::utils::widgets::draw_checkbox;
+use crate::gui::selection::item_paint;
 use crate::gui::theme::ThemePalette;
 use crate::gui::utils::{draw_object_drag_ghost, fuzzy_match, truncate_item_text};
 use crate::gui::windows::containers::enums::{ItemViewerAction, ItemViewerHeaderColumn};
@@ -439,6 +440,7 @@ pub fn draw_item_viewer(
                     // this frame's hover instead, into a slot reserved under the cells.
                     let row_hover_painter = body.ui_mut().painter().clone();
                     let row_hover_fill = body.ui_mut().visuals().widgets.hovered.bg_fill;
+                    let row_selection_fill = body.ui_mut().visuals().selection.bg_fill;
                     let row_hover_expand = 0.5 * body.ui_mut().spacing().item_spacing;
 
                     body.rows(layout.row_height, filtered_indices.len(), |mut row| {
@@ -447,7 +449,9 @@ pub fn draw_item_viewer(
                         let is_non_ntfs_drive =
                             layout.is_drive_view && is_raw_physical_drive_path(&file.path);
                         let is_selected = explorer_state.selected_paths.contains(&file.path);
-                        row.set_selected(is_selected);
+                        // Selection is painted below with the theme's style
+                        // (fill, outline or both) instead of egui_extras' fill.
+                        row.set_selected(false);
                         row.set_hovered(false);
                         let row_hover_slot = row_hover_painter.add(egui::Shape::Noop);
                         let is_cut = is_cut_mode && clipboard_set.contains(&file.path);
@@ -497,23 +501,40 @@ pub fn draw_item_viewer(
 
                         let row_resp = row.response();
 
-                        if row_resp.hovered() && !is_selected {
+                        let row_paint = item_paint(
+                            palette,
+                            is_selected,
+                            row_resp.hovered(),
+                            row_selection_fill,
+                            row_hover_fill,
+                        );
+                        if !row_paint.is_empty() {
                             // The row response can be taller than the row, so cap it at
                             // the row height (same as the drop target rect below).
-                            let row_rect = egui::Rect::from_min_size(
-                                row_resp.rect.min,
-                                egui::vec2(row_resp.rect.width(), layout.row_height),
+                            let row_rect = egui::emath::GuiRounding::round_ui(
+                                egui::Rect::from_min_size(
+                                    row_resp.rect.min,
+                                    egui::vec2(row_resp.rect.width(), layout.row_height),
+                                )
+                                .expand2(row_hover_expand),
                             );
-                            row_hover_painter.set(
-                                row_hover_slot,
-                                egui::epaint::RectShape::filled(
-                                    egui::emath::GuiRounding::round_ui(
-                                        row_rect.expand2(row_hover_expand),
-                                    ),
-                                    egui::CornerRadius::ZERO,
-                                    row_hover_fill,
-                                ),
-                            );
+                            let mut shapes = Vec::with_capacity(2);
+                            if let Some(fill) = row_paint.fill {
+                                shapes.push(egui::Shape::Rect(egui::epaint::RectShape::filled(
+                                    row_rect,
+                                    row_paint.radius,
+                                    fill,
+                                )));
+                            }
+                            if let Some(stroke) = row_paint.stroke {
+                                shapes.push(egui::Shape::Rect(egui::epaint::RectShape::stroke(
+                                    row_rect,
+                                    row_paint.radius,
+                                    stroke,
+                                    egui::StrokeKind::Inside,
+                                )));
+                            }
+                            row_hover_painter.set(row_hover_slot, egui::Shape::Vec(shapes));
                         }
 
                         if drag_hover_active {

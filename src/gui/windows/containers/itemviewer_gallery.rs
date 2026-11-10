@@ -8,6 +8,7 @@ use crate::core::utils::widgets::{
     apply_eden_dropdown_visual_color_overrides, apply_eden_visual_overrides, draw_dropdown,
 };
 use crate::gui::icon_system::{AppIcon, paint_icon};
+use crate::gui::selection::{item_paint, paint_item};
 use crate::gui::theme::ThemePalette;
 use crate::gui::utils::{SortColumn, truncate_item_text};
 use crate::gui::windows::containers::enums::ItemViewerAction;
@@ -514,21 +515,21 @@ fn draw_gallery_tile(
     let is_selected = explorer_state.selected_paths.contains(&file.path);
     let is_cut = is_cut_mode && clipboard_set.contains(&file.path);
 
-    let bg = if is_selected {
-        palette.primary_active
-    } else if response.hovered() {
-        palette.primary_hover.linear_multiply(0.35)
-    } else {
-        egui::Color32::TRANSPARENT
-    };
-
     // Respect the parent/ScrollArea clip rect while also preventing anything
     // rendered by this tile from escaping its own bounds.
     let tile_painter = ui.painter().with_clip_rect(rect.intersect(ui.clip_rect()));
 
-    if bg != egui::Color32::TRANSPARENT {
-        tile_painter.rect_filled(rect, egui::CornerRadius::same(palette.medium_radius), bg);
-    }
+    let mut tile_paint = item_paint(
+        palette,
+        is_selected,
+        response.hovered(),
+        palette.primary_active,
+        palette.primary_hover.linear_multiply(0.35),
+    );
+    // Tiles keep their rounded look unless the theme asks for more.
+    tile_paint.radius =
+        egui::CornerRadius::same(palette.medium_radius.max(palette.selection_radius));
+    paint_item(&tile_painter, rect, tile_paint);
 
     let preview_rect = egui::Rect::from_center_size(
         egui::pos2(

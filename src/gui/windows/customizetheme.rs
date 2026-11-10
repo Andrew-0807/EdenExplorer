@@ -1,6 +1,7 @@
 use crate::core::i18n::I18n;
 use crate::core::utils::fonts::get_font_list;
 use crate::gui::backdrop::{Backdrop, needs_restart, transparent_surface};
+use crate::gui::selection::{HoverStyle, SelectionStyle};
 use crate::gui::theme::{
     ThemeMode, ThemePalette, apply_font_to_context, error_color, regenerate_base_derived_colors,
 };
@@ -416,6 +417,33 @@ fn draw_sections(
                 .italics(),
         );
     }
+
+    section(ui, rows, "theme_section_selection", false, |ui, rows| {
+        let styles: Vec<(SelectionStyle, &str)> = SelectionStyle::ALL
+            .iter()
+            .map(|s| (*s, s.label_key()))
+            .collect();
+        rows.choice(ui, "theme_selection_style", &mut p.selection_style, &styles);
+        let hovers: Vec<(HoverStyle, &str)> = HoverStyle::ALL
+            .iter()
+            .map(|s| (*s, s.label_key()))
+            .collect();
+        rows.choice(ui, "theme_hover_style", &mut p.hover_style, &hovers);
+        rows.color(ui, "theme_colors_selection_stroke", &mut p.selection_stroke);
+        rows.number(
+            ui,
+            "theme_selection_stroke_width",
+            &mut p.selection_stroke_width,
+            0.5..=4.0,
+            0.05,
+        );
+        rows.byte(
+            ui,
+            "theme_selection_radius",
+            &mut p.selection_radius,
+            0..=12,
+        );
+    });
 
     section(ui, rows, "theme_section_text", false, |ui, rows| {
         rows.color(ui, "theme_colors_text_normal", &mut p.text_normal);

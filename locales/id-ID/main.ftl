@@ -296,3 +296,17 @@ theme_colors_content_bg = Latar daftar berkas
 theme_show_separators = Garis pemisah
 theme_bg_gradient = Latar gradien
 theme_colors_bg_gradient_end = Warna bawah gradien
+
+# Theme editor: selection style
+theme_section_selection = Pilihan
+theme_selection_style = Item terpilih
+theme_selection_fill = Isi
+theme_selection_outline = Garis tepi
+theme_selection_fill_outline = Isi dan garis tepi
+theme_hover_style = Item di bawah kursor
+theme_hover_fill = Isi
+theme_hover_outline = Garis tepi
+theme_hover_none = Tidak ada
+theme_colors_selection_stroke = Warna garis tepi
+theme_selection_stroke_width = Lebar garis tepi
+theme_selection_radius = Radius sudut pilihan

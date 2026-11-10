@@ -296,3 +296,17 @@ theme_colors_content_bg = 文件列表背景
 theme_show_separators = 分隔线
 theme_bg_gradient = 渐变背景
 theme_colors_bg_gradient_end = 渐变底部颜色
+
+# Theme editor: selection style
+theme_section_selection = 选择
+theme_selection_style = 选中的项目
+theme_selection_fill = 填充
+theme_selection_outline = 轮廓
+theme_selection_fill_outline = 填充和轮廓
+theme_hover_style = 悬停的项目
+theme_hover_fill = 填充
+theme_hover_outline = 轮廓
+theme_hover_none = 无
+theme_colors_selection_stroke = 轮廓颜色
+theme_selection_stroke_width = 轮廓宽度
+theme_selection_radius = 选择圆角半径

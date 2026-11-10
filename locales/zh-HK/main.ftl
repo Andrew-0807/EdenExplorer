@@ -296,3 +296,17 @@ theme_colors_content_bg = 檔案清單背景
 theme_show_separators = 分隔線
 theme_bg_gradient = 漸層背景
 theme_colors_bg_gradient_end = 漸層底部顏色
+
+# Theme editor: selection style
+theme_section_selection = 選取
+theme_selection_style = 已選取的項目
+theme_selection_fill = 填滿
+theme_selection_outline = 外框
+theme_selection_fill_outline = 填滿和外框
+theme_hover_style = 懸停的項目
+theme_hover_fill = 填滿
+theme_hover_outline = 外框
+theme_hover_none = 無
+theme_colors_selection_stroke = 外框顏色
+theme_selection_stroke_width = 外框寬度
+theme_selection_radius = 選取圓角半徑

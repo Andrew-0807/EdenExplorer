@@ -1,6 +1,7 @@
 //! Built-in theme presets and theme file import/export.
 
 use crate::gui::backdrop::Backdrop;
+use crate::gui::selection::SelectionStyle;
 use crate::gui::theme::{
     THEME_VERSION, ThemeMode, ThemePalette, get_default_palette, palette_from_json,
     regenerate_base_derived_colors,
@@ -213,6 +214,13 @@ fn preset_apply_extras(preset: ThemePreset, mode: ThemeMode, palette: &mut Theme
             ThemeMode::Light => 0.75,
         };
         palette.show_separators = false;
+        // Explorer draws the selected row as a thin light outline.
+        palette.selection_style = SelectionStyle::Outline;
+        palette.selection_radius = 2;
+        palette.selection_stroke = match mode {
+            ThemeMode::Dark => rgb(220, 220, 220),
+            ThemeMode::Light => rgb(40, 40, 40),
+        };
     }
 }
 

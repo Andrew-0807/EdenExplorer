@@ -296,3 +296,17 @@ theme_colors_content_bg = ファイル一覧の背景
 theme_show_separators = 区切り線
 theme_bg_gradient = グラデーション背景
 theme_colors_bg_gradient_end = グラデーションの下端の色
+
+# Theme editor: selection style
+theme_section_selection = 選択
+theme_selection_style = 選択した項目
+theme_selection_fill = 塗りつぶし
+theme_selection_outline = 枠線
+theme_selection_fill_outline = 塗りつぶしと枠線
+theme_hover_style = ホバーした項目
+theme_hover_fill = 塗りつぶし
+theme_hover_outline = 枠線
+theme_hover_none = なし
+theme_colors_selection_stroke = 枠線の色
+theme_selection_stroke_width = 枠線の太さ
+theme_selection_radius = 選択の角の丸み

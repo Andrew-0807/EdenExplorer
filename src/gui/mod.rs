@@ -2,6 +2,7 @@
 pub mod backdrop;
 pub mod dragdrop;
 pub mod icon_system;
+pub mod selection;
 pub mod theme;
 pub mod theme_presets;
 pub mod utils;

@@ -296,3 +296,17 @@ theme_colors_content_bg = File list background
 theme_show_separators = Separator lines
 theme_bg_gradient = Gradient background
 theme_colors_bg_gradient_end = Gradient bottom color
+
+# Theme editor: selection style
+theme_section_selection = Selection
+theme_selection_style = Selected items
+theme_selection_fill = Fill
+theme_selection_outline = Outline
+theme_selection_fill_outline = Fill and outline
+theme_hover_style = Hovered items
+theme_hover_fill = Fill
+theme_hover_outline = Outline
+theme_hover_none = None
+theme_colors_selection_stroke = Outline color
+theme_selection_stroke_width = Outline width
+theme_selection_radius = Selection corner radius
