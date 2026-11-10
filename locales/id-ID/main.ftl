@@ -402,3 +402,5 @@ zoxide_cannot_add = Lokasi ini tidak dapat ditambahkan.
 settings_zoxide_auto_add = Tambahkan folder yang dikunjungi ke zoxide
 tooltip_settings_zoxide_auto_add = Mencatat folder di zoxide setelah Anda berada di dalamnya sekitar satu detik. Memerlukan zoxide terpasang.
 hotkey_zoxide_jump = Lompat cepat ke folder (zoxide)
+settings_search_placeholder = Cari pengaturan
+settings_search_no_results = Tidak ada pengaturan yang cocok

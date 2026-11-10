@@ -402,3 +402,5 @@ zoxide_cannot_add = この場所は追加できません。
 settings_zoxide_auto_add = 訪問したフォルダーを zoxide に追加
 tooltip_settings_zoxide_auto_add = 約 1 秒間フォルダーに留まると zoxide に記録します。zoxide のインストールが必要です。
 hotkey_zoxide_jump = フォルダーへクイックジャンプ (zoxide)
+settings_search_placeholder = 設定を検索
+settings_search_no_results = 一致する設定はありません

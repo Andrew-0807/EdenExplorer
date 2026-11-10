@@ -402,3 +402,5 @@ zoxide_cannot_add = This location cannot be added.
 settings_zoxide_auto_add = Add visited folders to zoxide
 tooltip_settings_zoxide_auto_add = Records a folder in zoxide after you stay in it for about a second. Requires zoxide to be installed.
 hotkey_zoxide_jump = Quick jump to a folder (zoxide)
+settings_search_placeholder = Search settings
+settings_search_no_results = No settings match

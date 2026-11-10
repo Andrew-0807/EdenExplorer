@@ -402,3 +402,5 @@ zoxide_cannot_add = 无法添加此位置。
 settings_zoxide_auto_add = 将访问过的文件夹添加到 zoxide
 tooltip_settings_zoxide_auto_add = 在文件夹中停留约一秒后记录到 zoxide。需要已安装 zoxide。
 hotkey_zoxide_jump = 快速跳转到文件夹 (zoxide)
+settings_search_placeholder = 搜索设置
+settings_search_no_results = 没有匹配的设置
