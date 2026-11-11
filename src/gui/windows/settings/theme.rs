@@ -194,15 +194,11 @@ pub(super) fn draw_appearance_section(
             &mut p.backdrop,
             &options,
         );
-        theme_changed |= slider_row(
+        theme_changed |= percent_slider_row(
             ui,
             palette,
             &i18n.tr("theme_backdrop_tint_opacity"),
-            None,
             &mut p.backdrop_tint_opacity,
-            0.0..=1.0,
-            "",
-            0.01,
         );
     });
 
