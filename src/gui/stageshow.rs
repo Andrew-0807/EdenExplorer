@@ -200,3 +200,54 @@ fn stageshow_item_list() {
         },
     );
 }
+
+/// Terminal button with the herdr right-click menu open. The menu must sit
+/// below the button, not on top of it.
+#[test]
+fn stageshow_herdr_menu() {
+    use crate::core::herdr::{self, Snapshot, Workspace};
+    use crate::gui::utils::eden_icon_button;
+    use crate::gui::windows::containers::itemviewer_navbar::herdr_popup;
+    if !enabled() {
+        return;
+    }
+    herdr::set_snapshot(Snapshot::Workspaces(vec![
+        Workspace {
+            id: "w1".into(),
+            label: "axis".into(),
+            anchor_pane: Some("p1".into()),
+        },
+        Workspace {
+            id: "w2".into(),
+            label: "notes".into(),
+            anchor_pane: None,
+        },
+    ]));
+    let mode = ThemeMode::Dark;
+    let i18n = I18n::new("en-US");
+    render_scene(
+        "herdr_menu",
+        [420.0, 260.0],
+        1.5,
+        mode,
+        get_palette(mode),
+        move |ui, palette| {
+            let full = ui.ctx().content_rect();
+            ui.painter()
+                .rect_filled(full, 0.0, palette.application_bg_color);
+            ui.add_space(12.0);
+            ui.horizontal(|ui| {
+                ui.add_space(150.0);
+                let resp = eden_icon_button(
+                    ui,
+                    palette,
+                    AppIcon::Terminal.regular(),
+                    "Terminal",
+                    30.0,
+                    18.0,
+                );
+                herdr_popup(&resp, &i18n, std::path::Path::new("C:/Users/axis"), true);
+            });
+        },
+    );
+}

@@ -133,6 +133,12 @@ fn fetch() -> Option<Snapshot> {
     parse_snapshot(&ws_text, &panes_text)
 }
 
+/// Test hook: replaces the snapshot without running herdr.
+#[cfg(test)]
+pub fn set_snapshot(next: Snapshot) {
+    *SNAPSHOT.lock().unwrap() = next;
+}
+
 /// The result of the last refresh.
 pub fn snapshot() -> Snapshot {
     SNAPSHOT
