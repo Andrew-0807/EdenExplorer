@@ -10,8 +10,14 @@ use crate::core::i18n::I18n;
 use crate::core::utils::widgets::eden_button;
 use crate::gui::keymap::{self, Action, KeyChord, KeyMap, Overrides};
 use crate::gui::theme::ThemePalette;
+use crate::gui::windows::settings::{
+    body_size, setting_row_keywords, settings_button, settings_section,
+};
 use eframe::egui;
 use egui::RichText;
+
+/// Width of the chips and buttons column.
+const HOTKEY_CONTROL_WIDTH: f32 = 400.0;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Mode {
@@ -139,6 +145,115 @@ fn chords_text(map: &KeyMap, action: Action, i18n: &I18n) -> String {
         .join(" / ")
 }
 
+/// Rounded key chip showing one chord (or the capture prompt).
+fn key_chip(ui: &mut egui::Ui, palette: &ThemePalette, text: &str, active: bool) {
+    let stroke = if active {
+        palette.primary
+    } else {
+        palette.borders_default
+    };
+    let color = if active {
+        palette.text_normal
+    } else {
+        palette.text_normal.gamma_multiply(0.9)
+    };
+    let galley = ui.painter().layout_no_wrap(
+        text.to_string(),
+        egui::FontId::proportional(body_size(palette) - 1.0),
+        color,
+    );
+    let size = galley.size() + egui::vec2(16.0, 6.0);
+    let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
+    ui.painter().rect(
+        rect,
+        egui::CornerRadius::same(6),
+        palette.text_normal.gamma_multiply(0.07),
+        egui::Stroke::new(1.0, stroke),
+        egui::StrokeKind::Inside,
+    );
+    ui.painter()
+        .galley(rect.center() - galley.size() / 2.0, galley, color);
+}
+
+/// One action: its name on the left, chips and buttons on the right.
+fn draw_action_row(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    i18n: &I18n,
+    overrides: &mut Overrides,
+    map: &KeyMap,
+    state: &mut EditorState,
+    action: Action,
+) {
+    let capturing_here = state.capturing.map(|(a, _)| a) == Some(action);
+    let chords = map.chords(action);
+    let keywords = chords_text(map, action, i18n);
+    let label = i18n.tr(action.label_key());
+    // Controls are added right to left: Reset, +, Change, then the chips.
+    setting_row_keywords(
+        ui,
+        palette,
+        &label,
+        None,
+        &keywords,
+        HOTKEY_CONTROL_WIDTH,
+        |ui| {
+            if capturing_here {
+                if eden_button(ui, palette, &i18n.tr("hotkey_cancel")).clicked() {
+                    state.capturing = None;
+                    state.conflict = None;
+                }
+                key_chip(ui, palette, &i18n.tr("hotkey_press_keys"), true);
+                return;
+            }
+            if overrides.contains_key(action.name())
+                && eden_button(ui, palette, &i18n.tr("hotkey_reset")).clicked()
+            {
+                reset_action(overrides, action);
+            }
+            if eden_button(ui, palette, "+").clicked() {
+                state.capturing = Some((action, Mode::Add));
+                state.conflict = None;
+            }
+            if eden_button(ui, palette, &i18n.tr("hotkey_change")).clicked() {
+                state.capturing = Some((action, Mode::Replace));
+                state.conflict = None;
+            }
+            if chords.is_empty() {
+                ui.label(
+                    RichText::new(i18n.tr("hotkey_unbound"))
+                        .color(palette.text_normal.gamma_multiply(0.6)),
+                );
+            }
+            for chord in chords.iter().rev() {
+                key_chip(ui, palette, &chord.to_string(), false);
+            }
+        },
+    );
+
+    if capturing_here && let Some(conflict) = state.conflict {
+        ui.horizontal(|ui| {
+            ui.label(
+                RichText::new(format!(
+                    "{} {} \"{}\"",
+                    conflict.chord,
+                    i18n.tr("hotkey_conflict_used_by"),
+                    i18n.tr(conflict.other.label_key())
+                ))
+                .color(palette.text_normal),
+            );
+            if eden_button(ui, palette, &i18n.tr("hotkey_swap")).clicked()
+                && let Some((a, mode)) = state.capturing
+            {
+                apply(overrides, a, mode, conflict.chord, true);
+                *state = EditorState::default();
+            } else if eden_button(ui, palette, &i18n.tr("hotkey_cancel")).clicked() {
+                state.conflict = None;
+            }
+        });
+    }
+}
+
 pub fn draw(ui: &mut egui::Ui, palette: &ThemePalette, i18n: &I18n, overrides: &mut Overrides) {
     let ctx = ui.ctx().clone();
     let mut state = load(&ctx);
@@ -172,99 +287,17 @@ pub fn draw(ui: &mut egui::Ui, palette: &ThemePalette, i18n: &I18n, overrides: &
     ui.spacing_mut().item_spacing.y = 0.0;
     ui.vertical(|ui| {
         ui.add_space(4.0);
-        if eden_button(ui, palette, &i18n.tr("hotkeys_reset")).clicked() {
+        if settings_button(ui, palette, &i18n.tr("hotkeys_reset")).is_some_and(|r| r.clicked()) {
             overrides.clear();
             state = EditorState::default();
         }
 
         for (group_name, actions) in keymap::GROUPS {
-            ui.add_space(8.0);
-            ui.label(
-                RichText::new(i18n.tr(group_name))
-                    .strong()
-                    .color(palette.text_header_section),
-            );
-            ui.add_space(3.0);
-
-            for &action in *actions {
-                let capturing_here = state.capturing.map(|(a, _)| a) == Some(action);
-                ui.horizontal(|ui| {
-                    let (rect, _) =
-                        ui.allocate_exact_size(egui::vec2(205.0, 22.0), egui::Sense::hover());
-                    let (text, color) = if capturing_here {
-                        (i18n.tr("hotkey_press_keys"), palette.text_normal)
-                    } else {
-                        (chords_text(&map, action, i18n), palette.primary)
-                    };
-                    let border = if capturing_here {
-                        palette.primary
-                    } else {
-                        palette.borders_default
-                    };
-                    ui.painter().rect_stroke(
-                        rect,
-                        4.0,
-                        egui::Stroke::new(1.0, border),
-                        egui::StrokeKind::Inside,
-                    );
-                    ui.painter().with_clip_rect(rect).text(
-                        rect.center(),
-                        egui::Align2::CENTER_CENTER,
-                        text,
-                        egui::FontId::proportional(palette.text_size),
-                        color,
-                    );
-
-                    if capturing_here {
-                        if eden_button(ui, palette, &i18n.tr("hotkey_cancel")).clicked() {
-                            state.capturing = None;
-                            state.conflict = None;
-                        }
-                    } else {
-                        if eden_button(ui, palette, &i18n.tr("hotkey_change")).clicked() {
-                            state.capturing = Some((action, Mode::Replace));
-                            state.conflict = None;
-                        }
-                        if eden_button(ui, palette, "+").clicked() {
-                            state.capturing = Some((action, Mode::Add));
-                            state.conflict = None;
-                        }
-                        let changed = overrides.contains_key(action.name());
-                        if changed && eden_button(ui, palette, &i18n.tr("hotkey_reset")).clicked() {
-                            reset_action(overrides, action);
-                        }
-                    }
-                    ui.add(
-                        egui::Label::new(
-                            RichText::new(i18n.tr(action.label_key())).color(palette.text_normal),
-                        )
-                        .truncate(),
-                    );
-                });
-
-                if capturing_here && let Some(conflict) = state.conflict {
-                    ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new(format!(
-                                "{} {} \"{}\"",
-                                conflict.chord,
-                                i18n.tr("hotkey_conflict_used_by"),
-                                i18n.tr(conflict.other.label_key())
-                            ))
-                            .color(palette.text_normal),
-                        );
-                        if eden_button(ui, palette, &i18n.tr("hotkey_swap")).clicked()
-                            && let Some((a, mode)) = state.capturing
-                        {
-                            apply(overrides, a, mode, conflict.chord, true);
-                            state = EditorState::default();
-                        } else if eden_button(ui, palette, &i18n.tr("hotkey_cancel")).clicked() {
-                            state.conflict = None;
-                        }
-                    });
+            settings_section(ui, palette, Some(&i18n.tr(group_name)), |ui| {
+                for &action in *actions {
+                    draw_action_row(ui, palette, i18n, overrides, &map, &mut state, action);
                 }
-                ui.add_space(4.0);
-            }
+            });
         }
     });
 

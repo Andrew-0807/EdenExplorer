@@ -118,6 +118,13 @@ fn stageshow_settings() {
         ThemeMode::Dark,
     );
     settings_scene(
+        "settings_search_hotkey",
+        SettingsTab::General,
+        12.0,
+        "tab",
+        ThemeMode::Dark,
+    );
+    settings_scene(
         "settings_appearance_light",
         SettingsTab::Appearance,
         12.0,
