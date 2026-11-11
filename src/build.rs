@@ -2,19 +2,19 @@ extern crate winres;
 
 fn main() {
     // Tell Cargo to rerun build script if icon changes
-    println!("cargo:rerun-if-changed=src/icon.ico");
+    println!("cargo:rerun-if-changed=src/assets/icon.ico");
 
     #[cfg(target_os = "windows")]
     {
         let mut res = winres::WindowsResource::new();
 
-        res.set_icon("src/icon.ico");
+        res.set_icon("src/assets/icon.ico");
 
-        res.set("FileDescription", "EdenExplorer");
-        res.set("ProductName", "EdenExplorer");
+        res.set("FileDescription", "Axis");
+        res.set("ProductName", "Axis");
         res.set("FileVersion", env!("CARGO_PKG_VERSION"));
         res.set("ProductVersion", env!("CARGO_PKG_VERSION"));
-        res.set("OriginalFilename", "EdenExplorer.exe");
+        res.set("OriginalFilename", "Axis.exe");
 
         res.set_manifest(
             r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

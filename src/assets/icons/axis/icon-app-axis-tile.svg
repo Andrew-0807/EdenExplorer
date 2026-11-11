@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="tile_bg" x1="128" y1="16" x2="128" y2="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e2330" />
+      <stop offset="100%" stop-color="#0c0e14" />
+    </linearGradient>
+
+    <!-- Border Gradient -->
+    <linearGradient id="tile_stroke" x1="128" y1="16" x2="128" y2="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3b4458" />
+      <stop offset="100%" stop-color="#1a1e28" />
+    </linearGradient>
+
+    <!-- Glyph Gradient -->
+    <linearGradient id="axis_vector" x1="128" y1="44" x2="128" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+
+    <!-- Subtle Glow Filter -->
+    <filter id="vector_glow" x="40" y="24" width="176" height="180" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Container Squircle -->
+  <rect x="16" y="16" width="224" height="224" rx="52" ry="52" fill="url(#tile_bg)" stroke="url(#tile_stroke)" stroke-width="2" />
+
+  <!-- Subtle Coordinate Keyline Grid -->
+  <line x1="128" y1="36" x2="128" y2="220" stroke="#252c3c" stroke-width="1" stroke-dasharray="4 4" />
+  <line x1="36" y1="132" x2="220" y2="132" stroke="#252c3c" stroke-width="1" stroke-dasharray="4 4" />
+  <circle cx="128" cy="132" r="56" stroke="#1d2331" stroke-width="1" fill="none" />
+
+  <!-- Axis Coordinate Monogram ("A") -->
+  <g filter="url(#vector_glow)" stroke="url(#axis_vector)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Outer A-Frame Vectors -->
+    <path d="M128 44L64 180" />
+    <path d="M128 44L192 180" />
+    <!-- Abscissa Crossbar (X-Axis) -->
+    <path d="M88 132H168" />
+    <!-- Ordinate Vector (Y-Axis) -->
+    <path d="M128 44V132" />
+  </g>
+
+  <!-- Focal Origin Marker -->
+  <circle cx="128" cy="132" r="10" fill="#38bdf8" />
+</svg>
