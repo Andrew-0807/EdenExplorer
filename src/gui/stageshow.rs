@@ -229,3 +229,268 @@ fn stageshow_item_list() {
         },
     );
 }
+
+/// Terminal button with the herdr right-click menu open. The menu must sit
+/// below the button, not on top of it.
+#[test]
+fn stageshow_herdr_menu() {
+    use crate::core::herdr::{self, Snapshot, Workspace};
+    use crate::gui::utils::eden_icon_button;
+    use crate::gui::windows::containers::itemviewer_navbar::herdr_popup;
+    if !enabled() {
+        return;
+    }
+    herdr::set_snapshot(Snapshot::Workspaces(vec![
+        Workspace {
+            id: "w1".into(),
+            label: "axis".into(),
+            anchor_pane: Some("p1".into()),
+        },
+        Workspace {
+            id: "w2".into(),
+            label: "notes".into(),
+            anchor_pane: None,
+        },
+    ]));
+    let mode = ThemeMode::Dark;
+    let i18n = I18n::new("en-US");
+    render_scene(
+        "herdr_menu",
+        [420.0, 260.0],
+        1.5,
+        mode,
+        get_palette(mode),
+        move |ui, palette| {
+            let full = ui.ctx().content_rect();
+            ui.painter()
+                .rect_filled(full, 0.0, palette.application_bg_color);
+            ui.add_space(12.0);
+            ui.horizontal(|ui| {
+                ui.add_space(150.0);
+                let resp = eden_icon_button(
+                    ui,
+                    palette,
+                    AppIcon::Terminal.regular(),
+                    "Terminal",
+                    30.0,
+                    18.0,
+                );
+                herdr_popup(&resp, &i18n, std::path::Path::new("C:/Users/axis"), true);
+            });
+        },
+    );
+}
+
+/// Like `render_scene`, but holds the primary button and drags from `from`
+/// to `to` (with `ctrl` held when set) before capturing.
+fn render_drag_scene(
+    name: &str,
+    size: [f32; 2],
+    mode: ThemeMode,
+    palette: ThemePalette,
+    (from, to): (egui::Pos2, egui::Pos2),
+    mut scene: impl FnMut(&mut egui::Ui, &ThemePalette),
+) {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(size[0], size[1]))
+        .with_pixels_per_point(1.0)
+        .wgpu()
+        .build_ui(move |ui| {
+            let ctx = ui.ctx().clone();
+            apply_theme(&ctx, mode, false);
+            egui_extras::install_image_loaders(&ctx);
+            scene(ui, &palette);
+        });
+    for _ in 0..4 {
+        harness.step();
+    }
+    let modifiers = egui::Modifiers::NONE;
+    harness.event(egui::Event::PointerMoved(from));
+    harness.step();
+    harness.event(egui::Event::PointerButton {
+        pos: from,
+        button: egui::PointerButton::Primary,
+        pressed: true,
+        modifiers,
+    });
+    harness.step();
+    for i in 1..=6 {
+        harness.event(egui::Event::PointerMoved(
+            from + (to - from) * (i as f32 / 6.0),
+        ));
+        harness.step();
+    }
+    harness.step();
+    let image = harness.render().expect("wgpu render failed");
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/stageshow");
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join(format!("{name}.png"));
+    image.save(&path).unwrap();
+    println!("stageshow: wrote {}", path.display());
+}
+
+fn sample_items(names: &[(&str, bool)], dir: &str) -> Vec<crate::core::fs::FileItem> {
+    names
+        .iter()
+        .map(|(n, is_dir)| {
+            crate::core::fs::FileItem::new(
+                n.to_string(),
+                std::path::PathBuf::from(format!("{dir}/{n}")),
+                *is_dir,
+                false,
+                None,
+                (!*is_dir).then_some(48_000),
+                Some("2026-11-10 09:12".into()),
+                Some("2026-11-01 18:40".into()),
+                None,
+                Some(1),
+                Some(1),
+                None,
+                None,
+            )
+        })
+        .collect()
+}
+
+/// Draws the item viewer (gallery or drive view) with a marquee mid-drag.
+fn marquee_scene(name: &str, gallery: bool, drive: bool, items: Vec<crate::core::fs::FileItem>) {
+    use crate::core::icons::IconCache;
+    use crate::gui::windows::containers::itemviewer::draw_item_viewer;
+    use crate::gui::windows::containers::structs::{ItemViewerDisplayMode, TabView, TagsState};
+    use crate::gui::windows::structs::Navigation;
+    let mode = ThemeMode::Dark;
+    let palette = get_palette(mode);
+    let i18n = I18n::new("en-US");
+    let mut view = TabView::new(
+        Navigation::new(std::path::PathBuf::from("C:/axis-demo")),
+        crate::gui::utils::SortColumn::Name,
+        true,
+    );
+    view.files = items;
+    if gallery {
+        view.display_mode = ItemViewerDisplayMode::Gallery;
+    }
+    let mut icon_cache: Option<IconCache> = None;
+    let mut rename = None;
+    let mut ftc = Default::default();
+    let mut fst = Default::default();
+    let mut fost = Default::default();
+    let mut dst = Default::default();
+    let mut ext = false;
+    let mut tab_action = None;
+    let mut drop_t = None;
+    let mut drop_r = None;
+    let mut tags = TagsState::default();
+    let mut theme = ThemeCustomizer::default();
+    let mut settings = SettingsWindow {
+        open: false,
+        current_settings: Default::default(),
+        show_reset_favorites_confirmation: false,
+        show_reset_confirmation: false,
+        show_clear_directory_cache_confirmation: false,
+        selected_tab: SettingsTab::General,
+        search: String::new(),
+    };
+    let sizes = Default::default();
+    let clip = Default::default();
+    let drag = if gallery {
+        (egui::pos2(738.0, 360.0), egui::pos2(300.0, 120.0))
+    } else {
+        (egui::pos2(520.0, 250.0), egui::pos2(300.0, 90.0))
+    };
+    render_drag_scene(
+        name,
+        [760.0, 400.0],
+        mode,
+        palette,
+        drag,
+        move |ui, palette| {
+            let full = ui.ctx().content_rect();
+            ui.painter()
+                .rect_filled(full, 0.0, palette.application_bg_color);
+            let cache = icon_cache.get_or_insert_with(|| IconCache::new(ui.ctx().clone()));
+            draw_item_viewer(
+                ui,
+                &i18n,
+                &mut view,
+                &sizes,
+                false,
+                &clip,
+                false,
+                drive,
+                false,
+                false,
+                true,
+                cache,
+                &mut rename,
+                palette,
+                &mut ftc,
+                &mut fst,
+                &mut fost,
+                &mut dst,
+                &mut ext,
+                &mut tab_action,
+                false,
+                false,
+                None,
+                &mut drop_t,
+                &mut drop_r,
+                &mut tags,
+                &mut theme,
+                &mut settings,
+                None,
+                true,
+                1,
+                full.width(),
+            );
+        },
+    );
+}
+
+#[test]
+fn stageshow_marquee_gallery() {
+    if !enabled() {
+        return;
+    }
+    let names: Vec<(String, bool)> = (0..12)
+        .map(|i| {
+            (
+                if i < 3 {
+                    format!("folder{i}")
+                } else {
+                    format!("photo{i}.png")
+                },
+                i < 3,
+            )
+        })
+        .collect();
+    let refs: Vec<(&str, bool)> = names.iter().map(|(n, d)| (n.as_str(), *d)).collect();
+    marquee_scene(
+        "marquee_gallery",
+        true,
+        false,
+        sample_items(&refs, "C:/axis-demo"),
+    );
+}
+
+#[test]
+fn stageshow_marquee_drives() {
+    if !enabled() {
+        return;
+    }
+    let mut items = sample_items(
+        &[
+            ("Windows (C:)", true),
+            ("Data (D:)", true),
+            ("Backup (E:)", true),
+            ("USB (F:)", true),
+        ],
+        "",
+    );
+    for (i, it) in items.iter_mut().enumerate() {
+        it.path = std::path::PathBuf::from(format!("{}:/", (b'C' + i as u8) as char));
+        it.total_space = Some(500_000_000_000);
+        it.free_space = Some(120_000_000_000 + i as u64 * 80_000_000_000);
+    }
+    marquee_scene("marquee_drives", false, true, items);
+}

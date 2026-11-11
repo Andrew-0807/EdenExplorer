@@ -18,6 +18,9 @@ use crate::gui::windows::containers::itemviewer_helper::{
     handle_context_menu_actions, handle_editing_file_name, handle_keyboard_navigation,
     handle_row_click,
 };
+use crate::gui::windows::containers::marquee::{
+    Marquee, TileGrid, autoscroll_step, merged_selection, paint_marquee, tiles_in_rect,
+};
 use crate::gui::windows::containers::structs::{
     DragState, ExplorerState, GalleryState, GalleryThumbnailSize, RenameState,
 };
@@ -129,228 +132,310 @@ pub fn draw_gallery_view(
         gallery_rect.right_bottom(),
     );
 
+    let marquee_id = ui.id().with(("gallery_marquee", active_tab_id));
+    let mut marquee: Marquee = ui.data(|d| d.get_temp(marquee_id)).unwrap_or_default();
+    let press_origin = ui.ctx().input(|i| i.pointer.press_origin());
+    let grid = TileGrid {
+        tile_w: tile_width,
+        tile_h: tile_height,
+        col_pitch,
+        row_pitch,
+        columns,
+        count: filtered_indices.len(),
+    };
+
     ui.scope_builder(egui::UiBuilder::new().max_rect(scroll_rect), |ui| {
-        egui::ScrollArea::vertical()
+        let mut scroll_area = egui::ScrollArea::vertical()
             .id_salt(("item_viewer_gallery_scroll", active_tab_id))
-            .auto_shrink([false, true])
-            .show_viewport(ui, |ui, viewport| {
-                ui.set_width(available_width);
-                ui.set_min_height(content_height);
+            .auto_shrink([false, true]);
+        if marquee.active
+            && let Some(offset) = marquee.scroll_to.take()
+        {
+            scroll_area = scroll_area.vertical_scroll_offset(offset);
+        }
+        scroll_area.show_viewport(ui, |ui, viewport| {
+            ui.set_width(available_width);
+            ui.set_min_height(content_height);
 
-                let visible_start_row = (viewport.top() / row_pitch).floor().max(0.0) as usize;
-                let visible_end_row = (viewport.bottom() / row_pitch).ceil().max(0.0) as usize;
-                let nearby_start_row = visible_start_row.saturating_sub(2);
-                let nearby_end_row = (visible_end_row + 3).min(rows);
+            let visible_start_row = (viewport.top() / row_pitch).floor().max(0.0) as usize;
+            let visible_end_row = (viewport.bottom() / row_pitch).ceil().max(0.0) as usize;
+            let nearby_start_row = visible_start_row.saturating_sub(2);
+            let nearby_end_row = (visible_end_row + 3).min(rows);
 
-                for row in nearby_start_row..nearby_end_row {
-                    for col in 0..columns {
-                        let item_index = row * columns + col;
-                        let Some(&file_index) = filtered_indices.get(item_index) else {
-                            continue;
-                        };
-                        let priority = if row >= visible_start_row && row <= visible_end_row {
-                            ThumbnailPriority::Visible
-                        } else {
-                            ThumbnailPriority::Nearby
-                        };
-                        thumbnail_service.request(&files[file_index], priority);
-                    }
+            for row in nearby_start_row..nearby_end_row {
+                for col in 0..columns {
+                    let item_index = row * columns + col;
+                    let Some(&file_index) = filtered_indices.get(item_index) else {
+                        continue;
+                    };
+                    let priority = if row >= visible_start_row && row <= visible_end_row {
+                        ThumbnailPriority::Visible
+                    } else {
+                        ThumbnailPriority::Nearby
+                    };
+                    thumbnail_service.request(&files[file_index], priority);
                 }
+            }
 
-                let content_origin = ui.min_rect().min;
+            let content_origin = ui.min_rect().min;
 
-                let bg_rect = egui::Rect::from_min_size(
-                    content_origin,
-                    egui::vec2(available_width, content_height),
-                );
-                let bg_response = ui.interact(
-                    bg_rect,
-                    ui.id().with(("gallery_background", active_tab_id)),
-                    egui::Sense::click(),
-                );
+            let bg_rect = egui::Rect::from_min_size(
+                content_origin,
+                egui::vec2(available_width, content_height),
+            );
+            let bg_response = ui.interact(
+                bg_rect,
+                ui.id().with(("gallery_background", active_tab_id)),
+                egui::Sense::click_and_drag(),
+            );
 
-                for row in visible_start_row.saturating_sub(1)..(visible_end_row + 2).min(rows) {
-                    for col in 0..columns {
-                        let item_index = row * columns + col;
-                        let Some(&file_index) = filtered_indices.get(item_index) else {
-                            continue;
-                        };
+            for row in visible_start_row.saturating_sub(1)..(visible_end_row + 2).min(rows) {
+                for col in 0..columns {
+                    let item_index = row * columns + col;
+                    let Some(&file_index) = filtered_indices.get(item_index) else {
+                        continue;
+                    };
 
-                        let file = &files[file_index];
-                        let rect = egui::Rect::from_min_size(
-                            content_origin
-                                + egui::vec2(col as f32 * col_pitch, row as f32 * row_pitch),
-                            egui::vec2(tile_width, tile_height),
-                        );
-                        let (response, tile_action) = draw_gallery_tile(
-                            i18n,
-                            ui,
-                            file,
-                            item_index,
-                            rect,
-                            thumb_size,
-                            icon_cache,
-                            thumbnail_service,
-                            explorer_state,
-                            rename_state,
-                            clipboard_set,
-                            is_cut_mode,
-                            palette,
-                            &font_id,
-                            &gallery_state,
-                        );
+                    let file = &files[file_index];
+                    let rect = egui::Rect::from_min_size(
+                        content_origin + egui::vec2(col as f32 * col_pitch, row as f32 * row_pitch),
+                        egui::vec2(tile_width, tile_height),
+                    );
+                    let (response, tile_action) = draw_gallery_tile(
+                        i18n,
+                        ui,
+                        file,
+                        item_index,
+                        rect,
+                        thumb_size,
+                        icon_cache,
+                        thumbnail_service,
+                        explorer_state,
+                        rename_state,
+                        clipboard_set,
+                        is_cut_mode,
+                        palette,
+                        &font_id,
+                        &gallery_state,
+                    );
 
-                        if let Some(a) = tile_action {
-                            action = Some(a);
-                        }
+                    if let Some(a) = tile_action {
+                        action = Some(a);
+                    }
 
-                        if drag_hover_active {
-                            if let Some(target) = hovered_target_ref {
-                                if &file.path == target && file.is_dir {
-                                    current_hovered_drop_target = Some(file.path.clone());
-                                    current_hovered_drop_target_rect = Some(response.rect);
-                                }
-                            } else if let Some(pointer) = pointer_pos {
-                                if response.rect.contains(pointer) {
-                                    match &best_hovered_tile {
-                                        Some((best_top, _, _, _))
-                                            if *best_top >= response.rect.top() => {}
-                                        _ => {
-                                            best_hovered_tile = Some((
-                                                response.rect.top(),
-                                                file.is_dir,
-                                                file.path.clone(),
-                                                response.rect,
-                                            ));
-                                        }
+                    if drag_hover_active {
+                        if let Some(target) = hovered_target_ref {
+                            if &file.path == target && file.is_dir {
+                                current_hovered_drop_target = Some(file.path.clone());
+                                current_hovered_drop_target_rect = Some(response.rect);
+                            }
+                        } else if let Some(pointer) = pointer_pos {
+                            if response.rect.contains(pointer) {
+                                match &best_hovered_tile {
+                                    Some((best_top, _, _, _))
+                                        if *best_top >= response.rect.top() => {}
+                                    _ => {
+                                        best_hovered_tile = Some((
+                                            response.rect.top(),
+                                            file.is_dir,
+                                            file.path.clone(),
+                                            response.rect,
+                                        ));
                                     }
                                 }
                             }
                         }
+                    }
 
-                        if response.drag_started() && !is_raw_physical_drive_path(&file.path) {
-                            drag_state.start_pos = response.interact_pointer_pos();
-                            drag_state.active = false;
-                            drag_state.source_items.clear();
+                    if response.drag_started() && !is_raw_physical_drive_path(&file.path) {
+                        drag_state.start_pos = response.interact_pointer_pos();
+                        drag_state.active = false;
+                        drag_state.source_items.clear();
 
-                            if explorer_state.selected_paths.contains(&file.path) {
-                                drag_state.source_items =
-                                    explorer_state.selected_paths.iter().cloned().collect();
-                            } else {
-                                explorer_state.selected_paths.clear();
-                                explorer_state.selected_paths.insert(file.path.clone());
-                                explorer_state.selection_anchor = Some(item_index);
-                                explorer_state.selection_focus = Some(item_index);
-                                drag_state.source_items = vec![file.path.clone()];
-                            }
+                        if explorer_state.selected_paths.contains(&file.path) {
+                            drag_state.source_items =
+                                explorer_state.selected_paths.iter().cloned().collect();
+                        } else {
+                            explorer_state.selected_paths.clear();
+                            explorer_state.selected_paths.insert(file.path.clone());
+                            explorer_state.selection_anchor = Some(item_index);
+                            explorer_state.selection_focus = Some(item_index);
+                            drag_state.source_items = vec![file.path.clone()];
                         }
+                    }
 
-                        if !drag_state.active && !response.ctx.input(|i| i.pointer.primary_down()) {
-                            drag_state.start_pos = None;
-                            drag_state.source_items.clear();
+                    if !drag_state.active && !response.ctx.input(|i| i.pointer.primary_down()) {
+                        drag_state.start_pos = None;
+                        drag_state.source_items.clear();
+                    }
+
+                    if let (Some(start), Some(current)) = (
+                        drag_state.start_pos,
+                        response.ctx.input(|i| i.pointer.hover_pos()),
+                    ) {
+                        if !drag_state.active
+                            && !drag_state.source_items.is_empty()
+                            && start.distance(current) > 4.0
+                        {
+                            drag_state.active = true;
                         }
+                    }
 
-                        if let (Some(start), Some(current)) = (
-                            drag_state.start_pos,
-                            response.ctx.input(|i| i.pointer.hover_pos()),
+                    if response.clicked() && !drag_state.active && !modal_input_blocked {
+                        if let Some(a) = handle_row_click(
+                            item_index,
+                            file,
+                            modifiers,
+                            filtered_indices,
+                            files,
+                            drag_state,
+                            explorer_state,
                         ) {
-                            if !drag_state.active
-                                && !drag_state.source_items.is_empty()
-                                && start.distance(current) > 4.0
-                            {
-                                drag_state.active = true;
-                            }
+                            action = Some(a);
                         }
-
-                        if response.clicked() && !drag_state.active && !modal_input_blocked {
-                            if let Some(a) = handle_row_click(
-                                item_index,
-                                file,
-                                modifiers,
-                                filtered_indices,
-                                files,
-                                drag_state,
-                                explorer_state,
-                            ) {
-                                action = Some(a);
-                            }
-                        }
-
-                        if response.double_clicked() && !drag_state.active && !modal_input_blocked {
-                            if let Some(a) = double_click_action(file, modifiers, false) {
-                                action = Some(a);
-                            }
-                        }
-
-                        if response.middle_clicked() && file.is_dir {
-                            action = Some(ItemViewerAction::OpenInBackgroundTab(file.path.clone()));
-                        }
-
-                        Popup::context_menu(&response)
-                            .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
-                            .show(|ui| {
-                                egui::ScrollArea::vertical()
-                                    .max_height(ui.ctx().viewport_rect().height() * 0.75)
-                                    .show(ui, |ui| {
-                                        handle_context_menu_actions(
-                                            ui,
-                                            i18n,
-                                            file,
-                                            explorer_state.selected_paths.contains(&file.path),
-                                            paste_enabled,
-                                            false,
-                                            false,
-                                            is_cut_mode && clipboard_set.contains(&file.path),
-                                            &mut action,
-                                            palette,
-                                            explorer_state,
-                                            settings_window,
-                                            hwnd,
-                                        );
-                                    });
-                            });
-                    }
-                }
-
-                if let Some((_, is_dir, path, rect)) = best_hovered_tile.take()
-                    && is_dir
-                {
-                    current_hovered_drop_target = Some(path);
-                    current_hovered_drop_target_rect = Some(rect);
-                }
-
-                if drag_state.active && pointer_released {
-                    let target_dir = current_hovered_drop_target
-                        .clone()
-                        .or_else(|| bg_response.hovered().then(|| current_dir.clone()));
-
-                    if let Some(target_dir) = target_dir {
-                        action = Some(ItemViewerAction::MoveItems {
-                            sources: drag_state.source_items.clone(),
-                            target_dir,
-                        });
-                    }
-                }
-
-                if !modal_input_blocked {
-                    if bg_response.clicked() {
-                        action = Some(ItemViewerAction::DeselectAll);
                     }
 
-                    Popup::context_menu(&bg_response)
+                    if response.double_clicked() && !drag_state.active && !modal_input_blocked {
+                        if let Some(a) = double_click_action(file, modifiers, false) {
+                            action = Some(a);
+                        }
+                    }
+
+                    if response.middle_clicked() && file.is_dir {
+                        action = Some(ItemViewerAction::OpenInBackgroundTab(file.path.clone()));
+                    }
+
+                    Popup::context_menu(&response)
                         .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
                         .show(|ui| {
-                            draw_background_context_menu(
-                                ui,
-                                i18n,
-                                palette,
-                                paste_enabled,
-                                &current_dir,
-                                &mut action,
-                            );
+                            egui::ScrollArea::vertical()
+                                .max_height(ui.ctx().viewport_rect().height() * 0.75)
+                                .show(ui, |ui| {
+                                    handle_context_menu_actions(
+                                        ui,
+                                        i18n,
+                                        file,
+                                        explorer_state.selected_paths.contains(&file.path),
+                                        paste_enabled,
+                                        false,
+                                        false,
+                                        is_cut_mode && clipboard_set.contains(&file.path),
+                                        &mut action,
+                                        palette,
+                                        explorer_state,
+                                        settings_window,
+                                        hwnd,
+                                    );
+                                });
                         });
                 }
-            });
+            }
+
+            if let Some((_, is_dir, path, rect)) = best_hovered_tile.take()
+                && is_dir
+            {
+                current_hovered_drop_target = Some(path);
+                current_hovered_drop_target_rect = Some(rect);
+            }
+
+            if drag_state.active && pointer_released {
+                let target_dir = current_hovered_drop_target
+                    .clone()
+                    .or_else(|| bg_response.hovered().then(|| current_dir.clone()));
+
+                if let Some(target_dir) = target_dir {
+                    action = Some(ItemViewerAction::MoveItems {
+                        sources: drag_state.source_items.clone(),
+                        target_dir,
+                    });
+                }
+            }
+
+            // ------------------- MARQUEE SELECTION -------------------
+            if !modal_input_blocked
+                && bg_response.drag_started()
+                && let Some(origin) = press_origin.or_else(|| bg_response.interact_pointer_pos())
+            {
+                let additive = modifiers.ctrl;
+                explorer_state.focus_ring = false;
+                marquee = Marquee {
+                    active: true,
+                    origin_x: origin.x - content_origin.x,
+                    origin_y: origin.y - content_origin.y,
+                    additive,
+                    base: if additive {
+                        explorer_state.selected_paths.clone()
+                    } else {
+                        Default::default()
+                    },
+                    scroll_to: None,
+                };
+            }
+            if marquee.active {
+                let (down, pos, dt) = ui.ctx().input(|i| {
+                    (
+                        i.pointer.primary_down(),
+                        i.pointer.latest_pos(),
+                        i.stable_dt.min(0.05),
+                    )
+                });
+                match pos {
+                    Some(pos) if down && !modal_input_blocked => {
+                        let cur = (pos.x - content_origin.x, pos.y - content_origin.y);
+                        let hits = tiles_in_rect((marquee.origin_x, marquee.origin_y), cur, grid);
+                        let hit_paths: Vec<PathBuf> = hits
+                            .iter()
+                            .map(|&i| files[filtered_indices[i]].path.clone())
+                            .collect();
+                        let merged = merged_selection(&marquee.base, hit_paths, marquee.additive);
+                        if merged != explorer_state.selected_paths {
+                            explorer_state.selected_paths = merged;
+                        }
+                        if let (Some(&first), Some(&last)) = (hits.first(), hits.last()) {
+                            explorer_state.selection_anchor = Some(first);
+                            explorer_state.selection_focus = Some(last);
+                        }
+                        let max_scroll = (content_height - viewport.height()).max(0.0);
+                        let step =
+                            autoscroll_step(pos.y, scroll_rect.top(), scroll_rect.bottom(), dt);
+                        if step != 0.0 {
+                            marquee.scroll_to =
+                                Some((viewport.top() + step).clamp(0.0, max_scroll));
+                        }
+                        let rect = egui::Rect::from_two_pos(
+                            egui::pos2(
+                                marquee.origin_x + content_origin.x,
+                                marquee.origin_y + content_origin.y,
+                            ),
+                            pos,
+                        );
+                        paint_marquee(ui.painter(), rect, palette);
+                        ui.ctx().request_repaint();
+                    }
+                    _ => marquee = Marquee::default(),
+                }
+            }
+            ui.data_mut(|d| d.insert_temp(marquee_id, marquee.clone()));
+
+            if !modal_input_blocked {
+                if bg_response.clicked() {
+                    action = Some(ItemViewerAction::DeselectAll);
+                }
+
+                Popup::context_menu(&bg_response)
+                    .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
+                    .show(|ui| {
+                        draw_background_context_menu(
+                            ui,
+                            i18n,
+                            palette,
+                            paste_enabled,
+                            &current_dir,
+                            &mut action,
+                        );
+                    });
+            }
+        });
     });
     if let Some(rect) = current_hovered_drop_target_rect {
         let painter = ui.ctx().layer_painter(egui::LayerId::new(

@@ -696,9 +696,7 @@ fn draw_toolbar_items(
                     if resp.secondary_clicked() {
                         herdr::refresh_in_background(ui.ctx());
                     }
-                    egui::Popup::context_menu(&resp).show(|ui| {
-                        herdr_menu(ui, i18n, t.current_dir);
-                    });
+                    herdr_popup(&resp, i18n, t.current_dir, false);
                 }
             }
             _ if resp.clicked() && enabled => match item {
@@ -756,7 +754,27 @@ fn terminal_start_dir(current_dir: &Path) -> PathBuf {
     }
 }
 
-/// Right-click menu of the terminal button: herdr workspace, pane and tab actions.
+/// Right-click menu of the terminal button, anchored below the button so it
+/// never covers it. `force_open` keeps it open (used by render scenes).
+pub(crate) fn herdr_popup(
+    resp: &egui::Response,
+    i18n: &I18n,
+    current_dir: &Path,
+    force_open: bool,
+) {
+    let open_cmd = if force_open || resp.secondary_clicked() {
+        Some(egui::SetOpenCommand::Bool(true))
+    } else if resp.clicked() {
+        Some(egui::SetOpenCommand::Bool(false))
+    } else {
+        None
+    };
+    egui::Popup::menu(resp)
+        .open_memory(open_cmd)
+        .show(|ui| herdr_menu(ui, i18n, current_dir));
+}
+
+/// Workspace, pane and tab actions of the herdr menu.
 fn herdr_menu(ui: &mut egui::Ui, i18n: &I18n, current_dir: &Path) {
     let dir = terminal_start_dir(current_dir);
     let ctx = ui.ctx().clone();
