@@ -2509,7 +2509,7 @@ mod tests {
         keys: &[egui::Key],
         shift: bool,
         indices: &[usize],
-        files: &Vec<FileItem>,
+        files: &[FileItem],
         state: &mut ExplorerState,
     ) -> Option<ItemViewerAction> {
         let ctx = egui::Context::default();
@@ -2532,7 +2532,7 @@ mod tests {
 
     fn run_ctrl_keys(
         keys: &[egui::Key],
-        files: &Vec<FileItem>,
+        files: &[FileItem],
         state: &mut ExplorerState,
     ) -> Option<ItemViewerAction> {
         let ctx = egui::Context::default();
@@ -2575,12 +2575,16 @@ mod tests {
         let mut st = selected(&["f0"]);
         st.selection_focus = Some(2);
         let out = run_ctrl_keys(&[egui::Key::Space], &f, &mut st);
-        assert!(matches!(out, Some(ItemViewerAction::Select(p)) if p == PathBuf::from("f2")));
+        assert!(
+            matches!(out, Some(ItemViewerAction::Select(p)) if p.as_path() == std::path::Path::new("f2"))
+        );
 
         let mut st = selected(&["f0", "f2"]);
         st.selection_focus = Some(2);
         let out = run_ctrl_keys(&[egui::Key::Space], &f, &mut st);
-        assert!(matches!(out, Some(ItemViewerAction::Deselect(p)) if p == PathBuf::from("f2")));
+        assert!(
+            matches!(out, Some(ItemViewerAction::Deselect(p)) if p.as_path() == std::path::Path::new("f2"))
+        );
     }
 
     #[test]
@@ -2591,9 +2595,10 @@ mod tests {
     }
 
     fn selected(paths: &[&str]) -> ExplorerState {
-        let mut st = ExplorerState::default();
-        st.selected_paths = paths.iter().map(PathBuf::from).collect::<HashSet<_>>();
-        st
+        ExplorerState {
+            selected_paths: paths.iter().map(PathBuf::from).collect::<HashSet<_>>(),
+            ..Default::default()
+        }
     }
 
     #[test]

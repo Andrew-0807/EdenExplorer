@@ -81,8 +81,10 @@ fn settings_scene_editing(
         selected_tab: tab,
         search: search.to_string(),
     };
-    let mut customizer = ThemeCustomizer::default();
-    customizer.edit_mode = edit_mode;
+    let mut customizer = ThemeCustomizer {
+        edit_mode,
+        ..Default::default()
+    };
     let mut i18n = I18n::new("en-US");
     let mut palette = get_palette(mode);
     palette.text_size = text_size;
