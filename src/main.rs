@@ -51,6 +51,8 @@ fn main() -> eframe::Result<()> {
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
     }
 
+    crate::core::persist::migrate_legacy_data_dir();
+
     let icon = load_icon();
     let window_size_mode = load_windows_size_mode_on_start();
     let was_maximized = load_window_was_maximized_on_start();

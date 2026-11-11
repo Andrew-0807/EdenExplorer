@@ -16,27 +16,95 @@ use serde_json::{Map, Value};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-/// Folder under `%LOCALAPPDATA%` that holds every EdenExplorer file.
-pub const APP_DIR_NAME: &str = "ExplorerEden";
+/// Folder under `%LOCALAPPDATA%` that holds every Axis file.
+pub const APP_DIR_NAME: &str = "Axis";
 
-/// Environment variable that points EdenExplorer at another data folder
-/// (portable setups, testing a build without touching the real settings).
-pub const DATA_DIR_ENV: &str = "EDEN_DATA_DIR";
+/// Folder used before the rename to Axis. Copied once into [`APP_DIR_NAME`]
+/// by [`migrate_legacy_data_dir`], never modified or deleted.
+pub const LEGACY_APP_DIR_NAME: &str = "ExplorerEden";
 
-/// `%LOCALAPPDATA%\ExplorerEden` (or `EDEN_DATA_DIR` when set), or `None`
-/// when the known folder is unavailable.
+/// Environment variable that points Axis at another data folder (portable
+/// setups, testing a build without touching the real settings).
+pub const DATA_DIR_ENV: &str = "AXIS_DATA_DIR";
+
+/// Pre-rename name of [`DATA_DIR_ENV`], still honoured when that one is unset.
+pub const LEGACY_DATA_DIR_ENV: &str = "EDEN_DATA_DIR";
+
+/// `%LOCALAPPDATA%\Axis` (or `AXIS_DATA_DIR`, then `EDEN_DATA_DIR`, when
+/// set), or `None` when the known folder is unavailable.
 pub fn data_dir() -> Option<PathBuf> {
-    data_dir_from(std::env::var_os(DATA_DIR_ENV), dirs::data_local_dir())
+    data_dir_from(
+        [
+            std::env::var_os(DATA_DIR_ENV),
+            std::env::var_os(LEGACY_DATA_DIR_ENV),
+        ],
+        dirs::data_local_dir(),
+    )
 }
 
 fn data_dir_from(
-    override_dir: Option<std::ffi::OsString>,
+    overrides: [Option<std::ffi::OsString>; 2],
     local_app_data: Option<PathBuf>,
 ) -> Option<PathBuf> {
-    match override_dir {
-        Some(dir) if !dir.is_empty() => Some(PathBuf::from(dir)),
-        _ => local_app_data.map(|base| base.join(APP_DIR_NAME)),
+    overrides
+        .into_iter()
+        .flatten()
+        .find(|dir| !dir.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| local_app_data.map(|base| base.join(APP_DIR_NAME)))
+}
+
+/// On first start after the rename, copies `%LOCALAPPDATA%\ExplorerEden` into
+/// `%LOCALAPPDATA%\Axis`. Does nothing when a data folder override is set,
+/// when the Axis folder already exists, or when there is nothing to copy.
+pub fn migrate_legacy_data_dir() {
+    let overridden = [DATA_DIR_ENV, LEGACY_DATA_DIR_ENV]
+        .iter()
+        .any(|name| std::env::var_os(name).is_some_and(|v| !v.is_empty()));
+    if overridden {
+        return;
     }
+    if let Some(base) = dirs::data_local_dir() {
+        let _ = migrate_dir(&base.join(LEGACY_APP_DIR_NAME), &base.join(APP_DIR_NAME));
+    }
+}
+
+/// Copies `old` to `new` when `new` does not exist and `old` is a folder.
+/// The copy goes to a sibling staging folder that is renamed into place at
+/// the end, so an interrupted copy is retried on the next start instead of
+/// leaving a partial `new`. `old` is only read. Returns whether it copied.
+fn migrate_dir(old: &Path, new: &Path) -> std::io::Result<bool> {
+    if new.exists() || !old.is_dir() {
+        return Ok(false);
+    }
+    let file_name = new.file_name().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "path has no file name")
+    })?;
+    let staging = new.with_file_name(format!(
+        "{}.migrating-{}",
+        file_name.to_string_lossy(),
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&staging);
+    let result = copy_dir_all(old, &staging).and_then(|()| std::fs::rename(&staging, new));
+    if result.is_err() {
+        let _ = std::fs::remove_dir_all(&staging);
+    }
+    result.map(|()| true)
+}
+
+fn copy_dir_all(from: &Path, to: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir_all(&entry.path(), &target)?;
+        } else {
+            std::fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
 }
 
 /// Writes `bytes` to `path` atomically: the data goes to a temporary file in
@@ -290,21 +358,83 @@ mod tests {
     }
 
     #[test]
-    fn data_dir_honours_the_override() {
+    fn data_dir_honours_the_overrides() {
         let local = Some(PathBuf::from("C:\\Users\\x\\AppData\\Local"));
+        let axis = Some(PathBuf::from("C:\\Users\\x\\AppData\\Local\\Axis"));
+        assert_eq!(data_dir_from([None, None], local.clone()), axis);
         assert_eq!(
-            data_dir_from(None, local.clone()),
-            Some(PathBuf::from("C:\\Users\\x\\AppData\\Local\\ExplorerEden"))
+            data_dir_from([Some("".into()), Some("".into())], local.clone()),
+            axis
         );
         assert_eq!(
-            data_dir_from(Some("".into()), local.clone()),
-            Some(PathBuf::from("C:\\Users\\x\\AppData\\Local\\ExplorerEden"))
+            data_dir_from([None, Some("D:\\eden".into())], local.clone()),
+            Some(PathBuf::from("D:\\eden"))
         );
         assert_eq!(
-            data_dir_from(Some("D:\\portable\\data".into()), local),
-            Some(PathBuf::from("D:\\portable\\data"))
+            data_dir_from(
+                [Some("D:\\axis".into()), Some("D:\\eden".into())],
+                local.clone()
+            ),
+            Some(PathBuf::from("D:\\axis"))
         );
-        assert_eq!(data_dir_from(None, None), None);
+        assert_eq!(
+            data_dir_from([Some("".into()), Some("D:\\eden".into())], local),
+            Some(PathBuf::from("D:\\eden"))
+        );
+        assert_eq!(data_dir_from([None, None], None), None);
+    }
+
+    #[test]
+    fn migration_copies_the_legacy_folder_once_and_leaves_it_alone() {
+        let root = TempDir::new("migrate");
+        let old = root.path().join(LEGACY_APP_DIR_NAME);
+        let new = root.path().join(APP_DIR_NAME);
+        std::fs::create_dir_all(old.join("favorites")).unwrap();
+        std::fs::write(old.join("settings.json"), b"{\"a\":1}").unwrap();
+        std::fs::write(old.join("favorites").join("drive_C.bin"), b"fav").unwrap();
+
+        assert!(migrate_dir(&old, &new).unwrap());
+        assert_eq!(
+            std::fs::read(new.join("settings.json")).unwrap(),
+            b"{\"a\":1}"
+        );
+        assert_eq!(
+            std::fs::read(new.join("favorites").join("drive_C.bin")).unwrap(),
+            b"fav"
+        );
+        // The old folder is untouched.
+        assert_eq!(
+            std::fs::read(old.join("settings.json")).unwrap(),
+            b"{\"a\":1}"
+        );
+        // No staging folder is left behind.
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 2);
+
+        // Once Axis exists, later starts never copy again.
+        std::fs::write(new.join("settings.json"), b"new").unwrap();
+        std::fs::write(old.join("settings.json"), b"changed").unwrap();
+        assert!(!migrate_dir(&old, &new).unwrap());
+        assert_eq!(std::fs::read(new.join("settings.json")).unwrap(), b"new");
+    }
+
+    #[test]
+    fn migration_skips_when_there_is_no_legacy_folder() {
+        let root = TempDir::new("migrate-none");
+        let new = root.path().join(APP_DIR_NAME);
+        assert!(!migrate_dir(&root.path().join(LEGACY_APP_DIR_NAME), &new).unwrap());
+        assert!(!new.exists());
+    }
+
+    #[test]
+    fn migration_keeps_an_existing_empty_axis_folder() {
+        let root = TempDir::new("migrate-exists");
+        let old = root.path().join(LEGACY_APP_DIR_NAME);
+        let new = root.path().join(APP_DIR_NAME);
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::write(old.join("settings.json"), b"old").unwrap();
+        std::fs::create_dir_all(&new).unwrap();
+        assert!(!migrate_dir(&old, &new).unwrap());
+        assert!(!new.join("settings.json").exists());
     }
 
     #[test]

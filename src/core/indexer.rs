@@ -1,4 +1,4 @@
-//! On-disk state under `%LOCALAPPDATA%\ExplorerEden` (despite the name, there
+//! On-disk state under `%LOCALAPPDATA%\Axis` (despite the name, there
 //! is no search index here).
 //!
 //! | File | Format |
