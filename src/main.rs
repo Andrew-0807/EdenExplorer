@@ -124,14 +124,10 @@ fn main() -> eframe::Result<()> {
     )
 }
 
-/// Keep the hover highlight on the cursor. With Vulkan, or with vsync (eframe's
-/// default), what's on screen trails the mouse, which is easy to see when
-/// moving over the item list on a 60 Hz display. Prefer a DX12 adapter and
-/// present without vsync. eframe already queues at most one frame
-/// (`SurfaceConfig::LOW_LATENCY`); this keeps that.
-/// Axis repaints on demand, so this only costs anything while the UI changes;
-/// animations ask for their next frame at ANIMATION_FRAME_INTERVAL instead of
-/// right away, so they don't run uncapped.
+/// Prefer a DX12 adapter and present with vsync, queueing at most one frame
+/// so the hover highlight stays on the cursor. Without vsync, scrolling ran at
+/// ~800 fps through a tearing independent flip on a 165 Hz display, which
+/// read as judder. Animations repaint every frame and are paced by vsync.
 fn low_latency_wgpu_options(transparent: bool) -> eframe::egui_wgpu::WgpuConfiguration {
     use eframe::egui_wgpu::{SurfaceConfig, WgpuConfiguration, WgpuSetup, WgpuSetupCreateNew};
     use eframe::wgpu;
@@ -160,7 +156,7 @@ fn low_latency_wgpu_options(transparent: bool) -> eframe::egui_wgpu::WgpuConfigu
 
     WgpuConfiguration {
         surface: SurfaceConfig {
-            present_mode: wgpu::PresentMode::AutoNoVsync,
+            present_mode: wgpu::PresentMode::AutoVsync,
             desired_maximum_frame_latency: Some(1),
         },
         wgpu_setup: WgpuSetup::CreateNew(setup),
