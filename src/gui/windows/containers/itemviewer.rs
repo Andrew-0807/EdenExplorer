@@ -6,6 +6,7 @@ use crate::core::utils::text::apply_eden_text_overrides;
 use crate::core::utils::widgets::draw_checkbox;
 use crate::gui::customization::CheckboxVisibility;
 use crate::gui::keymap::{self, Action};
+use crate::gui::motion;
 use crate::gui::selection::item_paint;
 use crate::gui::theme::ThemePalette;
 use crate::gui::utils::{draw_object_drag_ghost, fuzzy_match, truncate_item_text};
@@ -283,6 +284,13 @@ pub fn draw_item_viewer(
                 checkbox_visibility,
             ));
             let table_state_id = ui.id().with(table_id_salt);
+            // Rows fade in, top first, when a folder opens.
+            let listing_age = motion::listing_age(
+                ui.ctx(),
+                egui::Id::new(("item_viewer_listing", active_tab_id)),
+                egui::Id::new(&current_dir).value(),
+                !files.is_empty(),
+            );
             let checkbox_column_count = usize::from(show_checkbox_column);
             let resize_handle_count = column_layout.ordered_columns.len() + checkbox_column_count;
             let column_resize_active = (0..resize_handle_count).any(|index| {
@@ -470,8 +478,13 @@ pub fn draw_item_viewer(
                     let row_selection_fill = body.ui_mut().visuals().selection.bg_fill;
                     let row_hover_expand = 0.5 * body.ui_mut().spacing().item_spacing;
 
+                    let mut first_visible_row = None;
                     body.rows(layout.row_height, filtered_indices.len(), |mut row| {
                         let idx = row.index();
+                        let appear = motion::item_appear(
+                            listing_age,
+                            idx - *first_visible_row.get_or_insert(idx),
+                        );
                         let file = &files[filtered_indices[idx]];
                         let is_non_ntfs_drive =
                             layout.is_drive_view && is_raw_physical_drive_path(&file.path);
@@ -485,6 +498,7 @@ pub fn draw_item_viewer(
 
                         if show_checkbox_column {
                             row.col(|ui| {
+                                ui.multiply_opacity(appear);
                                 let mut checked = is_selected;
                                 // The column stays reserved in selection mode so rows don't shift.
                                 let visible = match checkbox_visibility {
@@ -527,6 +541,7 @@ pub fn draw_item_viewer(
                         let mut drive_blank = false;
                         for &column in &column_layout.ordered_columns {
                             row.col(|ui| {
+                                ui.multiply_opacity(appear);
                                 if column == ItemViewerHeaderColumn::Name
                                     && let Some(origin) = press_origin
                                 {
@@ -583,10 +598,15 @@ pub fn draw_item_viewer(
                         }
                         let row_resp = row.response();
 
+                        let hover = motion::hover(
+                            &row_resp.ctx,
+                            egui::Id::new(("row_hover", &file.path)),
+                            row_resp.hovered(),
+                        );
                         let mut row_paint = item_paint(
                             palette,
                             is_selected,
-                            row_resp.hovered(),
+                            hover,
                             row_selection_fill,
                             row_hover_fill,
                         );

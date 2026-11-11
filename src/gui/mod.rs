@@ -6,6 +6,7 @@ pub mod folder_icons;
 pub mod icon_packs;
 pub mod icon_system;
 pub mod keymap;
+pub mod motion;
 pub mod selection;
 #[cfg(test)]
 mod stageshow;

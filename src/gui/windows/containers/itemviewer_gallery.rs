@@ -9,6 +9,7 @@ use crate::core::utils::widgets::{
 };
 use crate::gui::folder_icons::{FolderIcon, paint_folder_icon, resolve_for_path};
 use crate::gui::icon_system::{AppIcon, paint_svg_icon};
+use crate::gui::motion;
 use crate::gui::selection::{item_paint, paint_item};
 use crate::gui::theme::ThemePalette;
 use crate::gui::utils::{SortColumn, truncate_item_text};
@@ -600,10 +601,15 @@ fn draw_gallery_tile(
     // rendered by this tile from escaping its own bounds.
     let tile_painter = ui.painter().with_clip_rect(rect.intersect(ui.clip_rect()));
 
+    let hover = motion::hover(
+        ui.ctx(),
+        egui::Id::new(("tile_hover", &file.path)),
+        response.hovered(),
+    );
     let mut tile_paint = item_paint(
         palette,
         is_selected,
-        response.hovered(),
+        hover,
         palette.primary_active,
         palette.primary_hover.linear_multiply(0.35),
     );

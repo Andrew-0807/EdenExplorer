@@ -81,12 +81,14 @@ impl ItemPaint {
     }
 }
 
-/// Decides how an item is highlighted. `selection_fill` and `hover_fill` are
-/// the colors of the current egui visuals (derived from the palette).
+/// Decides how an item is highlighted. `hover` is the 0..1 hover amount
+/// (`motion::hover`), which fades the hover color in and out. `selection_fill`
+/// and `hover_fill` are the colors of the current egui visuals (derived from
+/// the palette).
 pub fn item_paint(
     palette: &ThemePalette,
     selected: bool,
-    hovered: bool,
+    hover: f32,
     selection_fill: Color32,
     hover_fill: Color32,
 ) -> ItemPaint {
@@ -103,7 +105,8 @@ pub fn item_paint(
             radius,
         };
     }
-    if hovered {
+    if hover > 0.0 {
+        let hover_fill = hover_fill.gamma_multiply(hover.min(1.0));
         return match palette.hover_style {
             HoverStyle::Fill => ItemPaint {
                 fill: Some(hover_fill),
@@ -143,12 +146,12 @@ mod tests {
     #[test]
     fn default_is_the_classic_fill() {
         let p = get_default_palette(ThemeMode::Dark);
-        let paint = item_paint(&p, true, false, SEL, HOV);
+        let paint = item_paint(&p, true, 0.0, SEL, HOV);
         assert_eq!(paint.fill, Some(SEL));
         assert!(paint.stroke.is_none());
-        let paint = item_paint(&p, false, true, SEL, HOV);
+        let paint = item_paint(&p, false, 1.0, SEL, HOV);
         assert_eq!(paint.fill, Some(HOV));
-        assert!(item_paint(&p, false, false, SEL, HOV).is_empty());
+        assert!(item_paint(&p, false, 0.0, SEL, HOV).is_empty());
     }
 
     #[test]
@@ -156,7 +159,7 @@ mod tests {
         let mut p = get_default_palette(ThemeMode::Dark);
         p.selection_style = SelectionStyle::Outline;
         p.selection_stroke_width = 1.5;
-        let paint = item_paint(&p, true, true, SEL, HOV);
+        let paint = item_paint(&p, true, 1.0, SEL, HOV);
         assert!(paint.fill.is_none());
         let stroke = paint.stroke.unwrap();
         assert_eq!(stroke.width, 1.5);
@@ -168,7 +171,7 @@ mod tests {
         let mut p = get_default_palette(ThemeMode::Light);
         p.selection_style = SelectionStyle::FillAndOutline;
         p.selection_radius = 4;
-        let paint = item_paint(&p, true, false, SEL, HOV);
+        let paint = item_paint(&p, true, 0.0, SEL, HOV);
         assert_eq!(paint.fill, Some(SEL));
         assert!(paint.stroke.is_some());
         assert_eq!(paint.radius, CornerRadius::same(4));
@@ -178,13 +181,13 @@ mod tests {
     fn hover_styles() {
         let mut p = get_default_palette(ThemeMode::Dark);
         p.hover_style = HoverStyle::Outline;
-        let paint = item_paint(&p, false, true, SEL, HOV);
+        let paint = item_paint(&p, false, 1.0, SEL, HOV);
         assert!(paint.fill.is_none());
         assert_eq!(paint.stroke.unwrap().color, HOV);
         p.hover_style = HoverStyle::None;
-        assert!(item_paint(&p, false, true, SEL, HOV).is_empty());
+        assert!(item_paint(&p, false, 1.0, SEL, HOV).is_empty());
         // Selection wins over hover.
-        assert_eq!(item_paint(&p, true, true, SEL, HOV).fill, Some(SEL));
+        assert_eq!(item_paint(&p, true, 1.0, SEL, HOV).fill, Some(SEL));
     }
 
     #[test]
@@ -193,7 +196,7 @@ mod tests {
         p.selection_style = SelectionStyle::Outline;
         p.selection_stroke_width = 0.0;
         assert_eq!(
-            item_paint(&p, true, false, SEL, HOV).stroke.unwrap().width,
+            item_paint(&p, true, 0.0, SEL, HOV).stroke.unwrap().width,
             0.5
         );
     }
