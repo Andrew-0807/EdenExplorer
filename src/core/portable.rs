@@ -36,11 +36,11 @@ pub fn make_portable_path(device_id: &str, object_id: &str) -> PathBuf {
     ))
 }
 
-pub fn is_portable_path(path: &PathBuf) -> bool {
+pub fn is_portable_path(path: &std::path::Path) -> bool {
     normalize_portable_str(&path.to_string_lossy()).is_some()
 }
 
-pub fn parse_portable_path(path: &PathBuf) -> Option<(String, String)> {
+pub fn parse_portable_path(path: &std::path::Path) -> Option<(String, String)> {
     let s = path.to_string_lossy();
     let rest = normalize_portable_str(&s)?;
     let mut parts = rest.splitn(2, '/');
@@ -54,7 +54,7 @@ pub fn parse_portable_path(path: &PathBuf) -> Option<(String, String)> {
     Some((device_id, object_id))
 }
 
-pub fn is_portable_device_path(path: &PathBuf) -> bool {
+pub fn is_portable_device_path(path: &std::path::Path) -> bool {
     parse_portable_path(path)
         .map(|(_, object_id)| object_id == PORTABLE_ROOT_OBJECT_ID)
         .unwrap_or(false)
@@ -79,7 +79,7 @@ pub fn cache_object_info(device_id: &str, object_id: &str, name: &str, parent_id
     }
 }
 
-pub fn build_breadcrumb_segments(path: &PathBuf) -> Option<Vec<(String, PathBuf)>> {
+pub fn build_breadcrumb_segments(path: &std::path::Path) -> Option<Vec<(String, PathBuf)>> {
     let (device_id, object_id) = parse_portable_path(path)?;
 
     let device_name = DEVICE_NAMES

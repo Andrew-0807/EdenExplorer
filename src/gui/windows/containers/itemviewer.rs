@@ -904,9 +904,7 @@ pub fn draw_item_viewer(
 
             let divider_tolerance = ui.style().interaction.resize_grab_radius_side + 3.0;
             let divider_double_clicked_column = ui.ctx().input(|input| {
-                let Some(pointer_pos) = input.pointer.interact_pos() else {
-                    return None;
-                };
+                let pointer_pos = input.pointer.interact_pos()?;
                 if !input
                     .pointer
                     .button_double_clicked(egui::PointerButton::Primary)

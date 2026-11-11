@@ -1533,7 +1533,7 @@ pub fn filtered_row_index(
 pub fn handle_keyboard_navigation(
     ctx: &egui::Context,
     filtered_indices: &[usize],
-    files: &Vec<FileItem>,
+    files: &[FileItem],
     is_drive_view: bool,
     explorer_state: &mut ExplorerState,
 ) -> Option<ItemViewerAction> {
@@ -2398,7 +2398,7 @@ pub fn draw_empty_item_viewer_area(
     paste_enabled: bool,
     is_drive_view: bool,
     is_recycle_bin_view: bool,
-    current_dir: &PathBuf,
+    current_dir: &Path,
     drag_state: &DragState,
     modal_input_blocked: bool,
     show_loading_spinner: bool,
@@ -2431,7 +2431,7 @@ pub fn draw_empty_item_viewer_area(
     {
         action = Some(ItemViewerAction::MoveItems {
             sources: drag_state.source_items.clone(),
-            target_dir: current_dir.clone(),
+            target_dir: current_dir.to_path_buf(),
         });
     }
 

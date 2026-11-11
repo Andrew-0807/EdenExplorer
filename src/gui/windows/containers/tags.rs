@@ -14,7 +14,6 @@ use eframe::egui;
 use egui::FontId;
 use egui::ScrollArea;
 use egui::containers::{Popup, PopupCloseBehavior};
-use std::path::PathBuf;
 use windows::Win32::Foundation::HWND;
 
 pub fn draw_tags(
@@ -682,7 +681,7 @@ pub fn draw_tag_picker_popup(
     changed
 }
 
-fn tag_item_label(path: &PathBuf) -> String {
+fn tag_item_label(path: &std::path::Path) -> String {
     path.file_name()
         .map(|name| name.to_string_lossy().to_string())
         .filter(|name| !name.is_empty())

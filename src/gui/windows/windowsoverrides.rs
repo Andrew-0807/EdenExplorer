@@ -523,8 +523,10 @@ unsafe extern "system" fn custom_wndproc(
 
                 let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
                 if !monitor.is_invalid() {
-                    let mut monitor_info = MONITORINFO::default();
-                    monitor_info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+                    let mut monitor_info = MONITORINFO {
+                        cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                        ..Default::default()
+                    };
 
                     if GetMonitorInfoW(monitor, &mut monitor_info).as_bool() {
                         let work_area = monitor_info.rcWork;
@@ -795,8 +797,10 @@ pub fn clamp_window_to_monitor_work_area(hwnd: HWND) {
             return;
         }
 
-        let mut info = MONITORINFO::default();
-        info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        let mut info = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
         if !GetMonitorInfoW(monitor, &mut info).as_bool() {
             return;
         }

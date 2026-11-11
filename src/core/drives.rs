@@ -128,8 +128,10 @@ fn list_removable_devices() -> Vec<String> {
 
         let mut index = 0;
         loop {
-            let mut device_interface_data = SP_DEVICE_INTERFACE_DATA::default();
-            device_interface_data.cbSize = std::mem::size_of::<SP_DEVICE_INTERFACE_DATA>() as u32;
+            let mut device_interface_data = SP_DEVICE_INTERFACE_DATA {
+                cbSize: std::mem::size_of::<SP_DEVICE_INTERFACE_DATA>() as u32,
+                ..Default::default()
+            };
 
             // SetupDiEnumDeviceInterfaces now returns Result<(), Error>
             if SetupDiEnumDeviceInterfaces(
@@ -613,7 +615,7 @@ unsafe fn wcslen(mut ptr: *const u16) -> usize {
     }
 }
 
-pub fn is_raw_physical_drive_path(path: &PathBuf) -> bool {
+pub fn is_raw_physical_drive_path(path: &std::path::Path) -> bool {
     let s = path.to_string_lossy();
     s.starts_with(r"\\.\PhysicalDrive")
 }

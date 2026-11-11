@@ -106,10 +106,7 @@ fn get_font_file_paths() -> HashMap<String, PathBuf> {
                             let mut files: Vec<Option<IDWriteFontFile>> =
                                 vec![None; num_files as usize];
                             if face
-                                .GetFiles(
-                                    &mut num_files,
-                                    Some(files.as_mut_ptr() as *mut Option<IDWriteFontFile>),
-                                )
+                                .GetFiles(&mut num_files, Some(files.as_mut_ptr()))
                                 .is_ok()
                                 && let Some(Some(file)) = files.into_iter().next()
                                 && let Some(path) = get_file_path_from_font_file(&file)
@@ -134,13 +131,12 @@ fn get_font_file_paths() -> HashMap<String, PathBuf> {
         if let Ok(entries) = std::fs::read_dir(dir_path) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if let Some(ext) = path.extension() {
-                    if (ext == "ttf" || ext == "otf" || ext == "ttc")
-                        && let Some(stem) = path.file_stem()
-                    {
-                        let name = stem.to_string_lossy().to_string();
-                        paths.entry(name).or_insert(path);
-                    }
+                if let Some(ext) = path.extension()
+                    && (ext == "ttf" || ext == "otf" || ext == "ttc")
+                    && let Some(stem) = path.file_stem()
+                {
+                    let name = stem.to_string_lossy().to_string();
+                    paths.entry(name).or_insert(path);
                 }
             }
         }
@@ -153,13 +149,12 @@ fn get_font_file_paths() -> HashMap<String, PathBuf> {
         {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if let Some(ext) = path.extension() {
-                    if (ext == "ttf" || ext == "otf" || ext == "ttc")
-                        && let Some(stem) = path.file_stem()
-                    {
-                        let name = stem.to_string_lossy().to_string();
-                        paths.entry(name).or_insert(path);
-                    }
+                if let Some(ext) = path.extension()
+                    && (ext == "ttf" || ext == "otf" || ext == "ttc")
+                    && let Some(stem) = path.file_stem()
+                {
+                    let name = stem.to_string_lossy().to_string();
+                    paths.entry(name).or_insert(path);
                 }
             }
         }

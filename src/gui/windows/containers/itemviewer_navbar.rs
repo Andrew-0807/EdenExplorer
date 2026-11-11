@@ -873,8 +873,8 @@ fn truncate_breadcrumb_to_width(
 fn build_breadcrumbs(path: &Path) -> Vec<Breadcrumb> {
     use std::path::Component;
 
-    if portable::is_portable_path(&path.to_path_buf()) {
-        return portable::build_breadcrumb_segments(&path.to_path_buf())
+    if portable::is_portable_path(path) {
+        return portable::build_breadcrumb_segments(path)
             .unwrap_or_default()
             .into_iter()
             .map(|(label, path)| Breadcrumb { label, path })

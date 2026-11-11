@@ -173,8 +173,8 @@ impl IconCache {
 // ---------------- helpers ----------------
 
 fn icon_key(path: &Path, is_dir: bool) -> String {
-    if portable::is_portable_device_path(&path.to_path_buf()) {
-        if let Some((device_id, _)) = portable::parse_portable_path(&path.to_path_buf()) {
+    if portable::is_portable_device_path(path) {
+        if let Some((device_id, _)) = portable::parse_portable_path(path) {
             return format!("portable_device:stock:{}", device_id);
         }
         return "portable_device".to_string();
@@ -247,8 +247,10 @@ fn get_icon_from_list(list: &IImageList, index: i32) -> Option<HICON> {
 
 fn get_portable_device_icon_rgba() -> Option<(Vec<u8>, u32, u32)> {
     unsafe {
-        let mut info = SHSTOCKICONINFO::default();
-        info.cbSize = std::mem::size_of::<SHSTOCKICONINFO>() as u32;
+        let mut info = SHSTOCKICONINFO {
+            cbSize: std::mem::size_of::<SHSTOCKICONINFO>() as u32,
+            ..Default::default()
+        };
         SHGetStockIconInfo(SIID_DRIVEUNKNOWN, SHGSI_ICON | SHGSI_LARGEICON, &mut info).ok()?;
 
         if info.hIcon.0.is_null() {

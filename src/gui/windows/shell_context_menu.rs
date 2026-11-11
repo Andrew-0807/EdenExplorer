@@ -53,16 +53,17 @@ impl ShellContextMenu {
         let parent_folder: IShellFolder =
             unsafe { SHBindToParent::<IShellFolder>(full_pidls[0], None)? };
 
-        let mut dcm = DEFCONTEXTMENU::default();
-        dcm.hwnd = hwnd;
-        dcm.pcmcb = ManuallyDrop::new(None);
-        dcm.pidlFolder = parent_pidl;
-        dcm.psf = ManuallyDrop::new(Some(parent_folder));
-        dcm.cidl = child_pidls.len() as u32;
-        dcm.apidl = child_pidls.as_mut_ptr();
-        dcm.punkAssociationInfo = ManuallyDrop::new(None);
-        dcm.cKeys = 0;
-        dcm.aKeys = std::ptr::null();
+        let dcm = DEFCONTEXTMENU {
+            hwnd,
+            pcmcb: ManuallyDrop::new(None),
+            pidlFolder: parent_pidl,
+            psf: ManuallyDrop::new(Some(parent_folder)),
+            cidl: child_pidls.len() as u32,
+            apidl: child_pidls.as_mut_ptr(),
+            punkAssociationInfo: ManuallyDrop::new(None),
+            cKeys: 0,
+            aKeys: std::ptr::null(),
+        };
 
         let context_menu: IContextMenu = unsafe { SHCreateDefaultContextMenu(&dcm)? };
 

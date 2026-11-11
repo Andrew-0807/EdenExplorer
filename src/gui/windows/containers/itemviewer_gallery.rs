@@ -464,13 +464,8 @@ pub fn draw_gallery_view(
         && is_focused
         && rename_state.is_none()
         && !ui.ctx().egui_wants_keyboard_input()
-        && let Some(a) = handle_keyboard_navigation(
-            ui.ctx(),
-            filtered_indices,
-            &files.to_vec(),
-            false,
-            explorer_state,
-        )
+        && let Some(a) =
+            handle_keyboard_navigation(ui.ctx(), filtered_indices, files, false, explorer_state)
     {
         action = action.or(Some(a));
     }

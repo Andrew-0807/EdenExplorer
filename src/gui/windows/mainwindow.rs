@@ -216,7 +216,7 @@ impl Default for MainWindow {
             rename_state: None,
             theme: match saved_theme.as_deref() {
                 Some("light") => ThemeMode::Light,
-                Some("dark") | _ => ThemeMode::Dark,
+                _ => ThemeMode::Dark,
             },
             display_file_explorer: true,
             sidebar_collapsed: false,

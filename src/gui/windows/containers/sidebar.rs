@@ -558,7 +558,7 @@ pub fn draw_sidebar(
 pub fn draw_sidebar_item(
     ui: &mut egui::Ui,
     icon_cache: &IconCache,
-    path: &PathBuf,
+    path: &std::path::Path,
     label: &str,
     is_dir: bool,
     is_recycle_bin: bool,
@@ -805,9 +805,7 @@ fn sidebar_drive_item(
         ui.allocate_exact_size(egui::vec2(available_width, height), egui::Sense::click());
 
     // Background (selected > active click > hover)
-    let fill_color = if selected {
-        palette.primary_active
-    } else if resp.is_pointer_button_down_on() {
+    let fill_color = if selected || resp.is_pointer_button_down_on() {
         palette.primary_active
     } else if resp.hovered() {
         palette.primary_hover
@@ -853,13 +851,11 @@ fn sidebar_drive_item(
 
     let display_name = if drive.display.len() > max_chars && max_chars > 3 {
         // Use character boundaries instead of byte indices
-        let mut char_count = 0;
         let mut byte_end = 0;
-        for (i, _) in drive.display.char_indices() {
+        for (char_count, (i, _)) in drive.display.char_indices().enumerate() {
             if char_count >= max_chars - 3 {
                 break;
             }
-            char_count += 1;
             byte_end = i;
         }
         format!("{}...", &drive.display[..byte_end])
