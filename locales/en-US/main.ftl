@@ -70,9 +70,9 @@ settings_windowsize_fullscreen = Full Screen
 settings_windowsize_width = Width
 settings_windowsize_height = Height
 settings_windowsize_reset_hover = Reset to default
-tooltip_settings_windowsize = Sets the window size EdenExplorer opens with. Full Screen matches your monitor's resolution.
+tooltip_settings_windowsize = Sets the window size Axis opens with. Full Screen matches your monitor's resolution.
 settings_contextmenu_enable = Use Native Context Menu
-tooltip_settings_contextmenu = Replaces the EdenExplorer right-click menu with the native Windows shell menu.
+tooltip_settings_contextmenu = Replaces the Axis right-click menu with the native Windows shell menu.
 settings_favorites_reset = Reset Sidebar Favorites
 tooltip_settings_favorites_reset = Reset favorites to default
 settings_favorites_reset_confirm = Reset Favorites
@@ -128,8 +128,8 @@ explorer_cols_created = Created
 explorer_cols_deleted = Deleted
 explorer_cols_original_directory = Original Directory
 gallery_sort_by = Sort By
-about_description = EdenExplorer is a next-generation, blazing-fast fully open-source file explorer built for Windows 11+ using Rust and egui. Designed from the ground up for performance, efficiency, and modern workflows, EdenExplorer is the best FOSS alternative to the default Windows File Explorer.
-about_author = Author
+about_description = Axis is a next-generation, blazing-fast fully open-source file explorer built for Windows 11+ using Rust and egui. Designed from the ground up for performance, efficiency, and modern workflows, Axis is the best FOSS alternative to the default Windows File Explorer.
+about_based_on = Based on
 about_repo = Repository
 about_current_version = Current Version
 about_license = License
@@ -183,9 +183,9 @@ launch-mutex-create =
     Could not create the instance mutex: 
     {$error}
 launch-window-not-ready = 
-    The running EdenExplorer window was not ready.
+    The running Axis window was not ready.
 launch-window-rejected = 
-    The running EdenExplorer window did not accept the request.
+    The running Axis window did not accept the request.
 theme_sidebar_item_spacing_y = Sidebar Item Vertical Spacing
 restore = Restore
 maximize = Maximize
@@ -250,7 +250,7 @@ theme_preset_nord = Nord
 theme_preset_dracula = Dracula
 theme_preset_high_contrast = High contrast
 theme_import_ok = Theme imported.
-theme_import_failed = This file is not an EdenExplorer theme.
+theme_import_failed = This file is not an Axis theme.
 theme_export_ok = Theme exported.
 theme_export_failed = The theme could not be saved.
 theme_section_text = Text
@@ -302,7 +302,7 @@ theme_backdrop_mica = Mica
 theme_backdrop_mica_alt = Mica Alt
 theme_backdrop_acrylic = Acrylic
 theme_backdrop_tint_opacity = Tint opacity over backdrop
-theme_backdrop_restart = Restart EdenExplorer to show the backdrop. It needs Windows 11 and transparency effects.
+theme_backdrop_restart = Restart Axis to show the backdrop. It needs Windows 11 and transparency effects.
 theme_colors_sidebar_bg = Sidebar background
 theme_colors_content_bg = File list background
 theme_show_separators = Separator lines

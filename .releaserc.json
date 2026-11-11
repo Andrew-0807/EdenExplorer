@@ -27,8 +27,8 @@
       {
         "assets": [
           {
-            "path": "release/EdenExplorer-portable.exe",
-            "name": "EdenExplorer-portable-v${nextRelease.version}-win_x86-64.exe"
+            "path": "release/Axis-portable.exe",
+            "name": "Axis-portable-v${nextRelease.version}-win_x86-64.exe"
           }
         ]
       }

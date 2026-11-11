@@ -25,7 +25,7 @@ If applicable, add screenshots to help explain your problem.
 
 **Desktop (please complete the following information):**
  - Windows version: [e.g. Windows 11 24H2]
- - EdenExplorer version: [e.g. 1.0.0]
+ - Axis version: [e.g. 1.0.0]
 
 **Additional context**
 Add any other context about the problem here.

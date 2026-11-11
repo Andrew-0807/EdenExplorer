@@ -37,10 +37,8 @@ jobs:
       run: |
         mkdir release
 
-        if (Test-Path "target/release/EdenExplorer.exe") {
-          Copy-Item "target/release/EdenExplorer.exe" "release/EdenExplorer-portable.exe"
-        } elseif (Test-Path "target/release/eden_explorer.exe") {
-          Copy-Item "target/release/eden_explorer.exe" "release/EdenExplorer-portable.exe"
+        if (Test-Path "target/release/Axis.exe") {
+          Copy-Item "target/release/Axis.exe" "release/Axis-portable.exe"
         } else {
           echo "❌ No binary found"
           exit 1
@@ -48,6 +46,6 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: eden-explorer-pr-${{ github.event.pull_request.number }}
+        name: axis-pr-${{ github.event.pull_request.number }}
         path: release/
         retention-days: 30

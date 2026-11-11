@@ -70,9 +70,9 @@ settings_windowsize_fullscreen = フルスクリーン
 settings_windowsize_width = 幅
 settings_windowsize_height = 高さ
 settings_windowsize_reset_hover = デフォルトに戻す
-tooltip_settings_windowsize = EdenExplorerの起動時のウィンドウサイズを設定します。フルスクリーンはモニターの解像度に合わせます。
+tooltip_settings_windowsize = Axisの起動時のウィンドウサイズを設定します。フルスクリーンはモニターの解像度に合わせます。
 settings_contextmenu_enable = ネイティブコンテキストメニューを使用
-tooltip_settings_contextmenu = EdenExplorerの右クリックメニューをネイティブWindows Shellメニューに置き換えます。
+tooltip_settings_contextmenu = Axisの右クリックメニューをネイティブWindows Shellメニューに置き換えます。
 settings_favorites_reset = サイドバーのお気に入りをリセット
 tooltip_settings_favorites_reset = お気に入りをデフォルトに戻す
 settings_favorites_reset_confirm = お気に入りをリセット
@@ -128,8 +128,8 @@ explorer_cols_created = 作成日時
 explorer_cols_deleted = 削除日時
 explorer_cols_original_directory = 元のディレクトリ
 gallery_sort_by = ソート順
-about_description = EdenExplorer は、Rust と egui を使用して Windows 11+ 向けに開発された、次世代の超高速オープンソースファイルエクスプローラーです。パフォーマンス、効率性、そして現代的なワークフローを重視してゼロから設計されており、標準の Windows エクスプローラーに代わる最高の FOSS ソリューションです。
-about_author = 作者
+about_description = Axis は、Rust と egui を使用して Windows 11+ 向けに開発された、次世代の超高速オープンソースファイルエクスプローラーです。パフォーマンス、効率性、そして現代的なワークフローを重視してゼロから設計されており、標準の Windows エクスプローラーに代わる最高の FOSS ソリューションです。
+about_based_on = Based on
 about_repo = リポジトリ
 about_current_version = 現在のバージョン
 about_license = ライセンス
@@ -183,9 +183,9 @@ launch-mutex-create =
     インスタンスミューテックスを作成できませんでした: 
     {$error}
 launch-window-not-ready = 
-    実行中のEdenExplorerウィンドウが準備できていません。
+    実行中のAxisウィンドウが準備できていません。
 launch-window-rejected = 
-    実行中のEdenExplorerウィンドウがリクエストを拒否しました。
+    実行中のAxisウィンドウがリクエストを拒否しました。
 theme_sidebar_item_spacing_y = サイドバー項目の垂直間隔
 restore = 戻す
 maximize = 最大化
@@ -250,7 +250,7 @@ theme_preset_nord = Nord
 theme_preset_dracula = Dracula
 theme_preset_high_contrast = ハイコントラスト
 theme_import_ok = テーマをインポートしました。
-theme_import_failed = このファイルは EdenExplorer のテーマではありません。
+theme_import_failed = このファイルは Axis のテーマではありません。
 theme_export_ok = テーマをエクスポートしました。
 theme_export_failed = テーマを保存できませんでした。
 theme_section_text = テキスト
@@ -302,7 +302,7 @@ theme_backdrop_mica = Mica
 theme_backdrop_mica_alt = Mica Alt
 theme_backdrop_acrylic = アクリル
 theme_backdrop_tint_opacity = 背景効果の上の色の不透明度
-theme_backdrop_restart = 背景効果を表示するには EdenExplorer を再起動してください。Windows 11 と透明効果が必要です。
+theme_backdrop_restart = 背景効果を表示するには Axis を再起動してください。Windows 11 と透明効果が必要です。
 theme_colors_sidebar_bg = サイドバーの背景
 theme_colors_content_bg = ファイル一覧の背景
 theme_show_separators = 区切り線

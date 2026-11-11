@@ -313,7 +313,7 @@ fn open_device(device_id: &str) -> Option<IPortableDevice> {
         let client_info: IPortableDeviceValues =
             CoCreateInstance(&PortableDeviceValues, None, CLSCTX_INPROC_SERVER).ok()?;
 
-        let client_name = HSTRING::from("EdenExplorer");
+        let client_name = HSTRING::from("Axis");
         let _ = client_info.SetStringValue(&WPD_CLIENT_NAME, PCWSTR(client_name.as_ptr()));
         let _ = client_info.SetUnsignedIntegerValue(&WPD_CLIENT_MAJOR_VERSION, 1);
         let _ = client_info.SetUnsignedIntegerValue(&WPD_CLIENT_MINOR_VERSION, 0);

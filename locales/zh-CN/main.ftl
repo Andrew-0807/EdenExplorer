@@ -70,9 +70,9 @@ settings_windowsize_fullscreen = 全屏
 settings_windowsize_width = 宽度
 settings_windowsize_height = 高度
 settings_windowsize_reset_hover = 恢复默认值
-tooltip_settings_windowsize = 设置 EdenExplorer 启动时的窗口大小。全屏将匹配您显示器的分辨率。
+tooltip_settings_windowsize = 设置 Axis 启动时的窗口大小。全屏将匹配您显示器的分辨率。
 settings_contextmenu_enable = 使用原生上下文菜单
-tooltip_settings_contextmenu = 将 EdenExplorer 右键菜单替换为原生 Windows Shell 菜单。
+tooltip_settings_contextmenu = 将 Axis 右键菜单替换为原生 Windows Shell 菜单。
 settings_favorites_reset = 重置侧边栏收藏夹
 tooltip_settings_favorites_reset = 将收藏夹重置为默认值
 settings_favorites_reset_confirm = 重置收藏夹
@@ -128,8 +128,8 @@ explorer_cols_created = 创建时间
 explorer_cols_deleted = 删除时间
 explorer_cols_original_directory = 原始目录
 gallery_sort_by = 排序方式
-about_description = EdenExplorer 是一款面向 Windows 11+ 的新一代极速开源文件资源管理器，基于 Rust 和 egui 构建。它从底层开始专为性能、效率和现代化工作流而设计，是默认 Windows 文件资源管理器的最佳自由开源软件替代方案。
-about_author = 作者
+about_description = Axis 是一款面向 Windows 11+ 的新一代极速开源文件资源管理器，基于 Rust 和 egui 构建。它从底层开始专为性能、效率和现代化工作流而设计，是默认 Windows 文件资源管理器的最佳自由开源软件替代方案。
+about_based_on = Based on
 about_repo = 仓库
 about_current_version = 当前版本
 about_license = 许可证
@@ -183,9 +183,9 @@ launch-mutex-create =
     无法创建实例互斥锁: 
     {$error}
 launch-window-not-ready = 
-    运行中的 EdenExplorer 窗口未准备好。
+    运行中的 Axis 窗口未准备好。
 launch-window-rejected = 
-    运行中的 EdenExplorer 窗口拒绝了请求。
+    运行中的 Axis 窗口拒绝了请求。
 theme_sidebar_item_spacing_y = 侧边栏项目垂直间距
 restore = 恢复
 maximize = 最大化
@@ -250,7 +250,7 @@ theme_preset_nord = Nord
 theme_preset_dracula = Dracula
 theme_preset_high_contrast = 高对比度
 theme_import_ok = 已导入主题。
-theme_import_failed = 此文件不是 EdenExplorer 主题。
+theme_import_failed = 此文件不是 Axis 主题。
 theme_export_ok = 已导出主题。
 theme_export_failed = 无法保存主题。
 theme_section_text = 文本
@@ -302,7 +302,7 @@ theme_backdrop_mica = 云母
 theme_backdrop_mica_alt = 云母（替代）
 theme_backdrop_acrylic = 亚克力
 theme_backdrop_tint_opacity = 背景效果上的着色不透明度
-theme_backdrop_restart = 重启 EdenExplorer 以显示背景效果。需要 Windows 11 并开启透明效果。
+theme_backdrop_restart = 重启 Axis 以显示背景效果。需要 Windows 11 并开启透明效果。
 theme_colors_sidebar_bg = 侧边栏背景
 theme_colors_content_bg = 文件列表背景
 theme_show_separators = 分隔线

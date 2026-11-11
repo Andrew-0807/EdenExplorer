@@ -27,8 +27,8 @@ use windows::core::PCWSTR;
 #[folder = "locales/"]
 struct LaunchLocalizations;
 
-const INSTANCE_MUTEX: &str = "Local\\EdenExplorer.SingleInstance.v1";
-const WINDOW_TITLE: &str = "EdenExplorer";
+const INSTANCE_MUTEX: &str = "Local\\Axis.SingleInstance.v1";
+const WINDOW_TITLE: &str = "Axis";
 const COPYDATA_ID: usize = 0x4544_454e;
 static FORWARDED_PATHS: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
 const LANGUAGE_MAP: &[(u16, &str)] = &[
@@ -398,13 +398,8 @@ mod tests {
 
     #[test]
     fn parses_multiple_paths_and_new_window() {
-        let options = parse_args([
-            "EdenExplorer.exe",
-            "--new-window",
-            "C:\\Projects",
-            "D:\\Archive",
-        ])
-        .unwrap();
+        let options =
+            parse_args(["Axis.exe", "--new-window", "C:\\Projects", "D:\\Archive"]).unwrap();
 
         assert!(options.new_window);
         assert_eq!(
@@ -415,13 +410,13 @@ mod tests {
 
     #[test]
     fn allows_dash_prefixed_paths_after_double_dash() {
-        let options = parse_args(["EdenExplorer.exe", "--", "-folder"]).unwrap();
+        let options = parse_args(["Axis.exe", "--", "-folder"]).unwrap();
         assert_eq!(options.paths, vec![PathBuf::from("-folder")]);
     }
 
     #[test]
     fn rejects_unknown_options() {
-        let error = parse_args(["EdenExplorer.exe", "--unknown"]).unwrap_err();
+        let error = parse_args(["Axis.exe", "--unknown"]).unwrap_err();
         match error {
             LaunchError::UnknownOption(option) => {
                 assert_eq!(option, "--unknown");
@@ -449,7 +444,7 @@ mod tests {
         ];
 
         for alias in aliases {
-            let options = parse_args(["EdenExplorer.exe", alias]).unwrap();
+            let options = parse_args(["Axis.exe", alias]).unwrap();
 
             assert_eq!(
                 options.paths,
@@ -468,7 +463,7 @@ mod tests {
         ];
 
         for alias in aliases {
-            let options = parse_args(["EdenExplorer.exe", alias]).unwrap();
+            let options = parse_args(["Axis.exe", alias]).unwrap();
 
             assert_eq!(
                 options.paths,
@@ -480,7 +475,7 @@ mod tests {
 
     #[test]
     fn preserves_normal_directories() {
-        let options = parse_args(["EdenExplorer.exe", "C:\\Projects", "D:\\Archive"]).unwrap();
+        let options = parse_args(["Axis.exe", "C:\\Projects", "D:\\Archive"]).unwrap();
 
         assert_eq!(
             options.paths,
@@ -490,8 +485,7 @@ mod tests {
 
     #[test]
     fn normalizes_virtual_paths_before_directory_validation() {
-        let options =
-            parse_args(["EdenExplorer.exe", "file:\\", "shell:RecycleBinFolder"]).unwrap();
+        let options = parse_args(["Axis.exe", "file:\\", "shell:RecycleBinFolder"]).unwrap();
 
         let paths = existing_directories(&options).unwrap();
 
