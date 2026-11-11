@@ -1,6 +1,6 @@
 //! Appearance section: base theme, accent, font, backdrop, and under Advanced
 //! the sizes, shapes and every color grouped by the part of the UI it paints.
-//! It edits the active mode's palette in the `ThemeCustomizer`; the existing
+//! It edits the palette of the chosen mode (light or dark, active or not) in the `ThemeCustomizer`; the existing
 //! handler applies, saves, exports and imports.
 
 use super::*;
@@ -31,11 +31,28 @@ pub(super) fn draw_appearance_section(
     i18n: &I18n,
 ) -> Option<SettingsAction> {
     let ctx = ui.ctx().clone();
-    customizer.selected_mode = mode;
     let mut prefs_changed = false;
     let mut theme_changed = false;
+
+    // Which mode the controls below edit; it need not be the active one.
+    let mut edit = customizer.edit_mode.unwrap_or(mode);
+    settings_section(ui, palette, None, |ui| {
+        choice_row(
+            ui,
+            palette,
+            i18n,
+            "settings_theme_edit_mode",
+            Some("settings_theme_edit_mode_desc"),
+            &mut edit,
+            &[
+                (ThemeMode::Light, "theme_light"),
+                (ThemeMode::Dark, "theme_dark"),
+            ],
+        );
+    });
+    customizer.edit_mode = Some(edit);
     let prefs = &mut settings.current_settings.ui;
-    let p = match mode {
+    let p = match edit {
         ThemeMode::Dark => &mut customizer.dark_palette,
         ThemeMode::Light => &mut customizer.light_palette,
     };
@@ -101,7 +118,7 @@ pub(super) fn draw_appearance_section(
                                 .selectable_label(false, i18n.tr(preset.label_key()))
                                 .clicked()
                             {
-                                let updated = preset_palette(preset, mode, p);
+                                let updated = preset_palette(preset, edit, p);
                                 *p = updated;
                                 theme_changed = true;
                                 ui.close();
@@ -121,7 +138,7 @@ pub(super) fn draw_appearance_section(
             &mut p.primary,
         ) {
             p.follow_system_accent = false;
-            regenerate_base_derived_colors(p, mode == ThemeMode::Dark);
+            regenerate_base_derived_colors(p, edit == ThemeMode::Dark);
             theme_changed = true;
         }
         if setting_toggle(
@@ -150,7 +167,9 @@ pub(super) fn draw_appearance_section(
                 if let Some(font) = font_selector(ui, palette, "theme_font_selector", &p.font_name)
                 {
                     p.font_name = font;
-                    apply_font_to_context(&ctx, p);
+                    if edit == mode {
+                        apply_font_to_context(&ctx, p);
+                    }
                     theme_changed = true;
                 }
             },
@@ -194,15 +213,11 @@ pub(super) fn draw_appearance_section(
             &mut p.backdrop,
             &options,
         );
-        theme_changed |= slider_row(
+        theme_changed |= percent_slider_row(
             ui,
             palette,
             &i18n.tr("theme_backdrop_tint_opacity"),
-            None,
             &mut p.backdrop_tint_opacity,
-            0.0..=1.0,
-            "",
-            0.01,
         );
     });
 
@@ -335,9 +350,9 @@ pub(super) fn draw_appearance_section(
             3.0 * 92.0,
             |ui| {
                 for (key, action) in [
-                    ("theme_reset", ThemeCustomizerAction::ResetToDefaults(mode)),
-                    ("theme_import", ThemeCustomizerAction::ImportTheme(mode)),
-                    ("theme_export", ThemeCustomizerAction::ExportTheme(mode)),
+                    ("theme_reset", ThemeCustomizerAction::ResetToDefaults(edit)),
+                    ("theme_import", ThemeCustomizerAction::ImportTheme(edit)),
+                    ("theme_export", ThemeCustomizerAction::ExportTheme(edit)),
                 ] {
                     if settings_button(ui, palette, &i18n.tr(key)).is_some_and(|r| r.clicked()) {
                         customizer.pending_action = Some(action);
@@ -348,7 +363,7 @@ pub(super) fn draw_appearance_section(
     });
 
     if theme_changed && customizer.pending_action.is_none() {
-        customizer.pending_action = Some(ThemeCustomizerAction::ThemeUpdated(mode));
+        customizer.pending_action = Some(ThemeCustomizerAction::ThemeUpdated(edit));
     }
     if customizer.pending_action.is_some() {
         ctx.request_repaint();

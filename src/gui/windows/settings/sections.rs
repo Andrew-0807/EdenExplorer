@@ -599,3 +599,34 @@ pub(super) fn draw_general_section(
 
     action
 }
+
+/// About: what the app is, who made it, its version and license.
+pub(super) fn draw_about_section(ui: &mut egui::Ui, palette: &ThemePalette, i18n: &I18n) {
+    settings_section(ui, palette, None, |ui| {
+        ui.add_space(4.0);
+        ui.label(
+            RichText::new(i18n.tr("about_description"))
+                .size(body_size(palette))
+                .color(palette.text_normal),
+        );
+        ui.add_space(8.0);
+        let rows = [
+            ("about_author", "Matthew Tucciarone (GitHub: mtucciarone)"),
+            ("about_repo", "https://github.com/mtucciarone/EdenExplorer"),
+            ("about_current_version", env!("CARGO_PKG_VERSION")),
+            ("about_license", "MIT"),
+        ];
+        for (key, value) in rows {
+            setting_row(ui, palette, &i18n.tr(key), None, 360.0, |ui| {
+                ui.add(
+                    egui::Label::new(
+                        RichText::new(value)
+                            .size(body_size(palette))
+                            .color(palette.text_normal),
+                    )
+                    .truncate(),
+                );
+            });
+        }
+    });
+}

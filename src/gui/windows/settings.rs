@@ -348,7 +348,7 @@ fn show_if_matches<R>(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui
 }
 
 /// Optional heading plus flat rows; hidden entirely when a search matches none of them.
-fn settings_section(
+pub(super) fn settings_section(
     ui: &mut egui::Ui,
     palette: &ThemePalette,
     heading: Option<&str>,
@@ -536,7 +536,7 @@ fn draw_toggle_switch(
 }
 
 /// Push button; `None` when the active search filters it out.
-fn settings_button(
+pub(super) fn settings_button(
     ui: &mut egui::Ui,
     palette: &ThemePalette,
     text: &str,
@@ -781,6 +781,40 @@ fn slider_row(
     suffix: &str,
     step: f64,
 ) -> bool {
+    slider_row_inner(
+        ui,
+        palette,
+        label,
+        description,
+        value,
+        range,
+        suffix,
+        step,
+        false,
+    )
+}
+
+/// Slider over a 0..=1 value shown as a whole percentage (0.35 as "35%").
+fn percent_slider_row(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    label: &str,
+    value: &mut f32,
+) -> bool {
+    slider_row_inner(ui, palette, label, None, value, 0.0..=1.0, "", 0.01, true)
+}
+
+fn slider_row_inner(
+    ui: &mut egui::Ui,
+    palette: &ThemePalette,
+    label: &str,
+    description: Option<&str>,
+    value: &mut f32,
+    range: std::ops::RangeInclusive<f32>,
+    suffix: &str,
+    step: f64,
+    percent: bool,
+) -> bool {
     let mut changed = false;
     setting_row(
         ui,
@@ -790,14 +824,23 @@ fn slider_row(
         SETTINGS_SLIDER_WIDTH,
         |ui| {
             ui.spacing_mut().slider_width = SETTINGS_SLIDER_WIDTH - 70.0;
-            changed = ui
-                .add(
-                    egui::Slider::new(value, range)
-                        .suffix(suffix)
-                        .step_by(step)
-                        .trailing_fill(true),
-                )
-                .changed();
+            let mut slider = egui::Slider::new(value, range)
+                .suffix(suffix)
+                .step_by(step)
+                .trailing_fill(true);
+            if percent {
+                slider = slider
+                    .custom_formatter(|v, _| format!("{}%", (v * 100.0).round()))
+                    .custom_parser(|text| {
+                        text.trim()
+                            .trim_end_matches('%')
+                            .trim()
+                            .parse::<f64>()
+                            .ok()
+                            .map(|v| v / 100.0)
+                    });
+            }
+            changed = ui.add(slider).changed();
         },
     );
     changed
@@ -940,6 +983,7 @@ const SETTINGS_GROUPS: [(&str, &[(SettingsTab, &str)]); 2] = [
         &[
             (SettingsTab::Hotkeys, "settings_tab_hotkeys"),
             (SettingsTab::Integrations, "settings_tab_integrations"),
+            (SettingsTab::About, "about"),
         ],
     ),
 ];
@@ -985,6 +1029,10 @@ fn draw_settings_tab(
             sections::draw_integrations_section(ui, settings, palette, i18n)
         }
         SettingsTab::General => sections::draw_general_section(ui, settings, palette, i18n),
+        SettingsTab::About => {
+            sections::draw_about_section(ui, palette, i18n);
+            None
+        }
     }
 }
 

@@ -461,3 +461,6 @@ settings_theme_area_tabs = Tabs
 settings_theme_area_menus = Menus and popups
 settings_theme_area_text = Text
 settings_theme_file = Theme file
+
+settings_theme_edit_mode = Edit colors for
+settings_theme_edit_mode_desc = Changes below apply to this mode; it shows once that mode is active

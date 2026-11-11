@@ -22,7 +22,6 @@ use crate::gui::utils::{
     read_clipboard_files, recording_sink, restore_paths_native, selection_paths_after_paste,
     set_clipboard_files, show_copy_move_dialog, sort_files_by_keys,
 };
-use crate::gui::windows::about::draw_about_window;
 use crate::gui::windows::containers::enums::{
     ItemViewerAction, ItemViewerContextAction, ItemViewerHeaderColumn, ItemViewerNavAction,
 };
@@ -1601,11 +1600,6 @@ impl MainWindow {
         }
     }
 
-    pub fn handle_draw_about_window(&mut self, ctx: &egui::Context, palette: &ThemePalette) {
-        // TODO: Implement about window
-        draw_about_window(&mut self.i18n, ctx, &mut self.about_window, palette);
-    }
-
     pub fn handle_tabbar_action(
         &mut self,
         tabbar_action: Option<ItemViewerNavBarAction>,
@@ -2150,7 +2144,8 @@ impl MainWindow {
             }
 
             if action.about {
-                self.about_window.open = true;
+                self.settings_window.selected_tab = SettingsTab::About;
+                self.settings_window.open = true;
             }
 
             if action.exit {
@@ -2236,7 +2231,6 @@ impl MainWindow {
 
         let active_tab = self.active_tab();
         self.settings_window.open
-            || self.about_window.open
             || self.zoxide_popup.open
             || self.tags_state.picker.is_some()
             || self.tags_state.delete_confirmation.is_some()
