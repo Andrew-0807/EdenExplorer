@@ -8,7 +8,7 @@ use crate::core::utils::widgets::{
     apply_eden_dropdown_visual_color_overrides, apply_eden_visual_overrides, draw_dropdown,
 };
 use crate::gui::folder_icons::{FolderIcon, paint_folder_icon, resolve_for_path};
-use crate::gui::icon_system::{AppIcon, paint_icon};
+use crate::gui::icon_system::{AppIcon, paint_svg_icon};
 use crate::gui::selection::{item_paint, paint_item};
 use crate::gui::theme::ThemePalette;
 use crate::gui::utils::{SortColumn, truncate_item_text};
@@ -680,7 +680,7 @@ fn draw_gallery_tile(
         } else {
             ui.scope_builder(egui::UiBuilder::new().max_rect(preview_rect), |icon_ui| {
                 let size = (thumb_size * 0.35).clamp(24.0, 80.0);
-                paint_icon(
+                paint_svg_icon(
                     icon_ui,
                     icon_ui.max_rect(),
                     AppIcon::FolderSimple.regular(),
@@ -721,7 +721,7 @@ fn draw_gallery_tile(
     } else {
         ui.scope_builder(egui::UiBuilder::new().max_rect(preview_rect), |icon_ui| {
             let size = (thumb_size * 0.35).clamp(24.0, 80.0);
-            paint_icon(
+            paint_svg_icon(
                 icon_ui,
                 icon_ui.max_rect(),
                 AppIcon::ImageSquare.regular(),

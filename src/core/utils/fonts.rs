@@ -236,4 +236,7 @@ pub fn apply_custom_font_definitions(fonts: &mut egui::FontDefinitions) {
             family.push(japanese_font.clone());
         }
     }
+
+    // After the fallback loop, so the icon family holds only Lucide.
+    crate::gui::icon_system::install_icon_font(fonts);
 }

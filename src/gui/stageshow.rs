@@ -29,12 +29,19 @@ fn render_scene(
     palette: ThemePalette,
     mut scene: impl FnMut(&mut egui::Ui, &ThemePalette),
 ) {
+    let mut fonts_set = false;
     let mut harness = Harness::builder()
         .with_size(egui::vec2(size[0], size[1]))
         .with_pixels_per_point(ppp)
         .wgpu()
         .build_ui(move |ui| {
             let ctx = ui.ctx().clone();
+            if !fonts_set {
+                let mut fonts = egui::FontDefinitions::default();
+                crate::core::utils::fonts::apply_custom_font_definitions(&mut fonts);
+                ctx.set_fonts(fonts);
+                fonts_set = true;
+            }
             apply_theme(&ctx, mode, false);
             egui_extras::install_image_loaders(&ctx);
             scene(ui, &palette);
@@ -291,12 +298,19 @@ fn render_drag_scene(
     (from, to): (egui::Pos2, egui::Pos2),
     mut scene: impl FnMut(&mut egui::Ui, &ThemePalette),
 ) {
+    let mut fonts_set = false;
     let mut harness = Harness::builder()
         .with_size(egui::vec2(size[0], size[1]))
         .with_pixels_per_point(1.0)
         .wgpu()
         .build_ui(move |ui| {
             let ctx = ui.ctx().clone();
+            if !fonts_set {
+                let mut fonts = egui::FontDefinitions::default();
+                crate::core::utils::fonts::apply_custom_font_definitions(&mut fonts);
+                ctx.set_fonts(fonts);
+                fonts_set = true;
+            }
             apply_theme(&ctx, mode, false);
             egui_extras::install_image_loaders(&ctx);
             scene(ui, &palette);
@@ -549,6 +563,121 @@ fn stageshow_app_icon() {
                     );
                     x += px + 24.0;
                 }
+            },
+        );
+    }
+}
+
+/// UI chrome: topbar, command bar, sidebar rows and a sheet of every
+/// `AppIcon` at the common sizes (missing glyphs show as boxes there).
+#[test]
+fn stageshow_chrome() {
+    use crate::gui::customization::{ToolbarPrefs, ToolbarState};
+    use crate::gui::windows::containers::itemviewer_navbar::{ToolbarContext, draw_command_bar};
+    use crate::gui::windows::containers::sidebar::draw_sidebar_item;
+    use crate::gui::windows::containers::structs::ItemViewerDisplayMode;
+    use crate::gui::windows::containers::topbar::draw_topbar;
+    use std::path::PathBuf;
+    if !enabled() {
+        return;
+    }
+    for (name, mode) in [
+        ("chrome", ThemeMode::Dark),
+        ("chrome_light", ThemeMode::Light),
+    ] {
+        let i18n = I18n::new("en-US");
+        let selected = std::collections::HashSet::from([PathBuf::from("C:/Users/axis/notes.txt")]);
+        let mut icon_cache: Option<crate::core::icons::IconCache> = None;
+        render_scene(
+            name,
+            [760.0, 420.0],
+            1.5,
+            mode,
+            get_palette(mode),
+            move |ui, palette| {
+                let full = ui.ctx().content_rect();
+                ui.painter()
+                    .rect_filled(full, 0.0, palette.application_bg_color);
+                let cache = icon_cache
+                    .get_or_insert_with(|| crate::core::icons::IconCache::new(ui.ctx().clone()));
+                ui.allocate_ui(egui::vec2(full.width(), 32.0), |ui| {
+                    draw_topbar(
+                        ui,
+                        &i18n,
+                        mode == ThemeMode::Dark,
+                        true,
+                        false,
+                        None,
+                        palette,
+                        false,
+                    );
+                });
+                let toolbar = ToolbarContext {
+                    i18n: &i18n,
+                    palette,
+                    prefs: ToolbarPrefs {
+                        labels: true,
+                        ..Default::default()
+                    },
+                    extra_actions_bar: true,
+                    is_favorited: true,
+                    current_dir: std::path::Path::new("C:/Users/axis"),
+                    display_mode: ItemViewerDisplayMode::Details,
+                    selected_paths: &selected,
+                    state: ToolbarState {
+                        is_root: false,
+                        is_recycle_bin: false,
+                        has_selection: true,
+                        clipboard_has_files: true,
+                    },
+                    primary_sort: None,
+                };
+                ui.allocate_ui(egui::vec2(full.width(), 34.0), |ui| {
+                    draw_command_bar(ui, &toolbar);
+                });
+                ui.add_space(8.0);
+                ui.horizontal_top(|ui| {
+                    ui.add_space(12.0);
+                    ui.allocate_ui(egui::vec2(180.0, 200.0), |ui| {
+                        ui.vertical(|ui| {
+                            for (path, label, bin) in [
+                                ("C:/Users/axis/Documents", "Documents", false),
+                                ("C:/Users/axis/Music", "Music", false),
+                                ("C:/Users/axis/Downloads", "Downloads", false),
+                                ("C:/$Recycle.Bin", "Recycle Bin", true),
+                            ] {
+                                draw_sidebar_item(
+                                    ui,
+                                    cache,
+                                    &PathBuf::from(path),
+                                    label,
+                                    true,
+                                    bin,
+                                    palette,
+                                    false,
+                                    None,
+                                );
+                            }
+                        });
+                    });
+                    ui.add_space(16.0);
+                    ui.vertical(|ui| {
+                        ui.set_max_width(ui.available_width() - 16.0);
+                        for size in [14.0, 16.0, 20.0] {
+                            ui.horizontal_wrapped(|ui| {
+                                ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
+                                for icon in AppIcon::ALL {
+                                    let (rect, _) = ui.allocate_exact_size(
+                                        egui::Vec2::splat(size),
+                                        egui::Sense::hover(),
+                                    );
+                                    paint_icon(ui, rect, icon.regular(), size, palette.icon_color);
+                                }
+                            });
+                            ui.add_space(6.0);
+                        }
+                    });
+                });
             },
         );
     }

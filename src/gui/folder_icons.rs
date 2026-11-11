@@ -1,6 +1,6 @@
 //! Which icon a folder gets for the theme's icon style.
 
-use crate::gui::icon_system::{AppIcon, paint_icon};
+use crate::gui::icon_system::{AppIcon, paint_svg_icon};
 use crate::gui::theme::ThemePalette;
 use eframe::egui::{self, Color32};
 use serde::{Deserialize, Serialize};
@@ -167,18 +167,18 @@ pub fn paint_folder_icon(
     match icon {
         FolderIcon::Shell => false,
         FolderIcon::Glyph(glyph, color) => {
-            paint_icon(ui, rect, glyph.regular(), size, fade(color));
+            paint_svg_icon(ui, rect, glyph.regular(), size, fade(color));
             true
         }
         FolderIcon::Flat { color, overlay } => {
-            paint_icon(ui, rect, AppIcon::FolderFlat.regular(), size, fade(color));
+            paint_svg_icon(ui, rect, AppIcon::FolderFlat.regular(), size, fade(color));
             if let Some(glyph) = overlay {
                 // Small glyph on the folder's front panel.
                 let glyph_size = (size * 0.42).max(6.0);
                 let center = rect.center() + egui::vec2(0.0, size * 0.1);
                 let glyph_rect =
                     egui::Rect::from_center_size(center, egui::Vec2::splat(glyph_size));
-                paint_icon(
+                paint_svg_icon(
                     ui,
                     glyph_rect,
                     glyph.regular(),
