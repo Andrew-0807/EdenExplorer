@@ -636,15 +636,34 @@ fn draw_gallery_tile(
     // Clip image/icon rendering specifically to the preview rectangle.
     let preview_painter = tile_painter.with_clip_rect(preview_rect.intersect(ui.clip_rect()));
 
-    // Keep the app's custom folder glyphs ahead of both Windows thumbnails and
-    // shell icons so recognized folders keep their visual identity in Gallery.
+    // Theme icons (folder glyphs, icon packs) win over shell icons so items
+    // keep their visual identity in Gallery.
     let folder_icon = resolve_for_path(palette, &file.path, file.is_dir);
-    if folder_icon != FolderIcon::Shell {
+    // Files with a real preview (images, videos) keep it over pack icons.
+    let thumbnail = if file.is_dir {
+        None
+    } else {
+        thumbnail_service.texture_for(ui.ctx(), file)
+    };
+    if let Some(texture) = thumbnail {
+        let image_rect = fit_rect(texture.size_vec2(), preview_rect);
+
+        preview_painter.image(
+            texture.id(),
+            image_rect,
+            egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0)),
+            if is_cut {
+                egui::Color32::WHITE.linear_multiply(0.45)
+            } else {
+                egui::Color32::WHITE
+            },
+        );
+    } else if folder_icon != FolderIcon::Shell {
         // Flat folders are the whole preview; glyphs stay small like before.
-        let icon_size = if matches!(folder_icon, FolderIcon::Flat { .. }) {
-            (thumb_size * 0.7).clamp(26.0, 200.0)
-        } else {
-            (thumb_size * 0.35).clamp(26.0, 80.0)
+        let icon_size = match folder_icon {
+            FolderIcon::Flat { .. } => (thumb_size * 0.7).clamp(26.0, 200.0),
+            FolderIcon::Pack(_) => (thumb_size * 0.5).clamp(26.0, 128.0),
+            _ => (thumb_size * 0.35).clamp(26.0, 80.0),
         };
         let icon_rect =
             egui::Rect::from_center_size(preview_rect.center(), egui::vec2(icon_size, icon_size));
@@ -685,19 +704,6 @@ fn draw_gallery_tile(
                 );
             });
         }
-    } else if let Some(texture) = thumbnail_service.texture_for(ui.ctx(), file) {
-        let image_rect = fit_rect(texture.size_vec2(), preview_rect);
-
-        preview_painter.image(
-            texture.id(),
-            image_rect,
-            egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0)),
-            if is_cut {
-                egui::Color32::WHITE.linear_multiply(0.45)
-            } else {
-                egui::Color32::WHITE
-            },
-        );
     } else if let Some(icon) = icon_cache.get(&file.path, file.is_dir) {
         let icon_size = (thumb_size * 0.35).clamp(26.0, 80.0);
 

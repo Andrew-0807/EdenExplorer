@@ -86,6 +86,7 @@
   🦀 <b>Rust</b> — Safe, fast, and reliable systems programming<br>
   🎨 <a href="https://github.com/emilk/egui/"><b>egui</b></a> — Immediate mode GUI for ultra-responsive interfaces<br>
   🧩 <a href="https://lucide.dev/"><b>Lucide</b></a> — Vendored SVG icons rendered independently of egui fonts<br>
+  🐈 <a href="https://github.com/catppuccin/vscode-icons"><b>Catppuccin Icons</b></a> — Bundled file and folder icon pack (MIT, v1.26.0)<br>
   ⚙️ <b>NT-level filesystem access</b> — Maximum performance, minimal abstraction
 </p>
 

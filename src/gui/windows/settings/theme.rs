@@ -7,6 +7,7 @@ use super::*;
 use crate::core::utils::fonts::get_font_list;
 use crate::gui::backdrop::{Backdrop, needs_restart, transparent_surface};
 use crate::gui::folder_icons::IconStyle;
+use crate::gui::icon_packs;
 use crate::gui::selection::{HoverStyle, SelectionStyle};
 use crate::gui::theme::{ThemeMode, apply_font_to_context, regenerate_base_derived_colors};
 use crate::gui::theme_presets::{Density, ThemePreset, apply_density, preset_palette};
@@ -218,6 +219,33 @@ pub(super) fn draw_appearance_section(
             palette,
             &i18n.tr("theme_backdrop_tint_opacity"),
             &mut p.backdrop_tint_opacity,
+        );
+
+        // Icon pack
+        let none = i18n.tr("theme_icon_pack_none");
+        let packs: Vec<(&str, String)> = std::iter::once(("", none))
+            .chain(
+                icon_packs::packs()
+                    .iter()
+                    .map(|pack| (pack.id.as_str(), pack.label.clone())),
+            )
+            .collect();
+        setting_row(
+            ui,
+            palette,
+            &i18n.tr("theme_icon_pack"),
+            Some(&i18n.tr("theme_icon_pack_description")),
+            SETTINGS_COMBO_WIDTH,
+            |ui| {
+                theme_changed |= combo_box_string(
+                    ui,
+                    palette,
+                    "theme_icon_pack",
+                    SETTINGS_COMBO_WIDTH,
+                    &mut p.icon_pack,
+                    &packs,
+                );
+            },
         );
     });
 
