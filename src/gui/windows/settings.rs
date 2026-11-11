@@ -983,6 +983,7 @@ const SETTINGS_GROUPS: [(&str, &[(SettingsTab, &str)]); 2] = [
         &[
             (SettingsTab::Hotkeys, "settings_tab_hotkeys"),
             (SettingsTab::Integrations, "settings_tab_integrations"),
+            (SettingsTab::About, "about"),
         ],
     ),
 ];
@@ -1028,6 +1029,10 @@ fn draw_settings_tab(
             sections::draw_integrations_section(ui, settings, palette, i18n)
         }
         SettingsTab::General => sections::draw_general_section(ui, settings, palette, i18n),
+        SettingsTab::About => {
+            sections::draw_about_section(ui, palette, i18n);
+            None
+        }
     }
 }
 

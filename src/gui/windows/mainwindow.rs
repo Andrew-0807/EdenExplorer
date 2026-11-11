@@ -37,9 +37,7 @@ use crate::gui::windows::mainwindow_imp::{
     font_needs_reload, handle_draw_customizetheme_window, handle_pending_actions,
     persist_directory_settings_snapshot,
 };
-use crate::gui::windows::structs::{
-    AboutWindow, Navigation, SettingsWindow, SidebarState, ThemeCustomizer,
-};
+use crate::gui::windows::structs::{Navigation, SettingsWindow, SidebarState, ThemeCustomizer};
 use crate::gui::windows::windowsoverrides::{
     CAPTION_CONTROLS_WIDTH, TITLE_BAR_HEIGHT, apply_backdrop, apply_window_override,
     apply_window_theme, consume_clipboard_dirty, handle_draw_windows_buttons, install_wndproc,
@@ -71,7 +69,6 @@ pub struct MainWindow {
     pub(crate) window_override_set: bool,
     pub(crate) theme_customizer: ThemeCustomizer,
     pub(crate) settings_window: SettingsWindow,
-    pub(crate) about_window: AboutWindow,
     pub(crate) zoxide_popup: ZoxidePopup,
     pub(crate) zoxide_dwell: DwellTracker,
     pub(crate) dropped_files: Vec<PathBuf>,
@@ -242,7 +239,6 @@ impl Default for MainWindow {
             toast: Toast::default(),
             theme_customizer: Default::default(),
             settings_window: Default::default(),
-            about_window: Default::default(),
             zoxide_popup: Default::default(),
             zoxide_dwell: Default::default(),
             dropped_files: Vec::new(), // Files dropped from external drag and drop
@@ -840,7 +836,6 @@ impl eframe::App for MainWindow {
                                                                 native_inbound_drag_active,
                                                                 drag_hover_target.clone(),
                                                                 &mut self.tags_state,
-                                                                &mut self.theme_customizer,
                                                                 &mut self.settings_window,
                                                                 &mut drop_targets,
                                                                 primary_focused,
@@ -937,7 +932,6 @@ impl eframe::App for MainWindow {
                                                                 native_inbound_drag_active,
                                                                 drag_hover_target.clone(),
                                                                 &mut self.tags_state,
-                                                                &mut self.theme_customizer,
                                                                 &mut self.settings_window,
                                                                 &mut drop_targets,
                                                                 secondary_focused,
@@ -1004,7 +998,6 @@ impl eframe::App for MainWindow {
                                                 native_inbound_drag_active,
                                                 drag_hover_target.clone(),
                                                 &mut self.tags_state,
-                                                &mut self.theme_customizer,
                                                 &mut self.settings_window,
                                                 &mut drop_targets,
                                                 true,
@@ -1319,7 +1312,6 @@ impl eframe::App for MainWindow {
             &mut self.theme_save_pending,
         );
         self.handle_draw_settings_window(ui.ctx(), &palette);
-        self.handle_draw_about_window(ui.ctx(), &palette);
         self.handle_zoxide(ui.ctx(), &palette);
         self.handle_global_shortcuts(ui.ctx());
         self.toast.draw(ui.ctx(), &palette);

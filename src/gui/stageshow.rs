@@ -53,6 +53,18 @@ fn render_scene(
 
 /// Renders one settings tab at `text_size`, optionally with a search query.
 fn settings_scene(name: &str, tab: SettingsTab, text_size: f32, search: &str, mode: ThemeMode) {
+    settings_scene_editing(name, tab, text_size, search, mode, None);
+}
+
+/// Like `settings_scene`, with the Appearance editor set to `edit_mode`.
+fn settings_scene_editing(
+    name: &str,
+    tab: SettingsTab,
+    text_size: f32,
+    search: &str,
+    mode: ThemeMode,
+    edit_mode: Option<ThemeMode>,
+) {
     let mut window = SettingsWindow {
         open: true,
         current_settings: Default::default(),
@@ -63,6 +75,7 @@ fn settings_scene(name: &str, tab: SettingsTab, text_size: f32, search: &str, mo
         search: search.to_string(),
     };
     let mut customizer = ThemeCustomizer::default();
+    customizer.edit_mode = edit_mode;
     let mut i18n = I18n::new("en-US");
     let mut palette = get_palette(mode);
     palette.text_size = text_size;
@@ -99,6 +112,7 @@ fn stageshow_settings() {
         ("appearance", SettingsTab::Appearance),
         ("hotkeys", SettingsTab::Hotkeys),
         ("integrations", SettingsTab::Integrations),
+        ("about", SettingsTab::About),
     ];
     for (name, tab) in tabs {
         settings_scene(&format!("settings_{name}"), tab, 12.0, "", ThemeMode::Dark);
@@ -123,6 +137,14 @@ fn stageshow_settings() {
         12.0,
         "tab",
         ThemeMode::Dark,
+    );
+    settings_scene_editing(
+        "settings_appearance_edit_light",
+        SettingsTab::Appearance,
+        12.0,
+        "",
+        ThemeMode::Dark,
+        Some(ThemeMode::Light),
     );
     settings_scene(
         "settings_appearance_light",

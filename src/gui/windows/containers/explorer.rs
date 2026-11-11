@@ -13,7 +13,7 @@ use crate::gui::windows::containers::itemviewer_navbar::{
 use crate::gui::windows::containers::structs::{
     ItemViewerDisplayMode, ItemViewerNavBarAction, RenameState, TabView, TagsState,
 };
-use crate::gui::windows::structs::{SettingsWindow, ThemeCustomizer};
+use crate::gui::windows::structs::SettingsWindow;
 use eframe::egui;
 use egui::ScrollArea;
 use egui_extras::{Size, StripBuilder};
@@ -62,7 +62,6 @@ pub fn draw_tab_content(
     native_drag_active: bool,
     drag_hover_target: Option<PathBuf>,
     tags_state: &mut TagsState,
-    theme_customizer: &mut ThemeCustomizer,
     settings_window: &mut SettingsWindow,
     drop_targets: &mut DropTargets,
     is_focused: bool,
@@ -174,7 +173,6 @@ pub fn draw_tab_content(
                         &mut hovered_drop_target,
                         &mut hovered_drop_target_rect,
                         tags_state,
-                        theme_customizer,
                         settings_window,
                         hwnd,
                         is_focused,
@@ -214,7 +212,6 @@ pub fn draw_tab_content(
                                 &mut hovered_drop_target,
                                 &mut hovered_drop_target_rect,
                                 tags_state,
-                                theme_customizer,
                                 settings_window,
                                 hwnd,
                                 is_focused,

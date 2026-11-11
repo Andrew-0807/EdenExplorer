@@ -22,7 +22,7 @@ use crate::gui::windows::containers::structs::{
     ItemViewerNavBarAction, RenameState,
 };
 use crate::gui::windows::shell_context_menu::ShellContextMenu;
-use crate::gui::windows::structs::{SettingsWindow, ThemeCustomizer};
+use crate::gui::windows::structs::SettingsWindow;
 use eframe::egui;
 use egui::containers::{Popup, PopupCloseBehavior};
 use egui::text::{CCursor, CCursorRange};
@@ -888,7 +888,6 @@ pub fn handle_global_actions(
     is_cut_mode: bool,
     is_drive_view: bool,
     is_recycle_bin_view: bool,
-    _theme_customizer_window: &mut ThemeCustomizer,
     settings_windows: &mut SettingsWindow,
     hwnd: Option<HWND>,
 ) -> Option<ItemViewerAction> {

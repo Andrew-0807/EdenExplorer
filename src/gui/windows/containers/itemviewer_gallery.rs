@@ -21,7 +21,7 @@ use crate::gui::windows::containers::itemviewer_helper::{
 use crate::gui::windows::containers::structs::{
     DragState, ExplorerState, GalleryState, GalleryThumbnailSize, RenameState,
 };
-use crate::gui::windows::structs::{SettingsWindow, ThemeCustomizer};
+use crate::gui::windows::structs::SettingsWindow;
 use eframe::egui;
 use egui::containers::{Popup, PopupCloseBehavior};
 use egui::{FontFamily, FontId};
@@ -57,7 +57,6 @@ pub fn draw_gallery_view(
     drag_hover_target: Option<PathBuf>,
     hovered_drop_target_out: &mut Option<PathBuf>,
     hovered_drop_target_rect_out: &mut Option<egui::Rect>,
-    _theme_customizer_window: &mut ThemeCustomizer,
     settings_window: &mut SettingsWindow,
     hwnd: Option<HWND>,
     modal_input_blocked: bool,

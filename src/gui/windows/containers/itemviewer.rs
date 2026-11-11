@@ -19,7 +19,7 @@ use crate::gui::windows::containers::structs::{
     ItemViewerDisplayMode, ItemViewerFolderSizeState, ItemViewerLayout, ItemViewerNavBarAction,
     RenameState, TabView, TagInfo, TagsState,
 };
-use crate::gui::windows::structs::{SettingsWindow, ThemeCustomizer};
+use crate::gui::windows::structs::SettingsWindow;
 use eframe::egui;
 use egui::containers::{Popup, PopupCloseBehavior};
 use egui::{FontFamily, FontId};
@@ -55,7 +55,6 @@ pub fn draw_item_viewer(
     hovered_drop_target_out: &mut Option<PathBuf>,
     hovered_drop_target_rect_out: &mut Option<egui::Rect>,
     tags_state: &mut TagsState,
-    _theme_customizer_window: &mut ThemeCustomizer,
     settings_window: &mut SettingsWindow,
     hwnd: Option<HWND>,
     is_focused: bool,
@@ -133,7 +132,6 @@ pub fn draw_item_viewer(
             is_cut_mode,
             is_drive_view,
             is_recycle_bin_view,
-            _theme_customizer_window,
             settings_window,
             hwnd,
         ) {
@@ -181,7 +179,6 @@ pub fn draw_item_viewer(
             drag_hover_target,
             hovered_drop_target_out,
             hovered_drop_target_rect_out,
-            _theme_customizer_window,
             settings_window,
             hwnd,
             modal_input_blocked,

@@ -8,13 +8,9 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-#[derive(Default)]
-pub struct AboutWindow {
-    pub open: bool,
-}
-
 pub struct ThemeCustomizer {
-    pub selected_mode: ThemeMode,
+    /// Mode the Appearance section edits; `None` follows the active mode.
+    pub edit_mode: Option<ThemeMode>,
     pub light_palette: ThemePalette,
     pub dark_palette: ThemePalette,
     /// Result of the last import/export: (i18n key, is_error).
@@ -28,7 +24,7 @@ pub struct ThemeCustomizer {
 impl Default for ThemeCustomizer {
     fn default() -> Self {
         Self {
-            selected_mode: ThemeMode::Dark,
+            edit_mode: None,
             light_palette: crate::gui::theme::get_palette(ThemeMode::Light),
             dark_palette: crate::gui::theme::get_palette(ThemeMode::Dark),
             status: None,
@@ -118,6 +114,7 @@ pub enum SettingsTab {
     Appearance,
     Hotkeys,
     Integrations,
+    About,
 }
 
 pub struct SidebarState {
