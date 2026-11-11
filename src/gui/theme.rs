@@ -99,6 +99,9 @@ pub struct ThemePalette {
     pub folder_color: Color32,
     /// Flat style colors of Desktop, Documents, Downloads, ...
     pub known_folder_colors: crate::gui::folder_icons::KnownFolderColors,
+    /// Id of the VS Code icon pack for files and folders (`""` = none). Wins
+    /// over `icon_style`; see `gui::icon_packs`.
+    pub icon_pack: String,
 
     /// Use the Windows accent color as `primary` (kept in sync live).
     pub follow_system_accent: bool,
@@ -258,6 +261,7 @@ pub static DEFAULT_PALETTE_DARK: LazyLock<ThemePalette> = LazyLock::new(|| {
         icon_style: crate::gui::folder_icons::IconStyle::Classic,
         folder_color: Color32::from_rgb(240, 190, 70),
         known_folder_colors: crate::gui::folder_icons::KnownFolderColors::default(),
+        icon_pack: String::new(),
         follow_system_accent: false,
 
         // 🎯 Icons & text
@@ -365,6 +369,7 @@ pub static DEFAULT_PALETTE_LIGHT: LazyLock<ThemePalette> = LazyLock::new(|| {
         icon_style: crate::gui::folder_icons::IconStyle::Classic,
         folder_color: Color32::from_rgb(240, 190, 70),
         known_folder_colors: crate::gui::folder_icons::KnownFolderColors::default(),
+        icon_pack: String::new(),
         follow_system_accent: false,
 
         // 🎯 Icons & text

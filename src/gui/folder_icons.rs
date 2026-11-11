@@ -1,5 +1,6 @@
 //! Which icon a folder gets for the theme's icon style.
 
+use crate::gui::icon_packs::{self, PackSvg};
 use crate::gui::icon_system::{AppIcon, paint_svg_icon};
 use crate::gui::theme::ThemePalette;
 use eframe::egui::{self, Color32};
@@ -119,11 +120,20 @@ pub enum FolderIcon {
         color: Color32,
         overlay: Option<AppIcon>,
     },
+    /// An icon from the theme's icon pack (files and folders).
+    Pack(&'static PackSvg),
 }
 
-/// Resolves the icon for an item named `name`. Only directories that are not
-/// drive roots get custom icons.
+/// Resolves the icon for an item named `name`. With an icon pack, files and
+/// folders use it. Otherwise only directories get custom icons. Drive roots
+/// (no name) always use the shell icon.
 pub fn resolve_folder_icon(palette: &ThemePalette, name: Option<&str>, is_dir: bool) -> FolderIcon {
+    if let Some(name) = name
+        && let Some(svg) =
+            icon_packs::find(&palette.icon_pack).and_then(|p| p.icon_for(name, is_dir))
+    {
+        return FolderIcon::Pack(svg);
+    }
     if !is_dir {
         return FolderIcon::Shell;
     }
@@ -166,6 +176,7 @@ pub fn paint_folder_icon(
     let fade = |c: Color32| if dim { c.linear_multiply(0.5) } else { c };
     match icon {
         FolderIcon::Shell => false,
+        FolderIcon::Pack(svg) => icon_packs::paint(ui, rect, size, svg, fade(Color32::WHITE)),
         FolderIcon::Glyph(glyph, color) => {
             paint_svg_icon(ui, rect, glyph.regular(), size, fade(color));
             true

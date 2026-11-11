@@ -186,57 +186,87 @@ fn stageshow_item_list() {
         1.0,
         mode,
         palette,
-        move |ui, palette| {
-            let full = ui.ctx().content_rect();
-            ui.painter()
-                .rect_filled(full, 0.0, palette.application_bg_color);
-            egui::Frame::new().show(ui, |ui| {
-                ui.spacing_mut().item_spacing.y = 0.0;
-                ui.set_min_size(full.size());
-                for (i, (name, kind, is_dir)) in rows.iter().enumerate() {
-                    let (rect, _) = ui.allocate_exact_size(
-                        egui::vec2(ui.available_width(), 36.0),
-                        egui::Sense::click(),
-                    );
-                    let fill = if i == 1 {
-                        palette.row_selected_bg
-                    } else {
-                        palette.row_bg
-                    };
-                    ui.painter().rect_filled(rect, 0.0, fill);
-                    let icon_rect = egui::Rect::from_center_size(
-                        rect.left_center() + egui::vec2(24.0, 0.0),
-                        egui::Vec2::splat(22.0),
-                    );
-                    let folder = resolve_folder_icon(palette, Some(name), *is_dir);
-                    if !paint_folder_icon(ui, icon_rect, 22.0, folder, false) {
-                        paint_icon(
-                            ui,
-                            icon_rect,
-                            AppIcon::File.regular(),
-                            22.0,
-                            palette.icon_color,
-                        );
-                    }
-                    let font = egui::FontId::proportional(palette.text_size + 2.0);
-                    ui.painter().text(
-                        rect.left_center() + egui::vec2(52.0, 0.0),
-                        egui::Align2::LEFT_CENTER,
-                        *name,
-                        font.clone(),
-                        palette.text_normal,
-                    );
-                    ui.painter().text(
-                        rect.left_center() + egui::vec2(380.0, 0.0),
-                        egui::Align2::LEFT_CENTER,
-                        *kind,
-                        font,
-                        palette.text_normal.linear_multiply(0.6),
-                    );
-                }
-            });
-        },
+        move |ui, palette| item_rows(ui, palette, &rows),
     );
+}
+
+/// List rows (name, type) with theme icons; the second row is selected.
+fn item_rows(ui: &mut egui::Ui, palette: &ThemePalette, rows: &[(&str, &str, bool)]) {
+    let full = ui.ctx().content_rect();
+    ui.painter()
+        .rect_filled(full, 0.0, palette.application_bg_color);
+    egui::Frame::new().show(ui, |ui| {
+        ui.spacing_mut().item_spacing.y = 0.0;
+        ui.set_min_size(full.size());
+        for (i, (name, kind, is_dir)) in rows.iter().enumerate() {
+            let (rect, _) = ui
+                .allocate_exact_size(egui::vec2(ui.available_width(), 36.0), egui::Sense::click());
+            let fill = if i == 1 {
+                palette.row_selected_bg
+            } else {
+                palette.row_bg
+            };
+            ui.painter().rect_filled(rect, 0.0, fill);
+            let icon_rect = egui::Rect::from_center_size(
+                rect.left_center() + egui::vec2(24.0, 0.0),
+                egui::Vec2::splat(22.0),
+            );
+            let folder = resolve_folder_icon(palette, Some(name), *is_dir);
+            if !paint_folder_icon(ui, icon_rect, 22.0, folder, false) {
+                paint_icon(
+                    ui,
+                    icon_rect,
+                    AppIcon::File.regular(),
+                    22.0,
+                    palette.icon_color,
+                );
+            }
+            let font = egui::FontId::proportional(palette.text_size + 2.0);
+            ui.painter().text(
+                rect.left_center() + egui::vec2(52.0, 0.0),
+                egui::Align2::LEFT_CENTER,
+                *name,
+                font.clone(),
+                palette.text_normal,
+            );
+            ui.painter().text(
+                rect.left_center() + egui::vec2(380.0, 0.0),
+                egui::Align2::LEFT_CENTER,
+                *kind,
+                font,
+                palette.text_normal.linear_multiply(0.6),
+            );
+        }
+    });
+}
+
+#[test]
+fn stageshow_icon_packs() {
+    if !enabled() {
+        return;
+    }
+    let rows: [(&str, &str, bool); 10] = [
+        ("src", "Folder", true),
+        ("docs", "Folder", true),
+        ("node_modules", "Folder", true),
+        ("Downloads", "Folder", true),
+        ("main.rs", "Rust", false),
+        ("Cargo.toml", "TOML", false),
+        ("README.md", "Markdown", false),
+        ("package.json", "JSON", false),
+        ("photo.png", "PNG image", false),
+        ("notes.txt", "Text file", false),
+    ];
+    for (name, mode, pack) in [
+        ("icon_pack_mocha", ThemeMode::Dark, "catppuccin-mocha"),
+        ("icon_pack_latte", ThemeMode::Light, "catppuccin-latte"),
+    ] {
+        let mut palette = get_palette(mode);
+        palette.icon_pack = pack.to_string();
+        render_scene(name, [640.0, 360.0], 1.5, mode, palette, |ui, palette| {
+            item_rows(ui, palette, &rows)
+        });
+    }
 }
 
 /// Terminal button with the herdr right-click menu open. The menu must sit
