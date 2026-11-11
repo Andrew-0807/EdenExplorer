@@ -13,7 +13,8 @@ use crate::gui::windows::containers::enums::{ItemViewerAction, ItemViewerHeaderC
 use crate::gui::windows::containers::itemviewer_gallery::draw_gallery_view;
 use crate::gui::windows::containers::itemviewer_helper::*;
 use crate::gui::windows::containers::marquee::{
-    Marquee, autoscroll_step, is_blank_name_press, merged_selection, rows_in_span,
+    Marquee, NAME_END_PAD, autoscroll_step, is_blank_name_press, merged_selection, paint_marquee,
+    rows_in_span,
 };
 use crate::gui::windows::containers::structs::{
     ItemViewerDisplayMode, ItemViewerFolderSizeState, ItemViewerLayout, ItemViewerNavBarAction,
@@ -310,11 +311,7 @@ pub fn draw_item_viewer(
                 .auto_shrink([false, false])
                 .striped(false)
                 // .sense(egui::Sense::hover())
-                .sense(if layout.is_drive_view {
-                    egui::Sense::click()
-                } else {
-                    egui::Sense::click_and_drag()
-                })
+                .sense(egui::Sense::click_and_drag())
                 .animate_scrolling(true)
                 .resizable(true)
                 .id_salt(table_id_salt);
@@ -529,6 +526,8 @@ pub fn draw_item_viewer(
                         }
 
                         let mut blank_press = false;
+                        // Drive rows: a press in this row past the name text, in any column.
+                        let mut drive_blank = false;
                         for &column in &column_layout.ordered_columns {
                             row.col(|ui| {
                                 if column == ItemViewerHeaderColumn::Name
@@ -554,6 +553,8 @@ pub fn draw_item_viewer(
                                             cell.left() + icon_w + text_w,
                                             cell.right(),
                                         );
+                                        drive_blank =
+                                            origin.x > cell.left() + icon_w + text_w + NAME_END_PAD;
                                     }
                                 }
                                 draw_item_viewer_row_column(
@@ -580,6 +581,9 @@ pub fn draw_item_viewer(
                             });
                         }
 
+                        if layout.is_drive_view {
+                            blank_press = drive_blank;
+                        }
                         let row_resp = row.response();
 
                         let mut row_paint = item_paint(
@@ -666,7 +670,10 @@ pub fn draw_item_viewer(
                                     idx as f32 * row_stride + (origin.y - row_resp.rect.top()),
                                 ));
                             }
-                        } else if row_resp.drag_started() && !is_non_ntfs_drive {
+                        } else if row_resp.drag_started()
+                            && !is_non_ntfs_drive
+                            && !layout.is_drive_view
+                        {
                             drag_state.start_pos = row_resp.interact_pointer_pos();
                             drag_state.active = false; // threshold not passed yet
                             drag_state.source_items.clear();
@@ -788,7 +795,7 @@ pub fn draw_item_viewer(
             let body_rect = table_out.inner_rect;
             let scroll_y = table_out.state.offset.y;
             let max_scroll = (table_out.content_size.y - body_rect.height()).max(0.0);
-            if !layout.is_drive_view && !modal_input_blocked {
+            if !modal_input_blocked {
                 let mut start = marquee_row_start;
                 if start.is_none() && bg_response.drag_started() {
                     // Empty space below the last row.
@@ -862,13 +869,7 @@ pub fn draw_item_viewer(
                             egui::pos2(marquee.origin_x, screen_y),
                             egui::pos2(pos.x, pos.y),
                         );
-                        painter.rect_filled(rect, 0.0, palette.primary.linear_multiply(0.2));
-                        painter.rect_stroke(
-                            rect,
-                            0.0,
-                            egui::Stroke::new(1.0, palette.primary),
-                            egui::StrokeKind::Inside,
-                        );
+                        paint_marquee(&painter, rect, palette);
                         ui.ctx().request_repaint();
                     }
                     _ => marquee = Marquee::default(),

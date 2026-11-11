@@ -2,6 +2,7 @@
 //! geometry behind it. All y values are content coordinates (0 is the top of
 //! the first row), so rows that scroll out of view while dragging still count.
 
+use eframe::egui;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -52,6 +53,52 @@ pub fn rows_in_span(
         first
     };
     (first <= last).then_some((first, last))
+}
+
+/// Layout of a tile grid, in content coordinates (0,0 is the top-left of the
+/// first tile). Tile `i` sits at column `i % columns`, row `i / columns`.
+#[derive(Clone, Copy)]
+pub struct TileGrid {
+    pub tile_w: f32,
+    pub tile_h: f32,
+    pub col_pitch: f32,
+    pub row_pitch: f32,
+    pub columns: usize,
+    pub count: usize,
+}
+
+/// Indices of the tiles overlapped by the rectangle spanned by the two corner
+/// points, in ascending order.
+pub fn tiles_in_rect(a: (f32, f32), b: (f32, f32), grid: TileGrid) -> Vec<usize> {
+    if grid.columns == 0 || grid.count == 0 {
+        return Vec::new();
+    }
+    let rows = grid.count.div_ceil(grid.columns);
+    let Some((c0, c1)) = rows_in_span(a.0, b.0, grid.col_pitch, grid.tile_w, grid.columns) else {
+        return Vec::new();
+    };
+    let Some((r0, r1)) = rows_in_span(a.1, b.1, grid.row_pitch, grid.tile_h, rows) else {
+        return Vec::new();
+    };
+    (r0..=r1)
+        .flat_map(|r| (c0..=c1).map(move |c| r * grid.columns + c))
+        .filter(|&i| i < grid.count)
+        .collect()
+}
+
+/// Draws the rubber band rectangle.
+pub fn paint_marquee(
+    painter: &egui::Painter,
+    rect: egui::Rect,
+    palette: &crate::gui::theme::ThemePalette,
+) {
+    painter.rect_filled(rect, 0.0, palette.primary.linear_multiply(0.2));
+    painter.rect_stroke(
+        rect,
+        0.0,
+        egui::Stroke::new(1.0, palette.primary),
+        egui::StrokeKind::Inside,
+    );
 }
 
 /// New selection: the hits, plus the previous selection when additive.
@@ -129,6 +176,43 @@ mod tests {
         assert_eq!(rows_in_span(-50.0, -5.0, 28.0, 24.0, 3), None);
         assert_eq!(rows_in_span(500.0, 600.0, 28.0, 24.0, 3), None);
         assert_eq!(rows_in_span(0.0, 10.0, 28.0, 24.0, 0), None);
+    }
+
+    fn grid() -> TileGrid {
+        // 3 columns, 7 tiles; tiles 100x80 with a 10 gap
+        TileGrid {
+            tile_w: 100.0,
+            tile_h: 80.0,
+            col_pitch: 110.0,
+            row_pitch: 90.0,
+            columns: 3,
+            count: 7,
+        }
+    }
+
+    #[test]
+    fn tile_rect_hits_block_of_tiles() {
+        assert_eq!(tiles_in_rect((10.0, 10.0), (50.0, 50.0), grid()), vec![0]);
+        assert_eq!(
+            tiles_in_rect((50.0, 50.0), (150.0, 120.0), grid()),
+            vec![0, 1, 3, 4]
+        );
+        // corners given in reverse order
+        assert_eq!(
+            tiles_in_rect((150.0, 120.0), (50.0, 50.0), grid()),
+            vec![0, 1, 3, 4]
+        );
+    }
+
+    #[test]
+    fn tile_rect_ignores_gaps_and_missing_tiles() {
+        // x 101..109 is the gap between columns 0 and 1
+        assert!(tiles_in_rect((101.0, 10.0), (109.0, 50.0), grid()).is_empty());
+        // the last row holds only tile 6; columns 1..2 of that row are empty
+        assert!(tiles_in_rect((120.0, 185.0), (320.0, 200.0), grid()).is_empty());
+        assert_eq!(tiles_in_rect((0.0, 185.0), (320.0, 200.0), grid()), vec![6]);
+        assert!(tiles_in_rect((400.0, 0.0), (500.0, 50.0), grid()).is_empty());
+        assert!(tiles_in_rect((-50.0, -50.0), (-5.0, -5.0), grid()).is_empty());
     }
 
     #[test]
