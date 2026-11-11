@@ -4,26 +4,15 @@ use crate::gui::icon_system::{AppIcon, StyledIcon, paint_icon};
 use crate::gui::theme::ThemePalette;
 use crate::gui::windows::windowsoverrides::{CAPTION_BUTTON_HEIGHT, CAPTION_BUTTON_WIDTH};
 use eframe::egui::*;
-use std::time::Duration;
 
-/// How often an animation (spinner, progress window) asks for its next frame.
-/// Eden presents without vsync, so `request_repaint()` every frame would run as
-/// fast as the GPU allows.
-pub const ANIMATION_FRAME_INTERVAL: Duration = Duration::from_millis(16);
-
-/// Ask for the next animation frame ANIMATION_FRAME_INTERVAL from now.
-///
-/// egui subtracts its predicted frame time (`predicted_dt`, 1/60 s unless the
-/// integration sets it, and eframe doesn't) from every `request_repaint_after`
-/// delay, so a bare 16 ms request becomes an immediate repaint. Add it back.
+/// Ask for the next animation frame (spinner, progress window). Axis presents
+/// with vsync, so the frame is paced by the display's refresh rate rather
+/// than a timer.
 pub fn request_animation_frame(ctx: &Context) {
-    let predicted_dt = ctx.input(|i| i.predicted_dt);
-    let predicted_dt = Duration::try_from_secs_f32(predicted_dt).unwrap_or_default();
-    ctx.request_repaint_after(ANIMATION_FRAME_INTERVAL + predicted_dt);
+    ctx.request_repaint();
 }
 
-/// A loading spinner like `egui::Spinner`, which repaints every frame, but
-/// capped at ANIMATION_FRAME_INTERVAL.
+/// A loading spinner like `egui::Spinner`.
 pub fn loading_spinner(ui: &mut Ui, size: f32) -> Response {
     let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
     // Screen readers announce it as busy, like egui's.
@@ -481,6 +470,7 @@ mod tests {
     use super::*;
     use crate::gui::theme::{ThemeMode, get_default_palette};
     use std::sync::{Arc, Mutex};
+    use std::time::Duration;
 
     fn requested_delays(ctx: &Context) -> Arc<Mutex<Vec<Duration>>> {
         let delays = Arc::new(Mutex::new(Vec::new()));
@@ -490,23 +480,7 @@ mod tests {
     }
 
     #[test]
-    fn animation_frame_waits_the_full_interval() {
-        // A bare request_repaint_after(ANIMATION_FRAME_INTERVAL) reaches the
-        // integration as a zero delay, because egui subtracts predicted_dt.
-        let ctx = Context::default();
-        let delays = requested_delays(&ctx);
-        request_animation_frame(&ctx);
-        let delays = delays.lock().unwrap();
-        assert_eq!(delays.len(), 1);
-        assert!(
-            delays[0] + Duration::from_millis(1) >= ANIMATION_FRAME_INTERVAL,
-            "next frame requested after {:?}",
-            delays[0]
-        );
-    }
-
-    #[test]
-    fn spinner_does_not_ask_for_an_immediate_repaint() {
+    fn spinner_asks_for_the_next_frame() {
         let ctx = Context::default();
         let delays = requested_delays(&ctx);
         // The first pass lays out fonts and may repaint for its own reasons.
@@ -517,17 +491,10 @@ mod tests {
         });
         let delays = delays.lock().unwrap();
         assert!(!delays.is_empty(), "the spinner asked for no next frame");
-        assert!(
-            delays
-                .iter()
-                .all(|d| *d + Duration::from_millis(1) >= ANIMATION_FRAME_INTERVAL),
-            "requested delays: {delays:?}"
-        );
     }
 
-    /// egui's Spinner, and a ProgressBar with `animate(true)`, ask for a repaint
-    /// every frame, which runs uncapped now that vsync is off; every spinner
-    /// must be `loading_spinner`.
+    /// One spinner look across the app: every spinner must be
+    /// `loading_spinner`, not egui's Spinner or an animated ProgressBar.
     #[test]
     fn no_egui_spinner_is_used() {
         fn rust_files(dir: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
