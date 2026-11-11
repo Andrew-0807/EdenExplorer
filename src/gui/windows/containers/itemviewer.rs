@@ -272,8 +272,9 @@ pub fn draw_item_viewer(
         );
 
         ui.scope_builder(egui::UiBuilder::new().max_rect(table_rect), |ui| {
-            ui.visuals_mut().widgets.noninteractive.bg_stroke =
-                egui::Stroke::new(1.0, palette.borders_default);
+            // Column resize lines show only while hovered or dragged, not as
+            // full-height rules through the list.
+            ui.visuals_mut().widgets.noninteractive.bg_stroke = egui::Stroke::NONE;
             let table_id_salt = egui::Id::new((
                 "item_viewer_table",
                 active_tab_id,

@@ -257,10 +257,16 @@ pub fn draw_itemviewer_navigation_bar(
                     let old_spacing = ui.spacing().item_spacing;
                     ui.spacing_mut().item_spacing.x = 10.0;
 
-                    ui.label(
-                        egui::RichText::new(">")
-                            .size(palette.text_size)
-                            .color(palette.text_header_section),
+                    let (rect, _) = ui.allocate_exact_size(
+                        egui::Vec2::splat(palette.text_size),
+                        egui::Sense::hover(),
+                    );
+                    paint_icon(
+                        ui,
+                        rect,
+                        AppIcon::CaretRight.regular(),
+                        palette.text_size,
+                        palette.text_header_section.gamma_multiply(0.5),
                     );
 
                     ui.spacing_mut().item_spacing = old_spacing;

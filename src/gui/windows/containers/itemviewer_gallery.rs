@@ -626,19 +626,6 @@ fn draw_gallery_tile(
         egui::vec2(thumb_size, thumb_size),
     );
 
-    tile_painter.rect_filled(
-        preview_rect,
-        egui::CornerRadius::same(palette.medium_radius),
-        palette.application_bg_color.linear_multiply(0.65),
-    );
-
-    tile_painter.rect_stroke(
-        preview_rect,
-        egui::CornerRadius::same(palette.medium_radius),
-        egui::Stroke::new(1.0, palette.borders_default.linear_multiply(0.8)),
-        egui::StrokeKind::Inside,
-    );
-
     // Clip image/icon rendering specifically to the preview rectangle.
     let preview_painter = tile_painter.with_clip_rect(preview_rect.intersect(ui.clip_rect()));
 
