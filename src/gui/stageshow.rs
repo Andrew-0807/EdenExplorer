@@ -381,7 +381,6 @@ fn marquee_scene(name: &str, gallery: bool, drive: bool, items: Vec<crate::core:
     let mut drop_t = None;
     let mut drop_r = None;
     let mut tags = TagsState::default();
-    let mut theme = ThemeCustomizer::default();
     let mut settings = SettingsWindow {
         open: false,
         current_settings: Default::default(),
@@ -436,7 +435,6 @@ fn marquee_scene(name: &str, gallery: bool, drive: bool, items: Vec<crate::core:
                 &mut drop_t,
                 &mut drop_r,
                 &mut tags,
-                &mut theme,
                 &mut settings,
                 None,
                 true,
