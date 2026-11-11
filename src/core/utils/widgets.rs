@@ -166,7 +166,7 @@ pub fn drive_usage_bar(ui: &mut Ui, total: u64, free: u64, height: f32, palette:
     let (outer_rect, _) = ui.allocate_exact_size(vec2(bar_width, height), Sense::hover());
     let painter = ui.painter();
 
-    let bar_height = outer_rect.height() * 0.65;
+    let bar_height = (outer_rect.height() * 0.3).max(2.0);
     let y_offset = (outer_rect.height() - bar_height) / 2.0;
 
     let rect = Rect::from_min_size(

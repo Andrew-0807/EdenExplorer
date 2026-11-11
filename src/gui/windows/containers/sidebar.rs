@@ -707,11 +707,11 @@ fn section_title(ui: &mut egui::Ui, palette: &ThemePalette, prefs: SidebarPrefs,
     if !prefs.section_titles {
         return;
     }
+    // Quiet labels: the items under them carry the weight.
     ui.add(egui::Label::new(
         egui::RichText::new(text)
-            .size(palette.text_size)
-            .color(palette.text_header_section)
-            .strong(),
+            .size((palette.text_size - 1.0).max(8.0))
+            .color(palette.text_header_section.gamma_multiply(0.55)),
     ));
     ui.add_space(4.0);
 }
@@ -882,12 +882,12 @@ fn sidebar_drive_item(
 
     // --- Bottom row: progress bar ---
     if let (true, Some(total), Some(free)) = (usage_bar, drive.total_space, drive.free_space) {
-        let bar_height = 6.0;
+        let bar_height = 3.0;
         let max_bar_width = 180.0;
         let bar_width = (available_width - 8.0).min(max_bar_width);
 
         let bar_rect = egui::Rect::from_min_size(
-            egui::pos2(rect.min.x + 4.0, rect.bottom() - bar_height),
+            egui::pos2(rect.min.x + 4.0, rect.bottom() - bar_height - 1.5),
             egui::vec2(bar_width, bar_height),
         );
 
