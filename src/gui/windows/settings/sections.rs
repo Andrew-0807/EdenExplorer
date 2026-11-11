@@ -611,7 +611,10 @@ pub(super) fn draw_about_section(ui: &mut egui::Ui, palette: &ThemePalette, i18n
         );
         ui.add_space(8.0);
         let rows = [
-            ("about_author", "Matthew Tucciarone (GitHub: mtucciarone)"),
+            (
+                "about_based_on",
+                "EdenExplorer by Matthew Tucciarone (GitHub: mtucciarone)",
+            ),
             ("about_repo", "https://github.com/mtucciarone/EdenExplorer"),
             ("about_current_version", env!("CARGO_PKG_VERSION")),
             ("about_license", "MIT"),

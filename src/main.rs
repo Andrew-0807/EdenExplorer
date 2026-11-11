@@ -51,6 +51,8 @@ fn main() -> eframe::Result<()> {
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
     }
 
+    crate::core::persist::migrate_legacy_data_dir();
+
     let icon = load_icon();
     let window_size_mode = load_windows_size_mode_on_start();
     let was_maximized = load_window_was_maximized_on_start();
@@ -104,7 +106,7 @@ fn main() -> eframe::Result<()> {
     };
 
     eframe::run_native(
-        "EdenExplorer",
+        "Axis",
         options,
         Box::new(|cc| {
             let mut fonts = egui::FontDefinitions::default();
@@ -127,7 +129,7 @@ fn main() -> eframe::Result<()> {
 /// moving over the item list on a 60 Hz display. Prefer a DX12 adapter and
 /// present without vsync. eframe already queues at most one frame
 /// (`SurfaceConfig::LOW_LATENCY`); this keeps that.
-/// Eden repaints on demand, so this only costs anything while the UI changes;
+/// Axis repaints on demand, so this only costs anything while the UI changes;
 /// animations ask for their next frame at ANIMATION_FRAME_INTERVAL instead of
 /// right away, so they don't run uncapped.
 fn low_latency_wgpu_options(transparent: bool) -> eframe::egui_wgpu::WgpuConfiguration {
@@ -194,7 +196,7 @@ fn show_launch_error(error: &LaunchError) {
             .chain(std::iter::once(0))
             .collect();
 
-        let title: Vec<u16> = std::ffi::OsStr::new("EdenExplorer")
+        let title: Vec<u16> = std::ffi::OsStr::new("Axis")
             .encode_wide()
             .chain(std::iter::once(0))
             .collect();

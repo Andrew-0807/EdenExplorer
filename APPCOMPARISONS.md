@@ -6,7 +6,7 @@
   <thead>
     <tr>
       <th>Feature</th>
-      <th><b>EdenExplorer</b></th>
+      <th><b>Axis</b></th>
       <th>FilePilot</th>
       <th>Windows Explorer</th>
       <th>Files.Community</th>

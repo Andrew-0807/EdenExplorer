@@ -70,9 +70,9 @@ settings_windowsize_fullscreen = Layar Penuh
 settings_windowsize_width = Lebar
 settings_windowsize_height = Tinggi
 settings_windowsize_reset_hover = Atur ulang ke default
-tooltip_settings_windowsize = Mengatur ukuran jendela saat EdenExplorer dibuka. Layar Penuh menyesuaikan resolusi monitor Anda.
+tooltip_settings_windowsize = Mengatur ukuran jendela saat Axis dibuka. Layar Penuh menyesuaikan resolusi monitor Anda.
 settings_contextmenu_enable = Gunakan Menu Konteks Native
-tooltip_settings_contextmenu = Mengganti menu klik kanan EdenExplorer dengan menu shell Windows native.
+tooltip_settings_contextmenu = Mengganti menu klik kanan Axis dengan menu shell Windows native.
 settings_favorites_reset = Reset Favorit Sidebar
 tooltip_settings_favorites_reset = Reset favorit ke default
 settings_favorites_reset_confirm = Reset Favorit
@@ -128,8 +128,8 @@ explorer_cols_created = Dibuat
 explorer_cols_deleted = Dihapus
 explorer_cols_original_directory = Direktori Asli
 gallery_sort_by = Urutkan Berdasarkan
-about_description = EdenExplorer adalah file explorer open-source generasi terbaru super cepat untuk Windows 11+ yang dibangun menggunakan Rust dan egui. Dirancang dari awal dengan fokus pada performa, efisiensi, dan alur kerja modern, EdenExplorer merupakan alternatif FOSS terbaik untuk Windows File Explorer bawaan.
-about_author = Penulis
+about_description = Axis adalah file explorer open-source generasi terbaru super cepat untuk Windows 11+ yang dibangun menggunakan Rust dan egui. Dirancang dari awal dengan fokus pada performa, efisiensi, dan alur kerja modern, Axis merupakan alternatif FOSS terbaik untuk Windows File Explorer bawaan.
+about_based_on = Based on
 about_repo = Repositori
 about_current_version = Versi Saat Ini
 about_license = Lisensi
@@ -183,9 +183,9 @@ launch-mutex-create =
     Tidak dapat membuat mutex instance: 
     {$error}
 launch-window-not-ready = 
-    Jendela EdenExplorer yang sedang berjalan tidak siap.
+    Jendela Axis yang sedang berjalan tidak siap.
 launch-window-rejected = 
-    Jendela EdenExplorer yang sedang berjalan tidak menerima permintaan.
+    Jendela Axis yang sedang berjalan tidak menerima permintaan.
 theme_sidebar_item_spacing_y = Spasi Vertikal Item Sidebar
 restore = Pulihkan
 maximize = Maksimalkan
@@ -250,7 +250,7 @@ theme_preset_nord = Nord
 theme_preset_dracula = Dracula
 theme_preset_high_contrast = Kontras tinggi
 theme_import_ok = Tema diimpor.
-theme_import_failed = Berkas ini bukan tema EdenExplorer.
+theme_import_failed = Berkas ini bukan tema Axis.
 theme_export_ok = Tema diekspor.
 theme_export_failed = Tema tidak dapat disimpan.
 theme_section_text = Teks
@@ -302,7 +302,7 @@ theme_backdrop_mica = Mica
 theme_backdrop_mica_alt = Mica Alt
 theme_backdrop_acrylic = Akrilik
 theme_backdrop_tint_opacity = Opasitas warna di atas latar
-theme_backdrop_restart = Mulai ulang EdenExplorer untuk menampilkan latar. Memerlukan Windows 11 dan efek transparansi.
+theme_backdrop_restart = Mulai ulang Axis untuk menampilkan latar. Memerlukan Windows 11 dan efek transparansi.
 theme_colors_sidebar_bg = Latar bilah sisi
 theme_colors_content_bg = Latar daftar berkas
 theme_show_separators = Garis pemisah

@@ -1,8 +1,12 @@
 <p align="center">
-  <img src="src/assets/icon.ico" alt="EdenExplorer Icon" width="120" height="120">
+  <img src="src/assets/icons/axis/icon-app-axis-tile.svg" alt="Axis Icon" width="120" height="120">
 </p>
 
-<h1 align="center">EdenExplorer</h1>
+<h1 align="center">Axis</h1>
+
+<p align="center">
+  Axis is a fork of <a href="https://github.com/mtucciarone/EdenExplorer">EdenExplorer</a> by Matthew Tucciarone (<a href="https://github.com/mtucciarone">mtucciarone</a>).
+</p>
 
 <p align="center">
   <a href="https://thetalabs.ca/eden-explorer/">
@@ -50,7 +54,7 @@
   </a>
 </p>
 
-<h1 align="center">⚡ Why EdenExplorer?</h1>
+<h1 align="center">⚡ Why Axis?</h1>
 
 <p align="center">
   Windows File Explorer hasn't evolved for modern workflows.<br><br>
@@ -58,7 +62,7 @@
 </p>
 
 <p align="center">
-  <b>EdenExplorer fixes that.</b>
+  <b>Axis fixes that.</b>
 </p>
 
 <p align="center">
@@ -163,7 +167,7 @@
 - [x] Enable/Disable Windows shell integration. By enabling, the context menu will populate with default Windows registry context menu items
 - [x] New context menu command (Copy Path) with keyboard shortcut of Ctrl+Shift+C
 - [x] Column sorting saves across sessions
-- [x] Drag and drop files from EdenExplorer into native Operating System (Windows) objects (Desktop, File Explorer, applications, etc.)
+- [x] Drag and drop files from Axis into native Operating System (Windows) objects (Desktop, File Explorer, applications, etc.)
 - [x] Full navigation history is saved and restored with Back/Forward/Up buttons
 - [x] Added English, Indonesian, Japanese, and multi-Chinese language support
 - [x] Add folder tags and custom folder colors

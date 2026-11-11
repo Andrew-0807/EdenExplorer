@@ -492,3 +492,64 @@ fn stageshow_marquee_drives() {
     }
     marquee_scene("marquee_drives", false, true, items);
 }
+
+/// The app icon (`src/assets/icon.ico`, as the window loads it) at the sizes
+/// Windows shows it: title bar and taskbar (16, 24, 32), Alt+Tab and Start
+/// (48, 64), Explorer large icons (128, 256).
+#[test]
+fn stageshow_app_icon() {
+    if !enabled() {
+        return;
+    }
+    let rgba = image::load_from_memory(include_bytes!("../assets/icon.ico"))
+        .expect("icon.ico decodes")
+        .into_rgba8();
+    let size = [rgba.width() as usize, rgba.height() as usize];
+    let color = egui::ColorImage::from_rgba_unmultiplied(size, rgba.as_raw());
+    for (name, mode) in [
+        ("app_icon", ThemeMode::Dark),
+        ("app_icon_light", ThemeMode::Light),
+    ] {
+        let color = color.clone();
+        let mut texture: Option<egui::TextureHandle> = None;
+        render_scene(
+            name,
+            [800.0, 300.0],
+            1.0,
+            mode,
+            get_palette(mode),
+            move |ui, palette| {
+                let full = ui.ctx().content_rect();
+                ui.painter()
+                    .rect_filled(full, 0.0, palette.application_bg_color);
+                let tex = texture
+                    .get_or_insert_with(|| {
+                        ui.ctx()
+                            .load_texture("axis-icon", color.clone(), Default::default())
+                    })
+                    .clone();
+                let mut x = 24.0;
+                for px in [16.0, 24.0, 32.0, 48.0, 64.0, 128.0, 256.0] {
+                    let rect = egui::Rect::from_min_size(
+                        egui::pos2(x, 280.0 - px - 20.0),
+                        egui::Vec2::splat(px),
+                    );
+                    ui.painter().image(
+                        tex.id(),
+                        rect,
+                        egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                        egui::Color32::WHITE,
+                    );
+                    ui.painter().text(
+                        egui::pos2(rect.center().x, 290.0),
+                        egui::Align2::CENTER_BOTTOM,
+                        format!("{px}"),
+                        egui::FontId::proportional(11.0),
+                        palette.text_normal,
+                    );
+                    x += px + 24.0;
+                }
+            },
+        );
+    }
+}

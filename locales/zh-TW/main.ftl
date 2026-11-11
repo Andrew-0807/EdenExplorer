@@ -70,9 +70,9 @@ settings_windowsize_fullscreen = 全螢幕
 settings_windowsize_width = 寬度
 settings_windowsize_height = 高度
 settings_windowsize_reset_hover = 重設為預設值
-tooltip_settings_windowsize = 設定 EdenExplorer 啟動時的視窗大小。全螢幕會配合您顯示器的解析度。
+tooltip_settings_windowsize = 設定 Axis 啟動時的視窗大小。全螢幕會配合您顯示器的解析度。
 settings_contextmenu_enable = 使用原生內容選單
-tooltip_settings_contextmenu = 將 EdenExplorer 右鍵選單替換為原生 Windows Shell 選單。
+tooltip_settings_contextmenu = 將 Axis 右鍵選單替換為原生 Windows Shell 選單。
 settings_favorites_reset = 重設側邊欄我的最愛
 tooltip_settings_favorites_reset = 將我的最愛重設為預設值
 settings_favorites_reset_confirm = 重設我的最愛
@@ -128,8 +128,8 @@ explorer_cols_created = 建立時間
 explorer_cols_deleted = 刪除時間
 explorer_cols_original_directory = 原始目錄
 gallery_sort_by = 排序方式
-about_description = EdenExplorer 是一款專為 Windows 11+ 打造的新世代超高速開源檔案總管，使用 Rust 與 egui 開發。它從底層開始針對效能、效率與現代工作流程進行設計，是預設 Windows 檔案總管最佳的自由開源替代方案。
-about_author = 作者
+about_description = Axis 是一款專為 Windows 11+ 打造的新世代超高速開源檔案總管，使用 Rust 與 egui 開發。它從底層開始針對效能、效率與現代工作流程進行設計，是預設 Windows 檔案總管最佳的自由開源替代方案。
+about_based_on = Based on
 about_repo = 儲存庫
 about_current_version = 目前版本
 about_license = 授權
@@ -183,9 +183,9 @@ launch-mutex-create =
     無法建立實例互斥鎖: 
     {$error}
 launch-window-not-ready = 
-    運行中的 EdenExplorer 窗口未準備好。
+    運行中的 Axis 窗口未準備好。
 launch-window-rejected = 
-    運行中的 EdenExplorer 窗口拒絕了請求。
+    運行中的 Axis 窗口拒絕了請求。
 theme_sidebar_item_spacing_y = 側邊欄項目垂直間距
 restore = 復原
 maximize = 最大化
@@ -250,7 +250,7 @@ theme_preset_nord = Nord
 theme_preset_dracula = Dracula
 theme_preset_high_contrast = 高對比
 theme_import_ok = 已匯入佈景主題。
-theme_import_failed = 此檔案不是 EdenExplorer 佈景主題。
+theme_import_failed = 此檔案不是 Axis 佈景主題。
 theme_export_ok = 已匯出佈景主題。
 theme_export_failed = 無法儲存佈景主題。
 theme_section_text = 文字
@@ -302,7 +302,7 @@ theme_backdrop_mica = 雲母
 theme_backdrop_mica_alt = 雲母（替代）
 theme_backdrop_acrylic = 壓克力
 theme_backdrop_tint_opacity = 背景效果上的色調不透明度
-theme_backdrop_restart = 重新啟動 EdenExplorer 以顯示背景效果。需要 Windows 11 並開啟透明效果。
+theme_backdrop_restart = 重新啟動 Axis 以顯示背景效果。需要 Windows 11 並開啟透明效果。
 theme_colors_sidebar_bg = 側邊欄背景
 theme_colors_content_bg = 檔案清單背景
 theme_show_separators = 分隔線
