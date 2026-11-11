@@ -8,7 +8,7 @@ use windows::core::*;
 static SYSTEM_FONTS: LazyLock<Vec<String>> =
     LazyLock::new(|| get_system_fonts().unwrap_or_default());
 
-static FONT_PATHS: LazyLock<HashMap<String, PathBuf>> = LazyLock::new(|| get_font_file_paths());
+static FONT_PATHS: LazyLock<HashMap<String, PathBuf>> = LazyLock::new(get_font_file_paths);
 
 unsafe fn extract_localized_string(localized: &IDWriteLocalizedStrings) -> Result<String> {
     let length = unsafe { localized.GetStringLength(0)? };
@@ -61,18 +61,16 @@ fn get_system_fonts() -> Result<Vec<String>> {
         let mut fonts = Vec::with_capacity(count as usize);
 
         for i in 0..count {
-            if let Ok(family) = collection.GetFontFamily(i) {
-                if let Ok(localized_names) = family.GetFamilyNames() {
-                    if let Ok(name) = extract_localized_string(&localized_names) {
-                        if !name.is_empty() {
-                            fonts.push(name);
-                        }
-                    }
-                }
+            if let Ok(family) = collection.GetFontFamily(i)
+                && let Ok(localized_names) = family.GetFamilyNames()
+                && let Ok(name) = extract_localized_string(&localized_names)
+                && !name.is_empty()
+            {
+                fonts.push(name);
             }
         }
 
-        fonts.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+        fonts.sort_by_key(|a| a.to_lowercase());
         Ok(fonts)
     }
 }
@@ -90,50 +88,35 @@ fn get_font_file_paths() -> HashMap<String, PathBuf> {
             if factory
                 .GetSystemFontCollection(&mut collection, true)
                 .is_ok()
+                && let Some(collection) = collection
             {
-                if let Some(collection) = collection {
-                    let count = collection.GetFontFamilyCount();
+                let count = collection.GetFontFamilyCount();
 
-                    for i in 0..count {
-                        if let Ok(family) = collection.GetFontFamily(i) {
-                            if let Ok(font) = family.GetFirstMatchingFont(
-                                DWRITE_FONT_WEIGHT_NORMAL,
-                                DWRITE_FONT_STRETCH_NORMAL,
-                                DWRITE_FONT_STYLE_NORMAL,
-                            ) {
-                                if let Ok(face) = font.CreateFontFace() {
-                                    let mut num_files: u32 = 0;
-                                    if face.GetFiles(&mut num_files, None).is_ok() && num_files > 0
-                                    {
-                                        let mut files: Vec<Option<IDWriteFontFile>> =
-                                            vec![None; num_files as usize];
-                                        if face
-                                            .GetFiles(
-                                                &mut num_files,
-                                                Some(files.as_mut_ptr()
-                                                    as *mut Option<IDWriteFontFile>),
-                                            )
-                                            .is_ok()
-                                        {
-                                            if let Some(Some(file)) = files.into_iter().next() {
-                                                if let Some(path) =
-                                                    get_file_path_from_font_file(&file)
-                                                {
-                                                    if let Ok(localized_names) =
-                                                        family.GetFamilyNames()
-                                                    {
-                                                        if let Ok(name) = extract_localized_string(
-                                                            &localized_names,
-                                                        ) {
-                                                            paths
-                                                                .insert(name, PathBuf::from(&path));
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                for i in 0..count {
+                    if let Ok(family) = collection.GetFontFamily(i)
+                        && let Ok(font) = family.GetFirstMatchingFont(
+                            DWRITE_FONT_WEIGHT_NORMAL,
+                            DWRITE_FONT_STRETCH_NORMAL,
+                            DWRITE_FONT_STYLE_NORMAL,
+                        )
+                        && let Ok(face) = font.CreateFontFace()
+                    {
+                        let mut num_files: u32 = 0;
+                        if face.GetFiles(&mut num_files, None).is_ok() && num_files > 0 {
+                            let mut files: Vec<Option<IDWriteFontFile>> =
+                                vec![None; num_files as usize];
+                            if face
+                                .GetFiles(
+                                    &mut num_files,
+                                    Some(files.as_mut_ptr() as *mut Option<IDWriteFontFile>),
+                                )
+                                .is_ok()
+                                && let Some(Some(file)) = files.into_iter().next()
+                                && let Some(path) = get_file_path_from_font_file(&file)
+                                && let Ok(localized_names) = family.GetFamilyNames()
+                                && let Ok(name) = extract_localized_string(&localized_names)
+                            {
+                                paths.insert(name, PathBuf::from(&path));
                             }
                         }
                     }
@@ -152,11 +135,11 @@ fn get_font_file_paths() -> HashMap<String, PathBuf> {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if let Some(ext) = path.extension() {
-                    if ext == "ttf" || ext == "otf" || ext == "ttc" {
-                        if let Some(stem) = path.file_stem() {
-                            let name = stem.to_string_lossy().to_string();
-                            paths.entry(name).or_insert(path);
-                        }
+                    if (ext == "ttf" || ext == "otf" || ext == "ttc")
+                        && let Some(stem) = path.file_stem()
+                    {
+                        let name = stem.to_string_lossy().to_string();
+                        paths.entry(name).or_insert(path);
                     }
                 }
             }
@@ -165,17 +148,17 @@ fn get_font_file_paths() -> HashMap<String, PathBuf> {
 
     if let Some(user_dir) = user_font_dir {
         let dir_path = std::path::Path::new(&user_dir);
-        if dir_path.exists() {
-            if let Ok(entries) = std::fs::read_dir(dir_path) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if let Some(ext) = path.extension() {
-                        if ext == "ttf" || ext == "otf" || ext == "ttc" {
-                            if let Some(stem) = path.file_stem() {
-                                let name = stem.to_string_lossy().to_string();
-                                paths.entry(name).or_insert(path);
-                            }
-                        }
+        if dir_path.exists()
+            && let Ok(entries) = std::fs::read_dir(dir_path)
+        {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Some(ext) = path.extension() {
+                    if (ext == "ttf" || ext == "otf" || ext == "ttc")
+                        && let Some(stem) = path.file_stem()
+                    {
+                        let name = stem.to_string_lossy().to_string();
+                        paths.entry(name).or_insert(path);
                     }
                 }
             }

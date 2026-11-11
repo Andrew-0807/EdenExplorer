@@ -1238,8 +1238,8 @@ pub fn draw_settings_window(
 
             // These confirmation dialogs live outside the selected-section content so they
             // remain visible if the user changes sections while a destructive action is pending.
-            if settings.show_reset_favorites_confirmation {
-                if let Some(confirmed) = draw_confirmation_dialog(
+            if settings.show_reset_favorites_confirmation
+                && let Some(confirmed) = draw_confirmation_dialog(
                     ctx,
                     palette,
                     i18n,
@@ -1248,16 +1248,16 @@ pub fn draw_settings_window(
                         &i18n.tr("settings_favorite_reset_confirm_label1"),
                         &i18n.tr("settings_favorite_reset_confirm_label2"),
                     ],
-                ) {
-                    settings.show_reset_favorites_confirmation = false;
-                    if confirmed {
-                        action = Some(SettingsAction::ResetFavourites);
-                    }
+                )
+            {
+                settings.show_reset_favorites_confirmation = false;
+                if confirmed {
+                    action = Some(SettingsAction::ResetFavourites);
                 }
             }
 
-            if settings.show_reset_confirmation {
-                if let Some(confirmed) = draw_confirmation_dialog(
+            if settings.show_reset_confirmation
+                && let Some(confirmed) = draw_confirmation_dialog(
                     ctx,
                     palette,
                     i18n,
@@ -1266,16 +1266,16 @@ pub fn draw_settings_window(
                         &i18n.tr("settings_reset_confirm_label1"),
                         &i18n.tr("settings_reset_confirm_label2"),
                     ],
-                ) {
-                    settings.show_reset_confirmation = false;
-                    if confirmed {
-                        action = Some(SettingsAction::ResetToDefaults);
-                    }
+                )
+            {
+                settings.show_reset_confirmation = false;
+                if confirmed {
+                    action = Some(SettingsAction::ResetToDefaults);
                 }
             }
 
-            if settings.show_clear_directory_cache_confirmation {
-                if let Some(confirmed) = draw_confirmation_dialog(
+            if settings.show_clear_directory_cache_confirmation
+                && let Some(confirmed) = draw_confirmation_dialog(
                     ctx,
                     palette,
                     i18n,
@@ -1284,11 +1284,11 @@ pub fn draw_settings_window(
                         &i18n.tr("settings_clear_directory_cache_confirm_label1"),
                         &i18n.tr("settings_clear_directory_cache_confirm_label2"),
                     ],
-                ) {
-                    settings.show_clear_directory_cache_confirmation = false;
-                    if confirmed {
-                        action = Some(SettingsAction::ClearDirectoryCache);
-                    }
+                )
+            {
+                settings.show_clear_directory_cache_confirmation = false;
+                if confirmed {
+                    action = Some(SettingsAction::ClearDirectoryCache);
                 }
             }
         });

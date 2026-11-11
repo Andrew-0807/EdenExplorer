@@ -134,16 +134,11 @@ impl AppIcon {
     ];
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
 pub enum IconStyle {
+    #[default]
     Regular,
     Filled,
-}
-
-impl Default for IconStyle {
-    fn default() -> Self {
-        Self::Regular
-    }
 }
 
 impl AppIcon {

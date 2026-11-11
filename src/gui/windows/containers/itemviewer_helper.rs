@@ -199,11 +199,10 @@ pub fn handle_context_menu_actions(
             egui::Button::new(i18n.tr("inputs_newtab")),
         )
         .clicked()
+        && let Some(path) = context_paths.first()
     {
-        if let Some(path) = context_paths.first() {
-            *action = Some(ItemViewerAction::OpenInNewTab(path.clone()));
-            ui.close();
-        }
+        *action = Some(ItemViewerAction::OpenInNewTab(path.clone()));
+        ui.close();
     }
 
     if ui
@@ -215,11 +214,10 @@ pub fn handle_context_menu_actions(
             egui::Button::new(i18n.tr("inputs_opensplit")),
         )
         .clicked()
+        && let Some(path) = context_paths.first()
     {
-        if let Some(path) = context_paths.first() {
-            *action = Some(ItemViewerAction::OpenInSplitView(path.clone()));
-            ui.close();
-        }
+        *action = Some(ItemViewerAction::OpenInSplitView(path.clone()));
+        ui.close();
     }
 
     let label = if context_paths.len() == 1 {
@@ -334,10 +332,9 @@ pub fn handle_context_menu_actions(
         // popup after the shell menu returns so only one menu is visible.
         if let (Some(hwnd), Some(cache)) =
             (hwnd, explorer_state.windows_context_menu_cache.as_ref())
+            && let Err(err) = cache.menu.show_native(hwnd)
         {
-            if let Err(err) = cache.menu.show_native(hwnd) {
-                eprintln!("Windows native menu failed: {}", err);
-            }
+            eprintln!("Windows native menu failed: {}", err);
         }
         ui.close();
         return;
@@ -352,10 +349,10 @@ pub fn handle_context_menu_actions(
                 .add_enabled(!item.disabled, egui::Button::new(&item.label))
                 .clicked()
             {
-                if let Some(hwnd) = hwnd {
-                    if let Err(err) = cache.menu.invoke(hwnd, item.id) {
-                        eprintln!("Windows menu invoke failed: {}", err);
-                    }
+                if let Some(hwnd) = hwnd
+                    && let Err(err) = cache.menu.invoke(hwnd, item.id)
+                {
+                    eprintln!("Windows menu invoke failed: {}", err);
                 }
                 ui.close();
             }
@@ -436,18 +433,18 @@ pub fn handle_draw_col_name(
 
     let editing_path = rename_state.as_ref().map(|rs| rs.path.clone());
 
-    if let Some(path) = editing_path {
-        if path == file.path {
-            return handle_editing_file_name(
-                ui,
-                i18n,
-                file,
-                is_selected,
-                palette,
-                text_rect,
-                rename_state,
-            );
-        }
+    if let Some(path) = editing_path
+        && path == file.path
+    {
+        return handle_editing_file_name(
+            ui,
+            i18n,
+            file,
+            is_selected,
+            palette,
+            text_rect,
+            rename_state,
+        );
     }
 
     let text_width = available_width - text_offset_x;
@@ -808,13 +805,13 @@ pub fn handle_editing_file_name(
         if rename_state.validation_error_show {
             let tooltip_text = format!(
                 "{}{}{}{}{}{}{}",
-                &i18n.tr("tooltip_rename_invalid_text1"),
+                i18n.tr("tooltip_rename_invalid_text1"),
                 "\n",
-                &i18n.tr("tooltip_rename_invalid_text2"),
+                i18n.tr("tooltip_rename_invalid_text2"),
                 "\n",
-                &i18n.tr("tooltip_rename_invalid_text3"),
+                i18n.tr("tooltip_rename_invalid_text3"),
                 "\n",
-                &i18n.tr("tooltip_rename_invalid_text4")
+                i18n.tr("tooltip_rename_invalid_text4")
             );
 
             // Calculate position above the input field
@@ -947,7 +944,7 @@ pub fn handle_global_actions(
                 .collect();
 
             let mut action = (!selected_files.is_empty())
-                .then(|| ItemViewerAction::OpenWithDefault(selected_files));
+                .then_some(ItemViewerAction::OpenWithDefault(selected_files));
 
             for directory in explorer_state
                 .selected_paths
@@ -1047,12 +1044,10 @@ pub fn handle_global_actions(
                         )));
                     }
                 }
-                egui::Event::Cut => {
-                    if !is_drive_view && !explorer_state.selected_paths.is_empty() {
-                        action = Some(ItemViewerAction::Context(ItemViewerContextAction::Cut(
-                            explorer_state.selected_paths.iter().cloned().collect(),
-                        )));
-                    }
+                egui::Event::Cut if !is_drive_view && !explorer_state.selected_paths.is_empty() => {
+                    action = Some(ItemViewerAction::Context(ItemViewerContextAction::Cut(
+                        explorer_state.selected_paths.iter().cloned().collect(),
+                    )));
                 }
                 _ => {}
             }
@@ -1144,10 +1139,10 @@ pub fn handle_global_actions(
 
         if !has_ime_commit {
             for event in &i.events {
-                if let egui::Event::Text(text) = event {
-                    if text.chars().all(|c| !c.is_control()) {
-                        start_filter.push_str(text);
-                    }
+                if let egui::Event::Text(text) = event
+                    && text.chars().all(|c| !c.is_control())
+                {
+                    start_filter.push_str(text);
                 }
             }
         }
@@ -1697,28 +1692,24 @@ pub fn handle_keyboard_navigation(
 
         let mut new_focus = focus;
 
-        if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
-            if let Some(next) = next_selectable(focus, 1) {
-                new_focus = next;
-            }
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown))
+            && let Some(next) = next_selectable(focus, 1)
+        {
+            new_focus = next;
         }
 
-        if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
-            if let Some(prev) = next_selectable(focus, -1) {
-                new_focus = prev;
-            }
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp))
+            && let Some(prev) = next_selectable(focus, -1)
+        {
+            new_focus = prev;
         }
 
-        if home_pressed {
-            if let Some(first) = first_selectable() {
-                new_focus = first;
-            }
+        if home_pressed && let Some(first) = first_selectable() {
+            new_focus = first;
         }
 
-        if end_pressed {
-            if let Some(last) = last_selectable() {
-                new_focus = last;
-            }
+        if end_pressed && let Some(last) = last_selectable() {
+            new_focus = last;
         }
 
         explorer_state.selection_anchor = Some(anchor);
@@ -1746,16 +1737,16 @@ pub fn handle_keyboard_navigation(
     else {
         let mut new_idx = current_idx;
 
-        if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
-            if let Some(next) = next_selectable(current_idx, 1) {
-                new_idx = next;
-            }
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown))
+            && let Some(next) = next_selectable(current_idx, 1)
+        {
+            new_idx = next;
         }
 
-        if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
-            if let Some(prev) = next_selectable(current_idx, -1) {
-                new_idx = prev;
-            }
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp))
+            && let Some(prev) = next_selectable(current_idx, -1)
+        {
+            new_idx = prev;
         }
 
         if home_pressed && let Some(first) = first_selectable() {
@@ -2293,10 +2284,11 @@ fn resolve_size_text(
 ) -> String {
     if let (Some(total), Some(free)) = (file.total_space, file.free_space) {
         let key = &file.path;
-        if let Some((cached_total, cached_free, cached_text)) = drive_size_text_cache.get(key) {
-            if *cached_total == total && *cached_free == free {
-                return cached_text.clone();
-            }
+        if let Some((cached_total, cached_free, cached_text)) = drive_size_text_cache.get(key)
+            && *cached_total == total
+            && *cached_free == free
+        {
+            return cached_text.clone();
         }
 
         let formatted = format!("{} / {}", format_size(free), format_size(total));
@@ -2306,10 +2298,11 @@ fn resolve_size_text(
 
     if file.is_dir {
         if let Some(state) = folder_sizes.get(&file.path) {
-            if let Some((bytes, done, value)) = folder_size_text_cache.get(&file.path) {
-                if *bytes == state.bytes && *done == state.done {
-                    return value.clone();
-                }
+            if let Some((bytes, done, value)) = folder_size_text_cache.get(&file.path)
+                && *bytes == state.bytes
+                && *done == state.done
+            {
+                return value.clone();
             }
 
             let label = format_size(state.bytes);
@@ -2327,10 +2320,10 @@ fn resolve_size_text(
     }
 
     if let Some(size) = file.file_size {
-        if let Some((cached_size, value)) = file_size_text_cache.get(&file.path) {
-            if *cached_size == size {
-                return value.clone();
-            }
+        if let Some((cached_size, value)) = file_size_text_cache.get(&file.path)
+            && *cached_size == size
+        {
+            return value.clone();
         }
 
         let value = format_size(size);

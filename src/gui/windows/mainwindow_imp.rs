@@ -1709,10 +1709,9 @@ impl MainWindow {
             if let Some(target_dir) = tabbar_action
                 .as_ref()
                 .and_then(|t| t.move_files_to_breadcrumb_dir.as_ref())
+                && let Some(sources) = drag_sources
             {
-                if let Some(sources) = drag_sources {
-                    self.move_selected_paths_to_dir(sources, target_dir.clone());
-                }
+                self.move_selected_paths_to_dir(sources, target_dir.clone());
             }
             if let Some(column) = tabbar_action.as_ref().and_then(|t| t.sort_by) {
                 self.toggle_sort(column, false, false);
@@ -1908,31 +1907,31 @@ impl MainWindow {
 
                 self.mark_tab_infos_dirty();
             }
-            if let Some((tab_id, insertion)) = action.reorder {
-                if let Some(from) = self.tabs.iter().position(|t| t.id == tab_id) {
-                    let to = if insertion > from {
-                        insertion - 1
-                    } else {
-                        insertion
-                    };
-                    if to != from && to < self.tabs.len() {
-                        let active_id = self.tabs[self.active_tab].id;
-                        let tab = self.tabs.remove(from);
-                        self.tabs.insert(to, tab);
-                        self.active_tab = self
-                            .tabs
-                            .iter()
-                            .position(|t| t.id == active_id)
-                            .unwrap_or(0);
-                        self.mark_tab_infos_dirty();
-                        self.save_remembered_tabs_if_enabled();
-                    }
+            if let Some((tab_id, insertion)) = action.reorder
+                && let Some(from) = self.tabs.iter().position(|t| t.id == tab_id)
+            {
+                let to = if insertion > from {
+                    insertion - 1
+                } else {
+                    insertion
+                };
+                if to != from && to < self.tabs.len() {
+                    let active_id = self.tabs[self.active_tab].id;
+                    let tab = self.tabs.remove(from);
+                    self.tabs.insert(to, tab);
+                    self.active_tab = self
+                        .tabs
+                        .iter()
+                        .position(|t| t.id == active_id)
+                        .unwrap_or(0);
+                    self.mark_tab_infos_dirty();
+                    self.save_remembered_tabs_if_enabled();
                 }
             }
-            if let Some(target_dir) = action.move_files_to_tab_dir.as_ref() {
-                if let Some(sources) = drag_sources {
-                    self.move_selected_paths_to_dir(sources, target_dir.clone());
-                }
+            if let Some(target_dir) = action.move_files_to_tab_dir.as_ref()
+                && let Some(sources) = drag_sources
+            {
+                self.move_selected_paths_to_dir(sources, target_dir.clone());
             }
             if action.scroll_left {
                 self.tab_scroll_offset = (self.tab_scroll_offset - 180.0).max(0.0);
@@ -2077,10 +2076,10 @@ impl MainWindow {
             if let Some(path) = action.remove_favorite {
                 self.remove_favorite(&path);
             }
-            if let Some(target_dir) = action.move_files_to_sidebar_dir.as_ref() {
-                if let Some(sources) = drag_sources {
-                    self.move_selected_paths_to_dir(sources, target_dir.clone());
-                }
+            if let Some(target_dir) = action.move_files_to_sidebar_dir.as_ref()
+                && let Some(sources) = drag_sources
+            {
+                self.move_selected_paths_to_dir(sources, target_dir.clone());
             }
         }
     }
@@ -2148,11 +2147,11 @@ impl MainWindow {
                 self.settings_window.open = true;
             }
 
-            if action.exit {
-                if let Some(hwnd) = self.hwnd {
-                    unsafe {
-                        let _ = PostMessageW(Some(hwnd), WM_CLOSE, WPARAM(0), LPARAM(0));
-                    }
+            if action.exit
+                && let Some(hwnd) = self.hwnd
+            {
+                unsafe {
+                    let _ = PostMessageW(Some(hwnd), WM_CLOSE, WPARAM(0), LPARAM(0));
                 }
             }
             if let Some(explorer_mode) =
@@ -2393,15 +2392,14 @@ impl MainWindow {
             return;
         }
 
-        if shortcuts.9 {
-            if !self
+        if shortcuts.9
+            && !self
                 .active_tab()
                 .view(self.focused_split)
                 .breadcrumb_path_editing
-                && let Some(paths) = self.selected_paths_for_properties()
-            {
-                self.open_properties_multi(&paths);
-            }
+            && let Some(paths) = self.selected_paths_for_properties()
+        {
+            self.open_properties_multi(&paths);
         }
     }
 

@@ -164,31 +164,21 @@ impl TabView {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ItemViewerDisplayMode {
+    #[default]
     Details,
     Gallery,
 }
 
-impl Default for ItemViewerDisplayMode {
-    fn default() -> Self {
-        Self::Details
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum GalleryThumbnailSize {
     ExtraSmall,
     Small,
+    #[default]
     Medium,
     Large,
     ExtraLarge,
-}
-
-impl Default for GalleryThumbnailSize {
-    fn default() -> Self {
-        Self::Medium
-    }
 }
 
 impl GalleryThumbnailSize {
@@ -1322,7 +1312,7 @@ impl TagsState {
             return false;
         };
 
-        let mut paths: Vec<PathBuf> = paths.iter().cloned().collect();
+        let mut paths: Vec<PathBuf> = paths.to_vec();
         paths.sort();
         paths.dedup();
 
@@ -1362,7 +1352,7 @@ impl TagsState {
             items: Vec::new(),
         };
 
-        let mut paths: Vec<PathBuf> = paths.iter().cloned().collect();
+        let mut paths: Vec<PathBuf> = paths.to_vec();
         paths.sort();
         paths.dedup();
 

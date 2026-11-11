@@ -318,20 +318,20 @@ pub fn is_clipboard_cut() -> bool {
 
     let mut is_cut = false;
 
-    if let Ok(hglobal) = unsafe { GetClipboardData(format) } {
-        if !hglobal.0.is_null() {
-            let hglobal = HGLOBAL(hglobal.0 as *mut _);
+    if let Ok(hglobal) = unsafe { GetClipboardData(format) }
+        && !hglobal.0.is_null()
+    {
+        let hglobal = HGLOBAL(hglobal.0 as *mut _);
 
-            let ptr = unsafe { GlobalLock(hglobal) };
+        let ptr = unsafe { GlobalLock(hglobal) };
 
-            if !ptr.is_null() {
-                let value = unsafe { *(ptr as *const u32) };
+        if !ptr.is_null() {
+            let value = unsafe { *(ptr as *const u32) };
 
-                // DROPEFFECT_MOVE = 2
-                is_cut = value == 2;
+            // DROPEFFECT_MOVE = 2
+            is_cut = value == 2;
 
-                let _ = unsafe { GlobalUnlock(hglobal) };
-            }
+            let _ = unsafe { GlobalUnlock(hglobal) };
         }
     }
 

@@ -30,16 +30,11 @@ fn default_font_name() -> String {
     "Segoe UI".to_string()
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub enum ThemeMode {
     Light,
+    #[default]
     Dark,
-}
-
-impl Default for ThemeMode {
-    fn default() -> Self {
-        ThemeMode::Dark
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

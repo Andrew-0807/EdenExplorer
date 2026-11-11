@@ -216,7 +216,7 @@ pub fn draw_gallery_view(
                         is_cut_mode,
                         palette,
                         &font_id,
-                        &gallery_state,
+                        gallery_state,
                     );
 
                     if let Some(a) = tile_action {
@@ -229,19 +229,18 @@ pub fn draw_gallery_view(
                                 current_hovered_drop_target = Some(file.path.clone());
                                 current_hovered_drop_target_rect = Some(response.rect);
                             }
-                        } else if let Some(pointer) = pointer_pos {
-                            if response.rect.contains(pointer) {
-                                match &best_hovered_tile {
-                                    Some((best_top, _, _, _))
-                                        if *best_top >= response.rect.top() => {}
-                                    _ => {
-                                        best_hovered_tile = Some((
-                                            response.rect.top(),
-                                            file.is_dir,
-                                            file.path.clone(),
-                                            response.rect,
-                                        ));
-                                    }
+                        } else if let Some(pointer) = pointer_pos
+                            && response.rect.contains(pointer)
+                        {
+                            match &best_hovered_tile {
+                                Some((best_top, _, _, _)) if *best_top >= response.rect.top() => {}
+                                _ => {
+                                    best_hovered_tile = Some((
+                                        response.rect.top(),
+                                        file.is_dir,
+                                        file.path.clone(),
+                                        response.rect,
+                                    ));
                                 }
                             }
                         }
@@ -272,17 +271,17 @@ pub fn draw_gallery_view(
                     if let (Some(start), Some(current)) = (
                         drag_state.start_pos,
                         response.ctx.input(|i| i.pointer.hover_pos()),
-                    ) {
-                        if !drag_state.active
-                            && !drag_state.source_items.is_empty()
-                            && start.distance(current) > 4.0
-                        {
-                            drag_state.active = true;
-                        }
+                    ) && !drag_state.active
+                        && !drag_state.source_items.is_empty()
+                        && start.distance(current) > 4.0
+                    {
+                        drag_state.active = true;
                     }
 
-                    if response.clicked() && !drag_state.active && !modal_input_blocked {
-                        if let Some(a) = handle_row_click(
+                    if response.clicked()
+                        && !drag_state.active
+                        && !modal_input_blocked
+                        && let Some(a) = handle_row_click(
                             item_index,
                             file,
                             modifiers,
@@ -290,15 +289,17 @@ pub fn draw_gallery_view(
                             files,
                             drag_state,
                             explorer_state,
-                        ) {
-                            action = Some(a);
-                        }
+                        )
+                    {
+                        action = Some(a);
                     }
 
-                    if response.double_clicked() && !drag_state.active && !modal_input_blocked {
-                        if let Some(a) = double_click_action(file, modifiers, false) {
-                            action = Some(a);
-                        }
+                    if response.double_clicked()
+                        && !drag_state.active
+                        && !modal_input_blocked
+                        && let Some(a) = double_click_action(file, modifiers, false)
+                    {
+                        action = Some(a);
                     }
 
                     if response.middle_clicked() && file.is_dir {
@@ -744,20 +745,20 @@ fn draw_gallery_tile(
 
     let editing_path = rename_state.as_ref().map(|rs| rs.path.clone());
 
-    if let Some(path) = editing_path {
-        if path == file.path {
-            let action = handle_editing_file_name(
-                ui,
-                i18n,
-                file,
-                is_selected,
-                palette,
-                text_rect,
-                rename_state,
-            );
+    if let Some(path) = editing_path
+        && path == file.path
+    {
+        let action = handle_editing_file_name(
+            ui,
+            i18n,
+            file,
+            is_selected,
+            palette,
+            text_rect,
+            rename_state,
+        );
 
-            return (response, action);
-        }
+        return (response, action);
     }
 
     let text_color = if is_selected {

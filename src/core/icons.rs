@@ -117,21 +117,19 @@ impl IconCache {
                 }
 
                 // 3️⃣ Fetch icon from system image list
-                if let Some(icon) = get_icon_from_list(&image_list, icon_index) {
-                    if let Some((pixels, w, h)) = icon_to_rgba(icon) {
-                        let _ = unsafe { DestroyIcon(icon) };
+                if let Some(icon) = get_icon_from_list(&image_list, icon_index)
+                    && let Some((pixels, w, h)) = icon_to_rgba(icon)
+                {
+                    let _ = unsafe { DestroyIcon(icon) };
 
-                        let image = egui::ColorImage::from_rgba_unmultiplied(
-                            [w as usize, h as usize],
-                            &pixels,
-                        );
-                        let texture =
-                            ctx_bg.load_texture(format!("icon_{}", key), image, Default::default());
+                    let image =
+                        egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], &pixels);
+                    let texture =
+                        ctx_bg.load_texture(format!("icon_{}", key), image, Default::default());
 
-                        if req.generation == generation_bg.load(Ordering::Acquire) {
-                            textures_bg.lock().unwrap().insert(key.clone(), texture);
-                            ctx_bg.request_repaint();
-                        }
+                    if req.generation == generation_bg.load(Ordering::Acquire) {
+                        textures_bg.lock().unwrap().insert(key.clone(), texture);
+                        ctx_bg.request_repaint();
                     }
                 }
             }
@@ -311,7 +309,7 @@ fn icon_to_rgba(icon: HICON) -> Option<(Vec<u8>, u32, u32)> {
         }
 
         // Convert BGRA -> RGBA
-        for px in pixels.chunks_exact_mut(4) {
+        for px in pixels.as_chunks_mut::<4>().0 {
             px.swap(0, 2);
         }
 

@@ -619,12 +619,12 @@ pub fn is_raw_physical_drive_path(path: &PathBuf) -> bool {
 }
 
 fn drive_label_from_display(display: &str) -> Option<String> {
-    if let Some(open) = display.rfind(" (") {
-        if display.ends_with(')') {
-            let label = display[..open].trim();
-            if !label.is_empty() {
-                return Some(label.to_string());
-            }
+    if let Some(open) = display.rfind(" (")
+        && display.ends_with(')')
+    {
+        let label = display[..open].trim();
+        if !label.is_empty() {
+            return Some(label.to_string());
         }
     }
     None

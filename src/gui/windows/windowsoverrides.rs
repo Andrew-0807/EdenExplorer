@@ -162,10 +162,10 @@ pub fn set_egui_ctx(ctx: &Context) {
 }
 
 pub fn request_repaint() {
-    if let Ok(guard) = EGUI_CTX.read() {
-        if let Some(ctx) = guard.as_ref() {
-            ctx.request_repaint();
-        }
+    if let Ok(guard) = EGUI_CTX.read()
+        && let Some(ctx) = guard.as_ref()
+    {
+        ctx.request_repaint();
     }
 }
 

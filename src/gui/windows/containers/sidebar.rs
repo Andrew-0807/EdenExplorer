@@ -75,7 +75,7 @@ pub fn draw_sidebar(
                             .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
                             .show(|ui| {
                                 apply_eden_text_overrides(ui, palette);
-                                if ui.button(&i18n.tr("inputs_newtab")).clicked() {
+                                if ui.button(i18n.tr("inputs_newtab")).clicked() {
                                     action.open_new_tab = Some(PathBuf::from(MY_PC_PATH));
                                     ui.close();
                                 }
@@ -104,7 +104,7 @@ pub fn draw_sidebar(
                                 .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
                                 .show(|ui| {
                                     apply_eden_text_overrides(ui, palette);
-                                    if ui.button(&i18n.tr("inputs_newtab")).clicked() {
+                                    if ui.button(i18n.tr("inputs_newtab")).clicked() {
                                         action.open_new_tab = Some(home.clone());
                                         ui.close();
                                     }
@@ -134,7 +134,7 @@ pub fn draw_sidebar(
                             .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
                             .show(|ui| {
                                 apply_eden_text_overrides(ui, palette);
-                                if ui.button(&i18n.tr("inputs_newtab")).clicked() {
+                                if ui.button(i18n.tr("inputs_newtab")).clicked() {
                                     action.open_new_tab = Some(PathBuf::from(MY_RECYCLE_BIN_PATH));
                                     ui.close();
                                 }
@@ -352,20 +352,20 @@ pub fn draw_sidebar(
                                 action.open_background_tab = Some(favorite.path.clone());
                             }
 
-                            Popup::context_menu(&resp)
+                            Popup::context_menu(resp)
                                 .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
                                 .show(|ui| {
                                     apply_eden_text_overrides(ui, palette);
-                                    if ui.button(&i18n.tr("inputs_newtab")).clicked() {
+                                    if ui.button(i18n.tr("inputs_newtab")).clicked() {
                                         action.open_new_tab = Some(favorite.path.clone());
                                         ui.close();
                                     }
-                                    if i > 0 && ui.button(&i18n.tr("sidebar_move_up")).clicked() {
+                                    if i > 0 && ui.button(i18n.tr("sidebar_move_up")).clicked() {
                                         action.move_favorite = Some((i, -1));
                                         ui.close();
                                     }
                                     if i + 1 < favorites_len
-                                        && ui.button(&i18n.tr("sidebar_move_down")).clicked()
+                                        && ui.button(i18n.tr("sidebar_move_down")).clicked()
                                     {
                                         action.move_favorite = Some((i, 1));
                                         ui.close();
@@ -383,8 +383,7 @@ pub fn draw_sidebar(
                                         );
                                         let enter = edit.lost_focus()
                                             && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                                        if ui.button(&i18n.tr("sidebar_rename")).clicked() || enter
-                                        {
+                                        if ui.button(i18n.tr("sidebar_rename")).clicked() || enter {
                                             action.rename_favorite = Some((
                                                 favorite.path.clone(),
                                                 rename_buffer.clone(),
@@ -393,7 +392,7 @@ pub fn draw_sidebar(
                                         }
                                     });
                                     ui.separator();
-                                    if ui.button(&i18n.tr("remove_favorite")).clicked() {
+                                    if ui.button(i18n.tr("remove_favorite")).clicked() {
                                         action.remove_favorite = Some(favorite.path.clone());
                                         ui.close();
                                     }
@@ -401,21 +400,21 @@ pub fn draw_sidebar(
                         }
 
                         // Drop: the row settles from where it was released into its slot.
-                        if let Some(from) = sidebar_state.dragging_favorite {
-                            if pointer_released {
-                                let slot = target_slot.min(count.saturating_sub(1));
-                                if slot != from {
-                                    for row in sidebar_state.row_offsets.values_mut() {
-                                        *row = 0.0;
-                                    }
-                                    action.reorder = Some((from, reorder_insertion(from, slot)));
+                        if let Some(from) = sidebar_state.dragging_favorite
+                            && pointer_released
+                        {
+                            let slot = target_slot.min(count.saturating_sub(1));
+                            if slot != from {
+                                for row in sidebar_state.row_offsets.values_mut() {
+                                    *row = 0.0;
                                 }
-                                let settle = (drag_top - item_layouts[slot].0.top()) / pitch;
-                                let path = sidebar_state.favorites[from].path.clone();
-                                sidebar_state.row_offsets.insert(path, settle);
-                                sidebar_state.dragging_favorite = None;
-                                animating = true;
+                                action.reorder = Some((from, reorder_insertion(from, slot)));
                             }
+                            let settle = (drag_top - item_layouts[slot].0.top()) / pitch;
+                            let path = sidebar_state.favorites[from].path.clone();
+                            sidebar_state.row_offsets.insert(path, settle);
+                            sidebar_state.dragging_favorite = None;
+                            animating = true;
                         }
                         if animating {
                             request_animation_frame(ui.ctx());
@@ -526,17 +525,17 @@ pub fn draw_sidebar(
 
                     if let Some(_path) = sidebar_state.non_ntfs_popup_path.clone() {
                         let mut open = true;
-                        egui::Window::new(&i18n.tr("non_nftsdrive"))
+                        egui::Window::new(i18n.tr("non_nftsdrive"))
                             .collapsible(false)
                             .resizable(false)
                             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
                             .open(&mut open)
                             .show(ui.ctx(), |ui| {
-                                ui.label(&i18n.tr("non_nftsdrive_label1"));
-                                ui.label(&i18n.tr("non_nftsdrive_label2"));
-                                ui.label(&i18n.tr("non_nftsdrive_label3"));
+                                ui.label(i18n.tr("non_nftsdrive_label1"));
+                                ui.label(i18n.tr("non_nftsdrive_label2"));
+                                ui.label(i18n.tr("non_nftsdrive_label3"));
                                 ui.add_space(8.0);
-                                if ui.button(&i18n.tr("ok")).clicked() {
+                                if ui.button(i18n.tr("ok")).clicked() {
                                     sidebar_state.non_ntfs_popup_path = None;
                                 }
                             });

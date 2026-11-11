@@ -144,7 +144,7 @@ pub fn scan_portable_async(path: PathBuf, tx: Sender<FileItem>) {
             let init = CoInitializeEx(None, COINIT_MULTITHREADED);
             if init.is_ok() {
                 should_uninit = true;
-            } else if init == RPC_E_CHANGED_MODE.into() {
+            } else if init == RPC_E_CHANGED_MODE {
                 let init_sta = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
                 if init_sta.is_ok() {
                     should_uninit = true;
@@ -197,10 +197,11 @@ pub fn scan_portable_async(path: PathBuf, tx: Sender<FileItem>) {
         }
 
         let mut enumerate_id = object_id.clone();
-        if let Some(storage_id) = storage_object_id.as_ref() {
-            if !storage_id.is_empty() && storage_id != &object_id {
-                enumerate_id = storage_id.clone();
-            }
+        if let Some(storage_id) = storage_object_id.as_ref()
+            && !storage_id.is_empty()
+            && storage_id != &object_id
+        {
+            enumerate_id = storage_id.clone();
         }
 
         let mut items = enumerate_portable_children(
@@ -426,10 +427,8 @@ fn enumerate_portable_children(
         );
         pending.push(item.clone());
 
-        if is_root {
-            if functional_category == WPD_FUNCTIONAL_CATEGORY_STORAGE {
-                storage_only.push(item);
-            }
+        if is_root && functional_category == WPD_FUNCTIONAL_CATEGORY_STORAGE {
+            storage_only.push(item);
         }
     }
 

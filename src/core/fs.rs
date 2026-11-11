@@ -93,17 +93,12 @@ impl ChangeDebouncer {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DateStyle {
     Iso,
+    #[default]
     UsShort,
     Long,
-}
-
-impl Default for DateStyle {
-    fn default() -> Self {
-        DateStyle::UsShort
-    }
 }
 
 pub fn filetime_to_string(
@@ -155,7 +150,7 @@ fn open_directory_handle(path: &PathBuf) -> Option<HANDLE> {
     let pcw = PCWSTR(wide.as_ptr());
 
     unsafe {
-        match CreateFileW(
+        CreateFileW(
             pcw,
             FILE_LIST_DIRECTORY.0,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -163,10 +158,8 @@ fn open_directory_handle(path: &PathBuf) -> Option<HANDLE> {
             OPEN_EXISTING,
             FILE_FLAG_BACKUP_SEMANTICS,
             None,
-        ) {
-            Ok(handle) => Some(handle),
-            Err(_) => None,
-        }
+        )
+        .ok()
     }
 }
 

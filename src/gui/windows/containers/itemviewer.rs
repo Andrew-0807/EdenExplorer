@@ -120,8 +120,9 @@ pub fn draw_item_viewer(
         explorer_state.selection_focus = None;
     }
 
-    if !modal_input_blocked && is_focused {
-        if let Some(global_action) = handle_global_actions(
+    if !modal_input_blocked
+        && is_focused
+        && let Some(global_action) = handle_global_actions(
             ui,
             files,
             palette,
@@ -135,9 +136,9 @@ pub fn draw_item_viewer(
             is_recycle_bin_view,
             settings_window,
             hwnd,
-        ) {
-            action = Some(global_action);
-        }
+        )
+    {
+        action = Some(global_action);
     }
 
     if drag_active {
@@ -352,31 +353,29 @@ pub fn draw_item_viewer(
             }
 
             // If we have a navigation selection, scroll to it and select it
-            if let Some(nav_path) = &explorer_state.navigation_selection {
-                if let Some(idx) = filter_state
+            if let Some(nav_path) = &explorer_state.navigation_selection
+                && let Some(idx) = filter_state
                     .cached_indices
                     .iter()
                     .position(|&i| &files[i].path == nav_path)
-                {
-                    table = table.scroll_to_row(idx, Some(egui::Align::Center));
+            {
+                table = table.scroll_to_row(idx, Some(egui::Align::Center));
 
-                    // Auto-select the navigation item
-                    explorer_state.selected_paths.clear();
-                    explorer_state.selected_paths.insert(nav_path.clone());
-                    explorer_state.selection_anchor = Some(idx);
-                    explorer_state.selection_focus = Some(idx);
+                // Auto-select the navigation item
+                explorer_state.selected_paths.clear();
+                explorer_state.selected_paths.insert(nav_path.clone());
+                explorer_state.selection_anchor = Some(idx);
+                explorer_state.selection_focus = Some(idx);
 
-                    explorer_state.navigation_selection = None;
-                }
+                explorer_state.navigation_selection = None;
             }
 
             // If selection changed via keyboard, keep it in view
-            if arrow_nav {
-                if let Some(focus_idx) = explorer_state.selection_focus {
-                    if focus_idx < filter_state.cached_indices.len() {
-                        table = table.scroll_to_row(focus_idx, Some(egui::Align::Center));
-                    }
-                }
+            if arrow_nav
+                && let Some(focus_idx) = explorer_state.selection_focus
+                && focus_idx < filter_state.cached_indices.len()
+            {
+                table = table.scroll_to_row(focus_idx, Some(egui::Align::Center));
             }
 
             if show_checkbox_column {
@@ -448,7 +447,7 @@ pub fn draw_item_viewer(
                         &filter_state.cached_indices,
                         files,
                         &sort_keys,
-                        &palette,
+                        palette,
                         explorer_state,
                         &*column_state,
                     ) {
@@ -632,28 +631,24 @@ pub fn draw_item_viewer(
                                     current_hovered_drop_target = Some(file.path.clone());
                                     current_hovered_drop_target_rect = Some(row_resp.rect);
                                 }
-                            } else if let Some(pointer) = pointer_pos {
-                                if row_resp.rect.contains(pointer) {
-                                    let is_dir = file.is_dir;
-                                    let row_top = row_resp.rect.top();
-                                    let row_rect = {
-                                        let row_min = row_resp.rect.min;
-                                        let row_max = egui::pos2(
-                                            row_resp.rect.max.x,
-                                            row_resp.rect.min.y + layout.row_height,
-                                        );
-                                        egui::Rect::from_min_max(row_min, row_max)
-                                    };
-                                    match &best_hovered_row {
-                                        Some((best_top, _, _, _)) if *best_top >= row_top => {}
-                                        _ => {
-                                            best_hovered_row = Some((
-                                                row_top,
-                                                is_dir,
-                                                file.path.clone(),
-                                                row_rect,
-                                            ));
-                                        }
+                            } else if let Some(pointer) = pointer_pos
+                                && row_resp.rect.contains(pointer)
+                            {
+                                let is_dir = file.is_dir;
+                                let row_top = row_resp.rect.top();
+                                let row_rect = {
+                                    let row_min = row_resp.rect.min;
+                                    let row_max = egui::pos2(
+                                        row_resp.rect.max.x,
+                                        row_resp.rect.min.y + layout.row_height,
+                                    );
+                                    egui::Rect::from_min_max(row_min, row_max)
+                                };
+                                match &best_hovered_row {
+                                    Some((best_top, _, _, _)) if *best_top >= row_top => {}
+                                    _ => {
+                                        best_hovered_row =
+                                            Some((row_top, is_dir, file.path.clone(), row_rect));
                                     }
                                 }
                             }
@@ -699,13 +694,11 @@ pub fn draw_item_viewer(
                         if let (Some(start), Some(current)) = (
                             drag_state.start_pos,
                             row_resp.ctx.input(|i| i.pointer.hover_pos()),
-                        ) {
-                            if !drag_state.active
-                                && !drag_state.source_items.is_empty()
-                                && start.distance(current) > 4.0
-                            {
-                                drag_state.active = true;
-                            }
+                        ) && !drag_state.active
+                            && !drag_state.source_items.is_empty()
+                            && start.distance(current) > 4.0
+                        {
+                            drag_state.active = true;
                         }
 
                         if row_resp.clicked() && !drag_state.active {
@@ -724,12 +717,13 @@ pub fn draw_item_viewer(
                             }
                         }
 
-                        if row_resp.double_clicked() && !drag_state.active && !is_non_ntfs_drive {
-                            if let Some(a) =
+                        if row_resp.double_clicked()
+                            && !drag_state.active
+                            && !is_non_ntfs_drive
+                            && let Some(a) =
                                 double_click_action(file, modifiers, is_recycle_bin_view)
-                            {
-                                action = Some(a);
-                            }
+                        {
+                            action = Some(a);
                         }
 
                         if row_resp.middle_clicked()
@@ -775,11 +769,11 @@ pub fn draw_item_viewer(
 
                     // ------------------- END OF ROW HANDLING -------------------
 
-                    if let Some((_, is_dir, path, rect)) = best_hovered_row.take() {
-                        if is_dir {
-                            current_hovered_drop_target = Some(path);
-                            current_hovered_drop_target_rect = Some(rect);
-                        }
+                    if let Some((_, is_dir, path, rect)) = best_hovered_row.take()
+                        && is_dir
+                    {
+                        current_hovered_drop_target = Some(path);
+                        current_hovered_drop_target_rect = Some(rect);
                     }
 
                     *hovered_drop_target = current_hovered_drop_target.clone();
@@ -890,7 +884,7 @@ pub fn draw_item_viewer(
                 let stored_width =
                     column_state.column_width(is_drive_view, is_recycle_bin_view, column);
 
-                if stored_width.map_or(true, |stored| (stored - actual_width).abs() > 0.5) {
+                if stored_width.is_none_or(|stored| (stored - actual_width).abs() > 0.5) {
                     column_state.set_column_width(
                         is_drive_view,
                         is_recycle_bin_view,
@@ -981,18 +975,16 @@ pub fn draw_item_viewer(
                 && is_focused
                 && rename_state.is_none()
                 && !ui.ctx().egui_wants_keyboard_input()
-            {
-                if let Some(a) = handle_keyboard_navigation(
+                && let Some(a) = handle_keyboard_navigation(
                     ui.ctx(),
                     &filter_state.cached_indices,
                     files,
                     layout.is_drive_view,
                     explorer_state,
-                ) {
-                    if action.is_none() {
-                        action = Some(a);
-                    }
-                }
+                )
+                && action.is_none()
+            {
+                action = Some(a);
             }
 
             // --- Drag and Drop Detection ---
@@ -1077,7 +1069,7 @@ pub fn draw_item_viewer(
 
         action
     } else {
-        return action;
+        action
     }
 }
 

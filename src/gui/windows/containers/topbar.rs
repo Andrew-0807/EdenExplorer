@@ -84,7 +84,7 @@ fn draw_hamburger_menu(
         &i18n.tr("tooltip_mainmenu"),
     )
     .on_hover_text(
-        egui::RichText::new(&i18n.tr("tooltip_mainmenu"))
+        egui::RichText::new(i18n.tr("tooltip_mainmenu"))
             .size(palette.tooltip_text_size)
             .color(palette.tooltip_text_color),
     )
@@ -196,7 +196,7 @@ fn draw_mode_icons(
         &i18n.tr(sidebar_tooltip_key),
     )
     .on_hover_text(
-        egui::RichText::new(&i18n.tr(sidebar_tooltip_key))
+        egui::RichText::new(i18n.tr(sidebar_tooltip_key))
             .size(palette.tooltip_text_size)
             .color(palette.tooltip_text_color),
     )
@@ -214,7 +214,7 @@ fn draw_mode_icons(
 
     if clickable_icon(ui, icon, palette, &i18n.tr("tooltip_theme"))
         .on_hover_text(
-            egui::RichText::new(&i18n.tr("tooltip_theme"))
+            egui::RichText::new(i18n.tr("tooltip_theme"))
                 .size(palette.tooltip_text_size)
                 .color(palette.tooltip_text_color),
         )
@@ -235,7 +235,7 @@ fn draw_mode_icons(
         &i18n.tr("tooltip_show_file_explorer"),
     )
     .on_hover_text(
-        egui::RichText::new(&i18n.tr("tooltip_show_file_explorer"))
+        egui::RichText::new(i18n.tr("tooltip_show_file_explorer"))
             .size(palette.tooltip_text_size)
             .color(palette.tooltip_text_color),
     )
@@ -254,7 +254,7 @@ fn draw_mode_icons(
         &i18n.tr("tooltip_show_tags"),
     )
     .on_hover_text(
-        egui::RichText::new(&i18n.tr("tooltip_show_tags"))
+        egui::RichText::new(i18n.tr("tooltip_show_tags"))
             .size(palette.tooltip_text_size)
             .color(palette.tooltip_text_color),
     )
@@ -292,10 +292,10 @@ fn draw_drag_region(ui: &mut egui::Ui, hwnd: Option<HWND>) {
     let drag_rect = ui.available_rect_before_wrap();
     if drag_rect.width() > 0.0 && drag_rect.height() > 0.0 {
         let resp = ui.allocate_rect(drag_rect, egui::Sense::click_and_drag());
-        if resp.double_clicked() {
-            if let Some(hwnd) = hwnd {
-                toggle_window_fullscreen(hwnd);
-            }
+        if resp.double_clicked()
+            && let Some(hwnd) = hwnd
+        {
+            toggle_window_fullscreen(hwnd);
         }
         if resp.drag_started() || resp.dragged() {
             ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
