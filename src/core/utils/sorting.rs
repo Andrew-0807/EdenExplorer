@@ -24,7 +24,7 @@ pub struct SortKey {
 }
 
 pub fn sort_files_by_keys(
-    files: &mut Vec<FileItem>,
+    files: &mut [FileItem],
     keys: &[SortKey],
     tag_counts: &HashMap<PathBuf, usize>,
 ) {

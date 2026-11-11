@@ -791,7 +791,7 @@ pub fn restore_paths_native(pidls: Vec<Vec<u8>>) -> windows::core::Result<()> {
                 let context_menu: IContextMenu =
                     shell_item.BindToHandler(None, &BHID_SFUIObject)?;
 
-                let restore_verb = PCSTR(b"undelete\0".as_ptr());
+                let restore_verb = PCSTR(c"undelete".as_ptr().cast());
                 let info = CMINVOKECOMMANDINFOEX {
                     cbSize: std::mem::size_of::<CMINVOKECOMMANDINFOEX>() as u32,
                     fMask: 0,

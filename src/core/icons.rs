@@ -117,21 +117,19 @@ impl IconCache {
                 }
 
                 // 3️⃣ Fetch icon from system image list
-                if let Some(icon) = get_icon_from_list(&image_list, icon_index) {
-                    if let Some((pixels, w, h)) = icon_to_rgba(icon) {
-                        let _ = unsafe { DestroyIcon(icon) };
+                if let Some(icon) = get_icon_from_list(&image_list, icon_index)
+                    && let Some((pixels, w, h)) = icon_to_rgba(icon)
+                {
+                    let _ = unsafe { DestroyIcon(icon) };
 
-                        let image = egui::ColorImage::from_rgba_unmultiplied(
-                            [w as usize, h as usize],
-                            &pixels,
-                        );
-                        let texture =
-                            ctx_bg.load_texture(format!("icon_{}", key), image, Default::default());
+                    let image =
+                        egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], &pixels);
+                    let texture =
+                        ctx_bg.load_texture(format!("icon_{}", key), image, Default::default());
 
-                        if req.generation == generation_bg.load(Ordering::Acquire) {
-                            textures_bg.lock().unwrap().insert(key.clone(), texture);
-                            ctx_bg.request_repaint();
-                        }
+                    if req.generation == generation_bg.load(Ordering::Acquire) {
+                        textures_bg.lock().unwrap().insert(key.clone(), texture);
+                        ctx_bg.request_repaint();
                     }
                 }
             }
@@ -175,8 +173,8 @@ impl IconCache {
 // ---------------- helpers ----------------
 
 fn icon_key(path: &Path, is_dir: bool) -> String {
-    if portable::is_portable_device_path(&path.to_path_buf()) {
-        if let Some((device_id, _)) = portable::parse_portable_path(&path.to_path_buf()) {
+    if portable::is_portable_device_path(path) {
+        if let Some((device_id, _)) = portable::parse_portable_path(path) {
             return format!("portable_device:stock:{}", device_id);
         }
         return "portable_device".to_string();
@@ -249,8 +247,10 @@ fn get_icon_from_list(list: &IImageList, index: i32) -> Option<HICON> {
 
 fn get_portable_device_icon_rgba() -> Option<(Vec<u8>, u32, u32)> {
     unsafe {
-        let mut info = SHSTOCKICONINFO::default();
-        info.cbSize = std::mem::size_of::<SHSTOCKICONINFO>() as u32;
+        let mut info = SHSTOCKICONINFO {
+            cbSize: std::mem::size_of::<SHSTOCKICONINFO>() as u32,
+            ..Default::default()
+        };
         SHGetStockIconInfo(SIID_DRIVEUNKNOWN, SHGSI_ICON | SHGSI_LARGEICON, &mut info).ok()?;
 
         if info.hIcon.0.is_null() {
@@ -311,7 +311,7 @@ fn icon_to_rgba(icon: HICON) -> Option<(Vec<u8>, u32, u32)> {
         }
 
         // Convert BGRA -> RGBA
-        for px in pixels.chunks_exact_mut(4) {
+        for px in pixels.as_chunks_mut::<4>().0 {
             px.swap(0, 2);
         }
 

@@ -216,7 +216,7 @@ impl Default for MainWindow {
             rename_state: None,
             theme: match saved_theme.as_deref() {
                 Some("light") => ThemeMode::Light,
-                Some("dark") | _ => ThemeMode::Dark,
+                _ => ThemeMode::Dark,
             },
             display_file_explorer: true,
             sidebar_collapsed: false,
@@ -379,33 +379,33 @@ impl eframe::App for MainWindow {
             }
         }
 
-        if !self.window_override_set {
-            if let Some(hwnd) = self.hwnd {
-                apply_window_override(hwnd, &palette);
+        if !self.window_override_set
+            && let Some(hwnd) = self.hwnd
+        {
+            apply_window_override(hwnd, &palette);
 
-                let was_maximized = load_window_was_maximized_on_start();
-                let configured_mode = &self.settings_window.current_settings.window_size_mode;
-                let should_maximize = was_maximized
-                    || matches!(
-                        configured_mode,
-                        crate::core::indexer::WindowSizeMode::FullScreen
-                    );
+            let was_maximized = load_window_was_maximized_on_start();
+            let configured_mode = &self.settings_window.current_settings.window_size_mode;
+            let should_maximize = was_maximized
+                || matches!(
+                    configured_mode,
+                    crate::core::indexer::WindowSizeMode::FullScreen
+                );
 
-                // The native viewport already applied the maximized state.
-                // Avoid calling ShowWindow again here, which causes a visible
-                // normal-to-maximized flash during startup.
-                if !should_maximize {
-                    crate::gui::windows::windowsoverrides::set_window_mode(hwnd, configured_mode);
+            // The native viewport already applied the maximized state.
+            // Avoid calling ShowWindow again here, which causes a visible
+            // normal-to-maximized flash during startup.
+            if !should_maximize {
+                crate::gui::windows::windowsoverrides::set_window_mode(hwnd, configured_mode);
 
-                    if let Some((x, y)) = load_window_position_on_start() {
-                        set_window_position(hwnd, x, y);
-                    }
-
-                    crate::gui::windows::windowsoverrides::clamp_window_to_monitor_work_area(hwnd);
+                if let Some((x, y)) = load_window_position_on_start() {
+                    set_window_position(hwnd, x, y);
                 }
 
-                self.window_override_set = true;
+                crate::gui::windows::windowsoverrides::clamp_window_to_monitor_work_area(hwnd);
             }
+
+            self.window_override_set = true;
         }
 
         // Main layout: sidebar + tabs column
@@ -752,8 +752,8 @@ impl eframe::App for MainWindow {
                                                 )
                                             });
 
-                                            if primary_clicked {
-                                                if let Some(pos) = pointer_pos {
+                                            if primary_clicked
+                                                && let Some(pos) = pointer_pos {
                                                     let in_primary = primary_rect.contains(pos);
                                                     let in_secondary = secondary_rect.contains(pos);
 
@@ -763,7 +763,6 @@ impl eframe::App for MainWindow {
                                                         self.focused_split = SplitSide::Secondary;
                                                     }
                                                 }
-                                            }
 
                                             let primary_focused = self.focused_split == SplitSide::Primary;
                                             let secondary_focused = !primary_focused;
@@ -1161,21 +1160,20 @@ impl eframe::App for MainWindow {
                 true
             };
 
-            if !pointer_inside {
-                if let Some(backend) = self.dragdrop.as_ref() {
-                    if backend.begin_file_drag(
-                        &self.tabs[self.active_tab]
-                            .primary_view
-                            .drag_state
-                            .source_items,
-                    ) {
-                        let view = &mut self.tabs[self.active_tab].primary_view;
-                        view.drag_state.active = false;
-                        view.drag_state.start_pos = None;
-                        view.drag_state.source_items.clear();
-                        self.load_path();
-                    }
-                }
+            if !pointer_inside
+                && let Some(backend) = self.dragdrop.as_ref()
+                && backend.begin_file_drag(
+                    &self.tabs[self.active_tab]
+                        .primary_view
+                        .drag_state
+                        .source_items,
+                )
+            {
+                let view = &mut self.tabs[self.active_tab].primary_view;
+                view.drag_state.active = false;
+                view.drag_state.start_pos = None;
+                view.drag_state.source_items.clear();
+                self.load_path();
             }
         }
 
@@ -1255,33 +1253,31 @@ impl eframe::App for MainWindow {
             view.drag_state.start_pos = None;
             view.drag_state.source_items.clear();
         }
-        if secondary_move_target {
-            if let Some(split) = self.tabs[self.active_tab].split_view.as_mut() {
-                split.drag_state.active = false;
-                split.drag_state.start_pos = None;
-                split.drag_state.source_items.clear();
-            }
+        if secondary_move_target && let Some(split) = self.tabs[self.active_tab].split_view.as_mut()
+        {
+            split.drag_state.active = false;
+            split.drag_state.start_pos = None;
+            split.drag_state.source_items.clear();
         }
 
-        if pending_action.is_none() {
-            if let Some(command) = self
+        if pending_action.is_none()
+            && let Some(command) = self
                 .dragdrop
                 .as_ref()
                 .and_then(|backend| backend.poll_command())
-            {
-                pending_action = Some(match command {
-                    crate::gui::dragdrop::NativeDropCommand::ImportFiles(paths) => {
-                        ItemViewerAction::FilesDropped(paths)
-                    }
-                    crate::gui::dragdrop::NativeDropCommand::MoveFiles {
-                        sources,
-                        target_dir,
-                    } => ItemViewerAction::MoveItems {
-                        sources,
-                        target_dir,
-                    },
-                });
-            }
+        {
+            pending_action = Some(match command {
+                crate::gui::dragdrop::NativeDropCommand::ImportFiles(paths) => {
+                    ItemViewerAction::FilesDropped(paths)
+                }
+                crate::gui::dragdrop::NativeDropCommand::MoveFiles {
+                    sources,
+                    target_dir,
+                } => ItemViewerAction::MoveItems {
+                    sources,
+                    target_dir,
+                },
+            });
         }
 
         let restore_focus = self.focused_split;
@@ -1297,13 +1293,13 @@ impl eframe::App for MainWindow {
         if draw_tag_picker_popup(ui.ctx(), &self.i18n, &palette, &mut self.tags_state) {
             tags_changed = true;
         }
-        if let Some(state) = &self.file_op {
-            if state.started {
-                draw_file_op_window(ui.ctx(), &self.i18n, &palette, state);
-            }
+        if let Some(state) = &self.file_op
+            && state.started
+        {
+            draw_file_op_window(ui.ctx(), &self.i18n, &palette, state);
         }
         handle_draw_customizetheme_window(
-            &mut self.i18n,
+            &self.i18n,
             ui.ctx(),
             &mut self.theme_customizer,
             &palette,

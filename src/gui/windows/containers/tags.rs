@@ -14,7 +14,6 @@ use eframe::egui;
 use egui::FontId;
 use egui::ScrollArea;
 use egui::containers::{Popup, PopupCloseBehavior};
-use std::path::PathBuf;
 use windows::Win32::Foundation::HWND;
 
 pub fn draw_tags(
@@ -210,15 +209,14 @@ pub fn draw_tags(
                                             item_responses.push(resp);
                                         }
 
-                                        if let Some(drag_source_index) = drag_source_index {
-                                            if let Some(pointer) = pointer_pos {
+                                        if let Some(drag_source_index) = drag_source_index
+                                            && let Some(pointer) = pointer_pos {
                                                 drop_index = compute_drop_index(
                                                     &item_rects,
                                                     pointer.y,
                                                     drag_source_index,
                                                 );
                                             }
-                                        }
                                     }
 
                                     for (item_index, path) in group_items.iter().enumerate() {
@@ -340,8 +338,8 @@ pub fn draw_tags(
                                         }
 
                                         if pointer_released {
-                                            if let Some(drop) = drop_index {
-                                                if drag_source_index < group.items.len()
+                                            if let Some(drop) = drop_index
+                                                && drag_source_index < group.items.len()
                                                     && drag_source_index != drop
                                                 {
                                                     let item = group.items.remove(drag_source_index);
@@ -355,7 +353,6 @@ pub fn draw_tags(
                                                     group.items.insert(target, item);
                                                     changed = true;
                                                 }
-                                            }
 
                                             should_clear_drag = true;
                                         }
@@ -684,7 +681,7 @@ pub fn draw_tag_picker_popup(
     changed
 }
 
-fn tag_item_label(path: &PathBuf) -> String {
+fn tag_item_label(path: &std::path::Path) -> String {
     path.file_name()
         .map(|name| name.to_string_lossy().to_string())
         .filter(|name| !name.is_empty())
@@ -719,10 +716,10 @@ fn compute_drop_index(
         }
     }
 
-    if let Some(last) = item_rects.last() {
-        if pointer_y > last.bottom() {
-            drop_index = Some(item_rects.len());
-        }
+    if let Some(last) = item_rects.last()
+        && pointer_y > last.bottom()
+    {
+        drop_index = Some(item_rects.len());
     }
 
     drop_index
@@ -766,10 +763,10 @@ pub fn draw_container_header(
                     );
                     if drag_rect.width() > 4.0 {
                         let resp = ui.allocate_rect(drag_rect, egui::Sense::click_and_drag());
-                        if resp.double_clicked() {
-                            if let Some(hwnd) = hwnd {
-                                toggle_window_fullscreen(hwnd);
-                            }
+                        if resp.double_clicked()
+                            && let Some(hwnd) = hwnd
+                        {
+                            toggle_window_fullscreen(hwnd);
                         }
                         if resp.drag_started() || resp.dragged() {
                             ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
@@ -873,9 +870,9 @@ fn handle_context_menu_actions_tags(
 }
 
 fn handle_row_click(object: &FileItem) -> Option<ItemViewerAction> {
-    return Some(if object.is_dir {
+    Some(if object.is_dir {
         ItemViewerAction::Open(object.path.clone())
     } else {
         ItemViewerAction::OpenWithDefault(vec![object.path.clone()])
-    });
+    })
 }

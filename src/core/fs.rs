@@ -93,17 +93,12 @@ impl ChangeDebouncer {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DateStyle {
     Iso,
+    #[default]
     UsShort,
     Long,
-}
-
-impl Default for DateStyle {
-    fn default() -> Self {
-        DateStyle::UsShort
-    }
 }
 
 pub fn filetime_to_string(
@@ -150,12 +145,12 @@ fn path_to_wide(path: &Path) -> Vec<u16> {
 }
 
 /// Open directory handle
-fn open_directory_handle(path: &PathBuf) -> Option<HANDLE> {
+fn open_directory_handle(path: &Path) -> Option<HANDLE> {
     let wide = path_to_wide(path);
     let pcw = PCWSTR(wide.as_ptr());
 
     unsafe {
-        match CreateFileW(
+        CreateFileW(
             pcw,
             FILE_LIST_DIRECTORY.0,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -163,15 +158,13 @@ fn open_directory_handle(path: &PathBuf) -> Option<HANDLE> {
             OPEN_EXISTING,
             FILE_FLAG_BACKUP_SEMANTICS,
             None,
-        ) {
-            Ok(handle) => Some(handle),
-            Err(_) => None,
-        }
+        )
+        .ok()
     }
 }
 
 /// Get drive space
-pub fn get_drive_space(path: &PathBuf) -> Option<(u64, u64)> {
+pub fn get_drive_space(path: &Path) -> Option<(u64, u64)> {
     let wide = path_to_wide(path);
     let pcw = PCWSTR(wide.as_ptr());
 
@@ -522,6 +515,7 @@ pub struct FileItem {
 }
 
 impl FileItem {
+    #[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
     pub fn new(
         name: String,
         path: PathBuf,
@@ -556,6 +550,7 @@ impl FileItem {
         }
     }
 
+    #[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
     pub fn with_drive_info(
         name: String,
         path: PathBuf,
@@ -618,11 +613,8 @@ pub const PKEY_DATE_CREATED: PROPERTYKEY = PROPERTYKEY {
     pid: 15,
 };
 
-pub fn get_shell_item_metadata(
-    item: &IShellItem,
-    date_style: DateStyle,
-    time_format_24h: bool,
-) -> (
+/// Shell item metadata tuple, in the order returned by `get_shell_item_metadata`.
+type ShellItemMetadata = (
     Option<u64>,
     Option<String>,
     Option<String>,
@@ -632,7 +624,13 @@ pub fn get_shell_item_metadata(
     Option<i64>,
     Option<String>,
     Option<String>,
-) {
+);
+
+pub fn get_shell_item_metadata(
+    item: &IShellItem,
+    date_style: DateStyle,
+    time_format_24h: bool,
+) -> ShellItemMetadata {
     let Ok(item2) = item.cast::<IShellItem2>() else {
         return (None, None, None, None, None, None, None, None, None);
     };

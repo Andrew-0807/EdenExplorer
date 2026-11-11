@@ -207,10 +207,10 @@ fn extract_thumbnail(path: &Path) -> Result<ThumbnailImage> {
     let cache: IThumbnailCache =
         unsafe { CoCreateInstance(&LocalThumbnailCache, None, CLSCTX_INPROC_SERVER)? };
 
-    if let Ok(result) = get_thumbnail_with_flags(&cache, &shell_item, WTS_INCACHEONLY) {
-        if !result.low_quality {
-            return Ok(result.image);
-        }
+    if let Ok(result) = get_thumbnail_with_flags(&cache, &shell_item, WTS_INCACHEONLY)
+        && !result.low_quality
+    {
+        return Ok(result.image);
     }
 
     if let Ok(result) = get_thumbnail_with_flags(&cache, &shell_item, WTS_EXTRACT) {
@@ -307,13 +307,13 @@ fn hbitmap_to_rgba(hbitmap: HBITMAP, size: SIZE) -> Result<ThumbnailImage> {
 
     let mut rgba = Vec::with_capacity(bgra.len());
     let mut has_alpha = false;
-    for px in bgra.chunks_exact(4) {
+    for px in bgra.as_chunks::<4>().0 {
         has_alpha |= px[3] != 0;
         rgba.extend_from_slice(&[px[2], px[1], px[0], px[3]]);
     }
 
     if !has_alpha {
-        for px in rgba.chunks_exact_mut(4) {
+        for px in rgba.as_chunks_mut::<4>().0 {
             px[3] = 255;
         }
     }

@@ -157,6 +157,30 @@ pub fn truncate_item_text(
     truncate_text_native(ui, text, max_width, font_id, color)
 }
 
+pub fn apply_eden_text_overrides(ui: &mut egui::Ui, palette: &ThemePalette) {
+    let text_styles = &mut ui.style_mut().text_styles;
+
+    text_styles.insert(
+        egui::TextStyle::Body,
+        FontId::proportional(palette.text_size),
+    );
+
+    text_styles.insert(
+        egui::TextStyle::Button,
+        FontId::proportional(palette.text_size),
+    );
+
+    text_styles.insert(
+        egui::TextStyle::Small,
+        FontId::proportional(palette.text_size),
+    );
+
+    text_styles.insert(
+        egui::TextStyle::Heading,
+        FontId::proportional(palette.text_size + 2.0),
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -192,28 +216,4 @@ mod tests {
             assert_eq!(expanded, format!("{}\\{}", appdata, windir));
         }
     }
-}
-
-pub fn apply_eden_text_overrides(ui: &mut egui::Ui, palette: &ThemePalette) {
-    let text_styles = &mut ui.style_mut().text_styles;
-
-    text_styles.insert(
-        egui::TextStyle::Body,
-        FontId::proportional(palette.text_size),
-    );
-
-    text_styles.insert(
-        egui::TextStyle::Button,
-        FontId::proportional(palette.text_size),
-    );
-
-    text_styles.insert(
-        egui::TextStyle::Small,
-        FontId::proportional(palette.text_size),
-    );
-
-    text_styles.insert(
-        egui::TextStyle::Heading,
-        FontId::proportional(palette.text_size + 2.0),
-    );
 }

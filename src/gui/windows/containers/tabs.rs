@@ -67,6 +67,7 @@ fn compute_tab_strip_layout(full_width: f32, tab_count: usize, spacing: f32) -> 
     }
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn draw_tabs(
     ui: &mut egui::Ui,
     i18n: &I18n,
@@ -219,10 +220,10 @@ pub fn draw_tabs(
                     egui::Sense::click_and_drag(),
                 );
 
-                if resp.double_clicked() {
-                    if let Some(hwnd) = hwnd {
-                        toggle_window_fullscreen(hwnd);
-                    }
+                if resp.double_clicked()
+                    && let Some(hwnd) = hwnd
+                {
+                    toggle_window_fullscreen(hwnd);
                 }
 
                 if resp.drag_started() || resp.dragged() {
@@ -271,6 +272,7 @@ pub fn draw_tabs(
     action
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 fn handle_draw_tab_new_allocated(
     ui: &mut egui::Ui,
     i18n: &I18n,
@@ -406,9 +408,9 @@ fn handle_draw_tab_new_allocated(
         let tooltip_text = if truncated {
             tab.title.clone()
         } else {
-            if tab.full_path.to_string_lossy().to_string() == MY_PC_PATH {
+            if tab.full_path.to_string_lossy() == MY_PC_PATH {
                 i18n.tr("thispc")
-            } else if tab.full_path.to_string_lossy().to_string() == MY_RECYCLE_BIN_PATH {
+            } else if tab.full_path.to_string_lossy() == MY_RECYCLE_BIN_PATH {
                 i18n.tr("recycle_bin")
             } else {
                 tab.full_path.to_string_lossy().to_string()

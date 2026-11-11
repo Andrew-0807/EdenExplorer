@@ -20,6 +20,7 @@ use egui::text::{CCursor, CCursorRange};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn draw_itemviewer_navigation_bar(
     ui: &mut egui::Ui,
     i18n: &I18n,
@@ -873,8 +874,8 @@ fn truncate_breadcrumb_to_width(
 fn build_breadcrumbs(path: &Path) -> Vec<Breadcrumb> {
     use std::path::Component;
 
-    if portable::is_portable_path(&path.to_path_buf()) {
-        return portable::build_breadcrumb_segments(&path.to_path_buf())
+    if portable::is_portable_path(path) {
+        return portable::build_breadcrumb_segments(path)
             .unwrap_or_default()
             .into_iter()
             .map(|(label, path)| Breadcrumb { label, path })
@@ -1081,6 +1082,7 @@ fn handle_breadcrumb_click(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 fn handle_breadcrumb_drag(
     ui: &egui::Ui,
     resp: &egui::Response,

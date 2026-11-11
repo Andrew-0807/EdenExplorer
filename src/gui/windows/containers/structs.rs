@@ -164,31 +164,21 @@ impl TabView {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ItemViewerDisplayMode {
+    #[default]
     Details,
     Gallery,
 }
 
-impl Default for ItemViewerDisplayMode {
-    fn default() -> Self {
-        Self::Details
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum GalleryThumbnailSize {
     ExtraSmall,
     Small,
+    #[default]
     Medium,
     Large,
     ExtraLarge,
-}
-
-impl Default for GalleryThumbnailSize {
-    fn default() -> Self {
-        Self::Medium
-    }
 }
 
 impl GalleryThumbnailSize {
@@ -512,22 +502,33 @@ impl ItemViewerColumnState {
         drive_column_sizes: Vec<f32>,
         recycle_bin_column_sizes: Vec<f32>,
     ) -> Self {
-        let mut state = Self::default();
-        state.file_column_order =
-            sanitize_column_order(file_column_order, &default_file_column_order());
-        state.drive_column_order =
-            sanitize_column_order(drive_column_order, &default_drive_column_order());
-        state.recycle_bin_column_order = sanitize_column_order(
-            recycle_bin_column_order,
-            &default_recycle_bin_column_order(),
-        );
-        state.file_column_sizes =
-            sanitize_column_sizes(file_column_sizes, &default_item_viewer_file_column_size());
-        state.drive_column_sizes =
-            sanitize_column_sizes(drive_column_sizes, &default_item_viewer_drive_column_size());
-        state.recycle_bin_column_sizes =
-            sanitize_column_sizes(recycle_bin_column_sizes, &default_recycle_bin_column_size());
-        state
+        Self {
+            file_column_order: sanitize_column_order(
+                file_column_order,
+                &default_file_column_order(),
+            ),
+            drive_column_order: sanitize_column_order(
+                drive_column_order,
+                &default_drive_column_order(),
+            ),
+            recycle_bin_column_order: sanitize_column_order(
+                recycle_bin_column_order,
+                &default_recycle_bin_column_order(),
+            ),
+            file_column_sizes: sanitize_column_sizes(
+                file_column_sizes,
+                &default_item_viewer_file_column_size(),
+            ),
+            drive_column_sizes: sanitize_column_sizes(
+                drive_column_sizes,
+                &default_item_viewer_drive_column_size(),
+            ),
+            recycle_bin_column_sizes: sanitize_column_sizes(
+                recycle_bin_column_sizes,
+                &default_recycle_bin_column_size(),
+            ),
+            ..Self::default()
+        }
     }
 
     /// Restore a directory-specific layout without adding columns that the user
@@ -542,22 +543,33 @@ impl ItemViewerColumnState {
         drive_column_sizes: Vec<f32>,
         recycle_bin_column_sizes: Vec<f32>,
     ) -> Self {
-        let mut state = Self::default();
-        state.file_column_order =
-            sanitize_saved_column_order(file_column_order, &default_file_column_order());
-        state.drive_column_order =
-            sanitize_saved_column_order(drive_column_order, &default_drive_column_order());
-        state.recycle_bin_column_order = sanitize_saved_column_order(
-            recycle_bin_column_order,
-            &default_recycle_bin_column_order(),
-        );
-        state.file_column_sizes =
-            sanitize_column_sizes(file_column_sizes, &default_item_viewer_file_column_size());
-        state.drive_column_sizes =
-            sanitize_column_sizes(drive_column_sizes, &default_item_viewer_drive_column_size());
-        state.recycle_bin_column_sizes =
-            sanitize_column_sizes(recycle_bin_column_sizes, &default_recycle_bin_column_size());
-        state
+        Self {
+            file_column_order: sanitize_saved_column_order(
+                file_column_order,
+                &default_file_column_order(),
+            ),
+            drive_column_order: sanitize_saved_column_order(
+                drive_column_order,
+                &default_drive_column_order(),
+            ),
+            recycle_bin_column_order: sanitize_saved_column_order(
+                recycle_bin_column_order,
+                &default_recycle_bin_column_order(),
+            ),
+            file_column_sizes: sanitize_column_sizes(
+                file_column_sizes,
+                &default_item_viewer_file_column_size(),
+            ),
+            drive_column_sizes: sanitize_column_sizes(
+                drive_column_sizes,
+                &default_item_viewer_drive_column_size(),
+            ),
+            recycle_bin_column_sizes: sanitize_column_sizes(
+                recycle_bin_column_sizes,
+                &default_recycle_bin_column_size(),
+            ),
+            ..Self::default()
+        }
     }
 
     pub fn order_mut(
@@ -1322,7 +1334,7 @@ impl TagsState {
             return false;
         };
 
-        let mut paths: Vec<PathBuf> = paths.iter().cloned().collect();
+        let mut paths: Vec<PathBuf> = paths.to_vec();
         paths.sort();
         paths.dedup();
 
@@ -1362,7 +1374,7 @@ impl TagsState {
             items: Vec::new(),
         };
 
-        let mut paths: Vec<PathBuf> = paths.iter().cloned().collect();
+        let mut paths: Vec<PathBuf> = paths.to_vec();
         paths.sort();
         paths.dedup();
 
