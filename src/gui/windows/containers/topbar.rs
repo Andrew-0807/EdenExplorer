@@ -7,6 +7,7 @@ use eframe::egui;
 use egui::Pos2;
 use windows::Win32::Foundation::HWND;
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn draw_topbar(
     ui: &mut egui::Ui,
     i18n: &I18n,
@@ -171,6 +172,7 @@ fn draw_hamburger_menu(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 fn draw_mode_icons(
     ui: &mut egui::Ui,
     i18n: &I18n,

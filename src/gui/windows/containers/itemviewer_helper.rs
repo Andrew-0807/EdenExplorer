@@ -105,6 +105,7 @@ fn context_path_is_dir(path: &std::path::Path, clicked: &FileItem) -> bool {
     }
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn handle_context_menu_actions(
     ui: &mut egui::Ui,
     i18n: &I18n,
@@ -364,6 +365,7 @@ pub fn handle_context_menu_actions(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn handle_draw_col_name(
     ui: &mut egui::Ui,
     i18n: &I18n,
@@ -471,6 +473,7 @@ pub fn handle_draw_col_name(
     None
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn handle_draw_col_type(
     ui: &mut egui::Ui,
     file: &FileItem,
@@ -494,6 +497,7 @@ pub fn handle_draw_col_type(
     draw_table_text(ui, layout, type_text, font_id, color);
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn handle_draw_col_size(
     ui: &mut egui::Ui,
     file: &FileItem,
@@ -873,6 +877,7 @@ pub fn handle_editing_file_name(
     action
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn handle_global_actions(
     ui: &mut egui::Ui,
     files: &[FileItem],
@@ -1158,6 +1163,7 @@ pub fn handle_global_actions(
     action
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn draw_item_viewer_header(
     i18n: &I18n,
     header: &mut egui_extras::TableRow<'_, '_>,
@@ -1240,6 +1246,7 @@ pub fn draw_item_viewer_header(
     action
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 fn draw_header_cell(
     header: &mut egui_extras::TableRow<'_, '_>,
     i18n: &I18n,
@@ -1323,6 +1330,7 @@ fn draw_header_cell(
     });
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 fn draw_header_context_menu(
     ui: &mut egui::Ui,
     i18n: &I18n,
@@ -2112,6 +2120,7 @@ pub fn compute_item_viewer_column_layout(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 fn compute_item_viewer_column_widths(
     ui: &mut egui::Ui,
     i18n: &I18n,

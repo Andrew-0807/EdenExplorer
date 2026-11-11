@@ -20,6 +20,7 @@ use egui::text::{CCursor, CCursorRange};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn draw_itemviewer_navigation_bar(
     ui: &mut egui::Ui,
     i18n: &I18n,
@@ -1081,6 +1082,7 @@ fn handle_breadcrumb_click(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 fn handle_breadcrumb_drag(
     ui: &egui::Ui,
     resp: &egui::Response,

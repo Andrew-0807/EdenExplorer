@@ -515,6 +515,7 @@ pub struct FileItem {
 }
 
 impl FileItem {
+    #[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
     pub fn new(
         name: String,
         path: PathBuf,
@@ -549,6 +550,7 @@ impl FileItem {
         }
     }
 
+    #[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
     pub fn with_drive_info(
         name: String,
         path: PathBuf,

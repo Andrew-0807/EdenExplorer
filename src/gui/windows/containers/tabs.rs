@@ -67,6 +67,7 @@ fn compute_tab_strip_layout(full_width: f32, tab_count: usize, spacing: f32) -> 
     }
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn draw_tabs(
     ui: &mut egui::Ui,
     i18n: &I18n,
@@ -271,6 +272,7 @@ pub fn draw_tabs(
     action
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 fn handle_draw_tab_new_allocated(
     ui: &mut egui::Ui,
     i18n: &I18n,

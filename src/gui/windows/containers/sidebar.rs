@@ -555,6 +555,7 @@ pub fn draw_sidebar(
     action
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn draw_sidebar_item(
     ui: &mut egui::Ui,
     icon_cache: &IconCache,

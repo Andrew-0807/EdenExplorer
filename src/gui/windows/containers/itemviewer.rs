@@ -29,6 +29,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use windows::Win32::Foundation::HWND;
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 pub fn draw_item_viewer(
     ui: &mut egui::Ui,
     i18n: &I18n,
@@ -1071,6 +1072,7 @@ pub fn draw_item_viewer(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 fn draw_item_viewer_row_column(
     ui: &mut egui::Ui,
     column: ItemViewerHeaderColumn,

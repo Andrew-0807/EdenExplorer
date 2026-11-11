@@ -771,6 +771,7 @@ fn byte_row(
 }
 
 /// Row with a slider and its value.
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 fn slider_row(
     ui: &mut egui::Ui,
     palette: &ThemePalette,
@@ -804,6 +805,7 @@ fn percent_slider_row(
     slider_row_inner(ui, palette, label, None, value, 0.0..=1.0, "", 0.01, true)
 }
 
+#[allow(clippy::too_many_arguments)] // egui draw/helper takes explicit UI state; a params struct would be an API redesign
 fn slider_row_inner(
     ui: &mut egui::Ui,
     palette: &ThemePalette,
